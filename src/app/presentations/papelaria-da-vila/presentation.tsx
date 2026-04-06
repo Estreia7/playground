@@ -1,7 +1,20 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { translations, type Lang } from "./translations";
+import productsData from "./products_database.json";
+
+type Product = {
+  product_id: string;
+  name: string;
+  brand: string;
+  category: string;
+  price: number;
+  price_with_iva: number;
+  stock: number;
+  in_stock: boolean;
+  description: string;
+};
 
 const TOTAL_SLIDES = 6;
 
@@ -320,21 +333,114 @@ function SlideWhy({ t }: { t: (typeof translations)["pt"] }) {
 }
 
 function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
+  const products = productsData as Product[];
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+
+  const categories = useMemo(
+    () => [...new Set(products.map((p) => p.category.split(" > ")[0]))].sort(),
+    [products]
+  );
+  const brands = useMemo(
+    () => [...new Set(products.map((p) => p.brand))].sort(),
+    [products]
+  );
+
+  const filtered = useMemo(() => {
+    return products.filter((p) => {
+      const matchSearch =
+        !search ||
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.brand.toLowerCase().includes(search.toLowerCase());
+      const matchCat =
+        !categoryFilter || p.category.startsWith(categoryFilter);
+      const matchBrand = !brandFilter || p.brand === brandFilter;
+      return matchSearch && matchCat && matchBrand;
+    });
+  }, [products, search, categoryFilter, brandFilter]);
+
   return (
     <section className="slide slide-cases">
-      <div className="slide-inner">
-        <span className="slide-label">{t.cases.label}</span>
-        <h2 className="slide-title">{t.cases.title}</h2>
-        <p className="slide-desc">{t.cases.description}</p>
-        <div className="cases-grid">
-          {t.cases.items.map((item, i) => (
-            <div key={i} className="case-card">
-              <div className="case-number">{String(i + 1).padStart(2, "0")}</div>
-              <h3 className="case-client">{item.client}</h3>
-              <p className="case-result">{item.result}</p>
-              <p className="case-desc">{item.description}</p>
+      <div className="slide-inner slide-cases-inner">
+        {/* Left: text */}
+        <div className="cases-text">
+          <span className="slide-label">{t.cases.label}</span>
+          <h2 className="slide-title">{t.cases.title}</h2>
+          <p className="slide-desc">{t.cases.description}</p>
+          <div className="cases-stats">
+            <div className="cases-stat-item">
+              <span className="cases-stat-num">{products.length}</span>
+              <span className="cases-stat-label">Produtos</span>
             </div>
-          ))}
+            <div className="cases-stat-item">
+              <span className="cases-stat-num">{brands.length}</span>
+              <span className="cases-stat-label">Marcas</span>
+            </div>
+            <div className="cases-stat-item">
+              <span className="cases-stat-num">{categories.length}</span>
+              <span className="cases-stat-label">Categorias</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: product browser */}
+        <div className="product-browser">
+          <div className="pb-header">
+            <div className="pb-search-wrap">
+              <svg className="pb-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+              <input
+                className="pb-search"
+                type="text"
+                placeholder="Pesquisar produtos..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            <div className="pb-filters">
+              <select
+                className="pb-select"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="">Todas Categorias</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                className="pb-select"
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="">Todas Marcas</option>
+                {brands.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="pb-count">{filtered.length} produtos encontrados</div>
+          <div className="pb-grid">
+            {filtered.slice(0, 12).map((p) => (
+              <div key={p.product_id} className="pb-card">
+                <div className="pb-card-top">
+                  <span className="pb-brand">{p.brand}</span>
+                  <span className={`pb-stock ${p.in_stock ? "in" : "out"}`}>
+                    {p.in_stock ? "Em stock" : "Esgotado"}
+                  </span>
+                </div>
+                <h4 className="pb-name">{p.name}</h4>
+                <div className="pb-card-bottom">
+                  <span className="pb-price">{p.price_with_iva.toFixed(2)}€</span>
+                  <span className="pb-stock-num">{p.stock} un.</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -861,50 +967,178 @@ const styles = `
     transform: scale(1.1);
   }
 
-  /* ── Slide: Cases ── */
-  .cases-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+  /* ── Slide: Cases / Product Browser ── */
+  .slide-cases-inner {
+    max-width: 1100px;
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
   }
-  .case-card {
+  .cases-text {
+    flex: 0 0 280px;
+    padding-top: 8px;
+  }
+  .cases-text .slide-desc { margin-bottom: 24px; }
+  .cases-stats {
+    display: flex;
+    gap: 20px;
+  }
+  .cases-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cases-stat-num {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+  .cases-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* Product browser */
+  .product-browser {
+    flex: 1;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 28px 24px;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 420px;
+  }
+  .pb-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pb-search-wrap {
     position: relative;
+    display: flex;
+    align-items: center;
   }
-  .case-card:hover {
+  .pb-search-icon {
+    position: absolute;
+    left: 10px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .pb-search {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px 8px 32px;
+    color: var(--text);
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  .pb-search::placeholder { color: var(--text-muted); }
+  .pb-search:focus { border-color: var(--accent); }
+  .pb-filters {
+    display: flex;
+    gap: 6px;
+  }
+  .pb-select {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: var(--text);
+    font-size: 0.75rem;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .pb-select:focus { border-color: var(--accent); }
+  .pb-select option { background: #1a1a1a; color: var(--text); }
+  .pb-count {
+    padding: 6px 16px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .pb-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px 12px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    align-content: start;
+  }
+  .pb-grid::-webkit-scrollbar { width: 4px; }
+  .pb-grid::-webkit-scrollbar-track { background: transparent; }
+  .pb-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  .pb-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    transition: all 0.2s;
+  }
+  .pb-card:hover {
     border-color: var(--accent);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    background: rgba(239, 72, 35, 0.04);
   }
-  .case-number {
-    font-size: 2rem;
+  .pb-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .pb-brand {
+    font-size: 0.65rem;
     font-weight: 700;
     color: var(--accent);
-    opacity: 0.3;
-    margin-bottom: 12px;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
-  .case-client {
-    font-size: 1rem;
+  .pb-stock {
+    font-size: 0.6rem;
     font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+  .pb-stock.in { background: rgba(34,197,94,0.12); color: #22c55e; }
+  .pb-stock.out { background: rgba(239,68,68,0.12); color: #ef4444; }
+  .pb-name {
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.35;
     margin: 0 0 8px;
+    color: rgba(245,243,239,0.85);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .case-result {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--accent);
-    margin: 0 0 10px;
-    line-height: 1.4;
+  .pb-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
-  .case-desc {
-    font-size: 0.82rem;
-    line-height: 1.55;
+  .pb-price {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .pb-stock-num {
+    font-size: 0.68rem;
     color: var(--text-muted);
-    margin: 0;
   }
 
   /* ── Responsive ── */
@@ -913,7 +1147,9 @@ const styles = `
     .deck-header, .deck-footer { padding: 12px 20px; }
     .services-grid { grid-template-columns: 1fr; }
     .why-grid { grid-template-columns: repeat(2, 1fr); }
-    .cases-grid { grid-template-columns: 1fr; }
+    .slide-cases-inner { flex-direction: column; }
+    .cases-text { flex: none; }
+    .product-browser { max-height: 320px; }
   }
   @media (max-width: 480px) {
     .why-grid { grid-template-columns: 1fr; }
