@@ -171,6 +171,18 @@ function SlideCover({ t }: { t: (typeof translations)["pt"] }) {
     <section className="slide slide-cover">
       <div className="slide-inner">
         <div className="cover-glow" />
+        <div className="cover-image-wrap">
+          <img
+            src="/papelaria-warehouse.png"
+            alt="Papelaria da Vila"
+            className="cover-image"
+          />
+          <img
+            src="/papelaria-logo.png"
+            alt="Papelaria da Vila Logo"
+            className="cover-logo"
+          />
+        </div>
         <span className="slide-label">{t.cover.label}</span>
         <h1 className="cover-title">{t.cover.title}</h1>
         <p className="cover-subtitle">{t.cover.subtitle}</p>
@@ -454,6 +466,32 @@ const styles = `
     color: var(--text-muted);
     margin: 0 0 20px;
     letter-spacing: 0.02em;
+  }
+  .cover-image-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto 28px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .cover-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    display: block;
+    filter: brightness(0.85);
+  }
+  .cover-logo {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    height: 28px;
+    width: auto;
+    background: white;
+    border-radius: 6px;
+    padding: 4px 8px;
   }
   .cover-desc {
     font-size: 1.05rem;

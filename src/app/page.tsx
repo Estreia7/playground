@@ -7,6 +7,8 @@ const experiments = [
       "Interactive sales deck — tailored software solutions by Aekios. Multi-language presentation (PT/EN/ES).",
     href: "/presentations/papelaria-da-vila",
     status: "live" as const,
+    image: "/papelaria-warehouse.png",
+    logo: "/papelaria-logo.png",
   },
 ];
 
@@ -43,25 +45,41 @@ export default function Home() {
             <Link
               key={exp.title}
               href={exp.href}
-              className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900"
+              className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition-all hover:border-zinc-700 hover:bg-zinc-900"
             >
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold tracking-tight group-hover:text-white">
-                  {exp.title}
-                </h3>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs ${
-                    exp.status === "live"
-                      ? "bg-orange-600/20 text-orange-400"
-                      : "bg-zinc-800 text-zinc-400"
-                  }`}
-                >
-                  {exp.status}
-                </span>
+              {exp.image && (
+                <div className="relative h-40 w-full overflow-hidden">
+                  <img
+                    src={exp.image}
+                    alt={exp.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  {exp.logo && (
+                    <div className="absolute bottom-3 left-3 rounded-lg bg-white px-2 py-1.5">
+                      <img src={exp.logo} alt="" className="h-5 w-auto" />
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold tracking-tight group-hover:text-white">
+                    {exp.title}
+                  </h3>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs ${
+                      exp.status === "live"
+                        ? "bg-orange-600/20 text-orange-400"
+                        : "bg-zinc-800 text-zinc-400"
+                    }`}
+                  >
+                    {exp.status}
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed text-zinc-500">
+                  {exp.description}
+                </p>
               </div>
-              <p className="text-sm leading-relaxed text-zinc-500">
-                {exp.description}
-              </p>
             </Link>
           ))}
         </div>
