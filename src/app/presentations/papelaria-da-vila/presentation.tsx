@@ -387,12 +387,15 @@ function SlideWhy({ t }: { t: (typeof translations)["pt"] }) {
   );
 }
 
+type BrowserTab = "database" | "financial" | "analytics";
+
 function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
   const products = productsData as Product[];
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [selected, setSelected] = useState<Product | null>(null);
+  const [activeTab, setActiveTab] = useState<BrowserTab>("database");
 
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category.split(" > ")[0]))].sort(),
@@ -415,6 +418,76 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
       return matchSearch && matchCat && matchBrand;
     });
   }, [products, search, categoryFilter, brandFilter]);
+
+  // Financial metrics
+  const financials = useMemo(() => {
+    const totalStock = products.reduce((s, p) => s + p.stock, 0);
+    const stockValue = products.reduce((s, p) => s + p.price * p.stock, 0);
+    const stockValueIva = products.reduce((s, p) => s + p.price_with_iva * p.stock, 0);
+    const avgPrice = products.reduce((s, p) => s + p.price_with_iva, 0) / products.length;
+    const ivaTotal = stockValueIva - stockValue;
+    const inStockCount = products.filter((p) => p.in_stock).length;
+    const outOfStockCount = products.length - inStockCount;
+    const maxPrice = Math.max(...products.map((p) => p.price_with_iva));
+    const minPrice = Math.min(...products.map((p) => p.price_with_iva));
+
+    // Top 5 highest value products (price * stock)
+    const topValue = [...products]
+      .sort((a, b) => b.price * b.stock - a.price * a.stock)
+      .slice(0, 5);
+
+    return { totalStock, stockValue, stockValueIva, avgPrice, ivaTotal, inStockCount, outOfStockCount, maxPrice, minPrice, topValue };
+  }, [products]);
+
+  // Analytics metrics
+  const analytics = useMemo(() => {
+    // Products per category (top 6)
+    const catCount: Record<string, number> = {};
+    products.forEach((p) => {
+      const cat = p.category.split(" > ")[0];
+      catCount[cat] = (catCount[cat] || 0) + 1;
+    });
+    const topCategories = Object.entries(catCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+    const maxCatCount = topCategories[0]?.[1] || 1;
+
+    // Products per brand (top 6)
+    const brandCount: Record<string, number> = {};
+    products.forEach((p) => {
+      brandCount[p.brand] = (brandCount[p.brand] || 0) + 1;
+    });
+    const topBrands = Object.entries(brandCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+    const maxBrandCount = topBrands[0]?.[1] || 1;
+
+    // Price distribution (ranges)
+    const ranges = [
+      { label: "0-5€", min: 0, max: 5 },
+      { label: "5-15€", min: 5, max: 15 },
+      { label: "15-50€", min: 15, max: 50 },
+      { label: "50-100€", min: 50, max: 100 },
+      { label: "100€+", min: 100, max: Infinity },
+    ];
+    const priceDistribution = ranges.map((r) => ({
+      label: r.label,
+      count: products.filter((p) => p.price_with_iva >= r.min && p.price_with_iva < r.max).length,
+    }));
+    const maxPriceCount = Math.max(...priceDistribution.map((d) => d.count), 1);
+
+    // Stock health
+    const lowStock = products.filter((p) => p.stock > 0 && p.stock <= 10).length;
+    const healthyStock = products.filter((p) => p.stock > 10).length;
+
+    return { topCategories, maxCatCount, topBrands, maxBrandCount, priceDistribution, maxPriceCount, lowStock, healthyStock };
+  }, [products]);
+
+  const tabLabels: Record<BrowserTab, { label: string; icon: string }> = {
+    database: { label: "Base de Dados", icon: "db" },
+    financial: { label: "Financeiro", icon: "fin" },
+    analytics: { label: "Análises", icon: "ana" },
+  };
 
   return (
     <section className="slide slide-cases">
@@ -448,122 +521,296 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
             <span className="pb-brand-title">Catálogo Digital</span>
           </div>
 
-          {selected ? (
-            /* Product detail view */
-            <div className="pb-detail">
+          {/* Tabs */}
+          <div className="pb-tabs">
+            {(Object.keys(tabLabels) as BrowserTab[]).map((tab) => (
               <button
-                className="pb-detail-close"
-                onClick={(e) => { e.stopPropagation(); setSelected(null); }}
+                key={tab}
+                className={`pb-tab ${activeTab === tab ? "active" : ""}`}
+                onClick={(e) => { e.stopPropagation(); setActiveTab(tab); setSelected(null); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                {tab === "database" && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>
+                )}
+                {tab === "financial" && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>
+                )}
+                {tab === "analytics" && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
+                )}
+                {tabLabels[tab].label}
               </button>
-              <div className="pb-detail-img-wrap">
-                <img
-                  src={selected.image_url}
-                  alt={selected.name}
-                  className="pb-detail-img"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "/papelaria-logo.png";
-                    (e.target as HTMLImageElement).className = "pb-detail-img pb-detail-img-fallback";
-                  }}
-                />
-              </div>
-              <div className="pb-detail-info">
-                <span className="pb-brand">{selected.brand}</span>
-                <h3 className="pb-detail-name">{selected.name}</h3>
-                <p className="pb-detail-desc">{selected.description}</p>
-                <div className="pb-detail-meta">
-                  <div className="pb-detail-meta-item">
-                    <span className="pb-detail-meta-label">Categoria</span>
-                    <span className="pb-detail-meta-value">{selected.category}</span>
+            ))}
+          </div>
+
+          {/* Tab: Base de Dados */}
+          {activeTab === "database" && (
+            <>
+              {selected ? (
+                <div className="pb-detail">
+                  <button
+                    className="pb-detail-close"
+                    onClick={(e) => { e.stopPropagation(); setSelected(null); }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                  <div className="pb-detail-img-wrap">
+                    <img
+                      src={selected.image_url}
+                      alt={selected.name}
+                      className="pb-detail-img"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/papelaria-logo.png";
+                        (e.target as HTMLImageElement).className = "pb-detail-img pb-detail-img-fallback";
+                      }}
+                    />
                   </div>
-                  <div className="pb-detail-meta-item">
-                    <span className="pb-detail-meta-label">EAN</span>
-                    <span className="pb-detail-meta-value">{selected.ean}</span>
-                  </div>
-                  <div className="pb-detail-meta-item">
-                    <span className="pb-detail-meta-label">Pág. Catálogo</span>
-                    <span className="pb-detail-meta-value">{selected.catalog_page}</span>
+                  <div className="pb-detail-info">
+                    <span className="pb-brand">{selected.brand}</span>
+                    <h3 className="pb-detail-name">{selected.name}</h3>
+                    <p className="pb-detail-desc">{selected.description}</p>
+                    <div className="pb-detail-meta">
+                      <div className="pb-detail-meta-item">
+                        <span className="pb-detail-meta-label">Categoria</span>
+                        <span className="pb-detail-meta-value">{selected.category}</span>
+                      </div>
+                      <div className="pb-detail-meta-item">
+                        <span className="pb-detail-meta-label">EAN</span>
+                        <span className="pb-detail-meta-value">{selected.ean}</span>
+                      </div>
+                      <div className="pb-detail-meta-item">
+                        <span className="pb-detail-meta-label">Pág. Catálogo</span>
+                        <span className="pb-detail-meta-value">{selected.catalog_page}</span>
+                      </div>
+                    </div>
+                    <div className="pb-detail-bottom">
+                      <div className="pb-detail-prices">
+                        <span className="pb-detail-price">{selected.price_with_iva.toFixed(2)}€</span>
+                        <span className="pb-detail-price-net">s/IVA {selected.price.toFixed(2)}€</span>
+                      </div>
+                      <div className="pb-detail-stock-info">
+                        <span className={`pb-stock ${selected.in_stock ? "in" : "out"}`}>
+                          {selected.in_stock ? "Em stock" : "Esgotado"}
+                        </span>
+                        <span className="pb-stock-num">{selected.stock} un.</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="pb-detail-bottom">
-                  <div className="pb-detail-prices">
-                    <span className="pb-detail-price">{selected.price_with_iva.toFixed(2)}€</span>
-                    <span className="pb-detail-price-net">s/IVA {selected.price.toFixed(2)}€</span>
+              ) : (
+                <>
+                  <div className="pb-header">
+                    <div className="pb-search-wrap">
+                      <svg className="pb-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                      <input
+                        className="pb-search"
+                        type="text"
+                        placeholder="Pesquisar produtos..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="pb-filters">
+                      <select
+                        className="pb-select"
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <option value="">Todas Categorias</option>
+                        {categories.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                      <select
+                        className="pb-select"
+                        value={brandFilter}
+                        onChange={(e) => setBrandFilter(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <option value="">Todas Marcas</option>
+                        {brands.map((b) => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div className="pb-detail-stock-info">
-                    <span className={`pb-stock ${selected.in_stock ? "in" : "out"}`}>
-                      {selected.in_stock ? "Em stock" : "Esgotado"}
-                    </span>
-                    <span className="pb-stock-num">{selected.stock} un.</span>
+                  <div className="pb-count">{filtered.length} produtos encontrados</div>
+                  <div className="pb-grid">
+                    {filtered.slice(0, 12).map((p) => (
+                      <div
+                        key={p.product_id}
+                        className="pb-card"
+                        onClick={(e) => { e.stopPropagation(); setSelected(p); }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <div className="pb-card-top">
+                          <span className="pb-brand">{p.brand}</span>
+                          <span className={`pb-stock ${p.in_stock ? "in" : "out"}`}>
+                            {p.in_stock ? "Em stock" : "Esgotado"}
+                          </span>
+                        </div>
+                        <h4 className="pb-name">{p.name}</h4>
+                        <div className="pb-card-bottom">
+                          <span className="pb-price">{p.price_with_iva.toFixed(2)}€</span>
+                          <span className="pb-stock-num">{p.stock} un.</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Tab: Financeiro */}
+          {activeTab === "financial" && (
+            <div className="pb-fin">
+              <div className="pb-fin-kpis">
+                <div className="pb-fin-kpi">
+                  <span className="pb-fin-kpi-value">{financials.stockValueIva.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
+                  <span className="pb-fin-kpi-label">Valor Total Stock (c/IVA)</span>
+                </div>
+                <div className="pb-fin-kpi">
+                  <span className="pb-fin-kpi-value">{financials.stockValue.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
+                  <span className="pb-fin-kpi-label">Valor Total Stock (s/IVA)</span>
+                </div>
+                <div className="pb-fin-kpi">
+                  <span className="pb-fin-kpi-value">{financials.ivaTotal.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
+                  <span className="pb-fin-kpi-label">IVA Total Retido</span>
+                </div>
+                <div className="pb-fin-kpi">
+                  <span className="pb-fin-kpi-value">{financials.avgPrice.toFixed(2)}€</span>
+                  <span className="pb-fin-kpi-label">Preço Médio (c/IVA)</span>
+                </div>
+              </div>
+              <div className="pb-fin-row">
+                <div className="pb-fin-card">
+                  <h4 className="pb-fin-card-title">Resumo de Stock</h4>
+                  <div className="pb-fin-stat-list">
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Unidades Totais</span>
+                      <span className="pb-fin-stat-value">{financials.totalStock.toLocaleString("pt-PT")}</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Em Stock</span>
+                      <span className="pb-fin-stat-value pb-fin-green">{financials.inStockCount}</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Esgotados</span>
+                      <span className="pb-fin-stat-value pb-fin-red">{financials.outOfStockCount}</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Preço Mín.</span>
+                      <span className="pb-fin-stat-value">{financials.minPrice.toFixed(2)}€</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Preço Máx.</span>
+                      <span className="pb-fin-stat-value">{financials.maxPrice.toFixed(2)}€</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="pb-fin-card">
+                  <h4 className="pb-fin-card-title">Top 5 — Valor em Stock</h4>
+                  <div className="pb-fin-stat-list">
+                    {financials.topValue.map((p, i) => (
+                      <div key={p.product_id} className="pb-fin-stat-row">
+                        <span className="pb-fin-stat-label pb-fin-rank">
+                          <span className="pb-fin-rank-num">{i + 1}</span>
+                          {p.name.length > 22 ? p.name.slice(0, 22) + "…" : p.name}
+                        </span>
+                        <span className="pb-fin-stat-value">{(p.price * p.stock).toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
-          ) : (
-            /* Product list view */
-            <>
-              <div className="pb-header">
-                <div className="pb-search-wrap">
-                  <svg className="pb-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                  <input
-                    className="pb-search"
-                    type="text"
-                    placeholder="Pesquisar produtos..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-                <div className="pb-filters">
-                  <select
-                    className="pb-select"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <option value="">Todas Categorias</option>
-                    {categories.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="pb-select"
-                    value={brandFilter}
-                    onChange={(e) => setBrandFilter(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <option value="">Todas Marcas</option>
-                    {brands.map((b) => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
+          )}
+
+          {/* Tab: Análises */}
+          {activeTab === "analytics" && (
+            <div className="pb-ana">
+              <div className="pb-ana-section">
+                <h4 className="pb-ana-title">Produtos por Categoria</h4>
+                <div className="pb-ana-bars">
+                  {analytics.topCategories.map(([cat, count]) => (
+                    <div key={cat} className="pb-ana-bar-row">
+                      <span className="pb-ana-bar-label">{cat.length > 18 ? cat.slice(0, 18) + "…" : cat}</span>
+                      <div className="pb-ana-bar-track">
+                        <div
+                          className="pb-ana-bar-fill pb-ana-bar-blue"
+                          style={{ width: `${(count / analytics.maxCatCount) * 100}%` }}
+                        />
+                      </div>
+                      <span className="pb-ana-bar-value">{count}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="pb-count">{filtered.length} produtos encontrados</div>
-              <div className="pb-grid">
-                {filtered.slice(0, 12).map((p) => (
-                  <div
-                    key={p.product_id}
-                    className="pb-card"
-                    onClick={(e) => { e.stopPropagation(); setSelected(p); }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <div className="pb-card-top">
-                      <span className="pb-brand">{p.brand}</span>
-                      <span className={`pb-stock ${p.in_stock ? "in" : "out"}`}>
-                        {p.in_stock ? "Em stock" : "Esgotado"}
-                      </span>
+              <div className="pb-ana-section">
+                <h4 className="pb-ana-title">Produtos por Marca</h4>
+                <div className="pb-ana-bars">
+                  {analytics.topBrands.map(([brand, count]) => (
+                    <div key={brand} className="pb-ana-bar-row">
+                      <span className="pb-ana-bar-label">{brand.length > 18 ? brand.slice(0, 18) + "…" : brand}</span>
+                      <div className="pb-ana-bar-track">
+                        <div
+                          className="pb-ana-bar-fill pb-ana-bar-orange"
+                          style={{ width: `${(count / analytics.maxBrandCount) * 100}%` }}
+                        />
+                      </div>
+                      <span className="pb-ana-bar-value">{count}</span>
                     </div>
-                    <h4 className="pb-name">{p.name}</h4>
-                    <div className="pb-card-bottom">
-                      <span className="pb-price">{p.price_with_iva.toFixed(2)}€</span>
-                      <span className="pb-stock-num">{p.stock} un.</span>
+                  ))}
+                </div>
+              </div>
+              <div className="pb-ana-row">
+                <div className="pb-ana-section pb-ana-half">
+                  <h4 className="pb-ana-title">Distribuição de Preços</h4>
+                  <div className="pb-ana-bars">
+                    {analytics.priceDistribution.map((d) => (
+                      <div key={d.label} className="pb-ana-bar-row">
+                        <span className="pb-ana-bar-label">{d.label}</span>
+                        <div className="pb-ana-bar-track">
+                          <div
+                            className="pb-ana-bar-fill pb-ana-bar-green"
+                            style={{ width: `${(d.count / analytics.maxPriceCount) * 100}%` }}
+                          />
+                        </div>
+                        <span className="pb-ana-bar-value">{d.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="pb-ana-section pb-ana-half">
+                  <h4 className="pb-ana-title">Saúde do Stock</h4>
+                  <div className="pb-ana-health">
+                    <div className="pb-ana-health-item">
+                      <span className="pb-ana-health-dot pb-ana-dot-green" />
+                      <span className="pb-ana-health-label">Saudável (&gt;10 un.)</span>
+                      <span className="pb-ana-health-value">{analytics.healthyStock}</span>
+                    </div>
+                    <div className="pb-ana-health-item">
+                      <span className="pb-ana-health-dot pb-ana-dot-yellow" />
+                      <span className="pb-ana-health-label">Baixo (1-10 un.)</span>
+                      <span className="pb-ana-health-value">{analytics.lowStock}</span>
+                    </div>
+                    <div className="pb-ana-health-item">
+                      <span className="pb-ana-health-dot pb-ana-dot-red" />
+                      <span className="pb-ana-health-label">Esgotado (0 un.)</span>
+                      <span className="pb-ana-health-value">{financials.outOfStockCount}</span>
                     </div>
                   </div>
-                ))}
+                  <div className="pb-ana-health-bar">
+                    <div className="pb-ana-hb-seg pb-ana-hb-green" style={{ flex: analytics.healthyStock }} />
+                    <div className="pb-ana-hb-seg pb-ana-hb-yellow" style={{ flex: analytics.lowStock }} />
+                    <div className="pb-ana-hb-seg pb-ana-hb-red" style={{ flex: financials.outOfStockCount }} />
+                  </div>
+                </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -1406,6 +1653,256 @@ const styles = `
     align-items: center;
     gap: 8px;
   }
+
+  /* ── Browser Tabs ── */
+  .pb-tabs {
+    display: flex;
+    background: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 0;
+  }
+  .pb-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 9px 8px;
+    border: none;
+    background: transparent;
+    color: #888;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    letter-spacing: 0.02em;
+  }
+  .pb-tab:hover { color: #555; background: #eee; }
+  .pb-tab.active {
+    color: #1a6fb5;
+    border-bottom-color: #1a6fb5;
+    background: #fff;
+  }
+  .pb-tab svg { flex-shrink: 0; }
+
+  /* ── Tab: Financeiro ── */
+  .pb-fin {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    background: #f9fafb;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pb-fin::-webkit-scrollbar { width: 4px; }
+  .pb-fin::-webkit-scrollbar-track { background: transparent; }
+  .pb-fin::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+  .pb-fin-kpis {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .pb-fin-kpi {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .pb-fin-kpi-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1a6fb5;
+    letter-spacing: -0.01em;
+  }
+  .pb-fin-kpi-label {
+    font-size: 0.65rem;
+    color: #888;
+    letter-spacing: 0.02em;
+  }
+  .pb-fin-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .pb-fin-card {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .pb-fin-card-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #333;
+    margin: 0 0 10px;
+    letter-spacing: 0.01em;
+  }
+  .pb-fin-stat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .pb-fin-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pb-fin-stat-label {
+    font-size: 0.7rem;
+    color: #666;
+  }
+  .pb-fin-stat-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #333;
+  }
+  .pb-fin-green { color: #16a34a !important; }
+  .pb-fin-red { color: #dc2626 !important; }
+  .pb-fin-rank {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 65%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pb-fin-rank-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #1a6fb5;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── Tab: Análises ── */
+  .pb-ana {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    background: #f9fafb;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .pb-ana::-webkit-scrollbar { width: 4px; }
+  .pb-ana::-webkit-scrollbar-track { background: transparent; }
+  .pb-ana::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+  .pb-ana-section {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .pb-ana-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #333;
+    margin: 0 0 10px;
+    letter-spacing: 0.01em;
+  }
+  .pb-ana-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .pb-ana-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pb-ana-bar-label {
+    font-size: 0.65rem;
+    color: #666;
+    width: 90px;
+    flex-shrink: 0;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pb-ana-bar-track {
+    flex: 1;
+    height: 14px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .pb-ana-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+    min-width: 4px;
+  }
+  .pb-ana-bar-blue { background: #1a6fb5; }
+  .pb-ana-bar-orange { background: #EF4823; }
+  .pb-ana-bar-green { background: #16a34a; }
+  .pb-ana-bar-value {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #444;
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .pb-ana-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .pb-ana-half { margin: 0; }
+  .pb-ana-health {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+  .pb-ana-health-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.68rem;
+  }
+  .pb-ana-health-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .pb-ana-dot-green { background: #16a34a; }
+  .pb-ana-dot-yellow { background: #eab308; }
+  .pb-ana-dot-red { background: #dc2626; }
+  .pb-ana-health-label {
+    color: #666;
+    flex: 1;
+  }
+  .pb-ana-health-value {
+    font-weight: 700;
+    color: #333;
+  }
+  .pb-ana-health-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    gap: 1px;
+  }
+  .pb-ana-hb-seg { transition: flex 0.4s ease; }
+  .pb-ana-hb-green { background: #16a34a; }
+  .pb-ana-hb-yellow { background: #eab308; }
+  .pb-ana-hb-red { background: #dc2626; }
 
   /* ── Password gate ── */
   .pw-gate {
