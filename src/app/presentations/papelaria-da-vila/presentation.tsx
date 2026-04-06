@@ -643,16 +643,22 @@ const styles = `
   }
 
   /* ── Slide: Services ── */
+  .slide-services .slide-inner {
+    max-width: 960px;
+  }
+  .slide-services .slide-desc {
+    margin-bottom: 20px;
+  }
   .services-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: 12px;
   }
   .service-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 28px 24px;
+    padding: 20px 18px;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .service-card:hover {
@@ -662,16 +668,20 @@ const styles = `
   }
   .service-icon {
     color: var(--accent);
-    margin-bottom: 16px;
+    margin-bottom: 10px;
+  }
+  .service-icon svg {
+    width: 26px;
+    height: 26px;
   }
   .service-title {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    margin: 0 0 8px;
+    margin: 0 0 6px;
   }
   .service-desc {
-    font-size: 0.88rem;
-    line-height: 1.6;
+    font-size: 0.82rem;
+    line-height: 1.5;
     color: var(--text-muted);
     margin: 0;
   }
