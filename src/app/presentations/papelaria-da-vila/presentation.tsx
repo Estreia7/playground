@@ -14,6 +14,9 @@ type Product = {
   stock: number;
   in_stock: boolean;
   description: string;
+  image_url: string;
+  ean: string;
+  catalog_page: number;
 };
 
 const TOTAL_SLIDES = 6;
@@ -337,6 +340,7 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
+  const [selected, setSelected] = useState<Product | null>(null);
 
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category.split(" > ")[0]))].sort(),
@@ -386,61 +390,129 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
 
         {/* Right: product browser */}
         <div className="product-browser">
-          <div className="pb-header">
-            <div className="pb-search-wrap">
-              <svg className="pb-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-              <input
-                className="pb-search"
-                type="text"
-                placeholder="Pesquisar produtos..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-            <div className="pb-filters">
-              <select
-                className="pb-select"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="">Todas Categorias</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              <select
-                className="pb-select"
-                value={brandFilter}
-                onChange={(e) => setBrandFilter(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="">Todas Marcas</option>
-                {brands.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
+          {/* Branded top bar */}
+          <div className="pb-brand-bar">
+            <img src="/papelaria-logo.png" alt="Papelaria da Vila" className="pb-logo" />
+            <span className="pb-brand-title">Catálogo Digital</span>
           </div>
-          <div className="pb-count">{filtered.length} produtos encontrados</div>
-          <div className="pb-grid">
-            {filtered.slice(0, 12).map((p) => (
-              <div key={p.product_id} className="pb-card">
-                <div className="pb-card-top">
-                  <span className="pb-brand">{p.brand}</span>
-                  <span className={`pb-stock ${p.in_stock ? "in" : "out"}`}>
-                    {p.in_stock ? "Em stock" : "Esgotado"}
-                  </span>
+
+          {selected ? (
+            /* Product detail view */
+            <div className="pb-detail">
+              <button
+                className="pb-detail-close"
+                onClick={(e) => { e.stopPropagation(); setSelected(null); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+              <div className="pb-detail-img-wrap">
+                <img
+                  src={selected.image_url}
+                  alt={selected.name}
+                  className="pb-detail-img"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/papelaria-logo.png";
+                    (e.target as HTMLImageElement).className = "pb-detail-img pb-detail-img-fallback";
+                  }}
+                />
+              </div>
+              <div className="pb-detail-info">
+                <span className="pb-brand">{selected.brand}</span>
+                <h3 className="pb-detail-name">{selected.name}</h3>
+                <p className="pb-detail-desc">{selected.description}</p>
+                <div className="pb-detail-meta">
+                  <div className="pb-detail-meta-item">
+                    <span className="pb-detail-meta-label">Categoria</span>
+                    <span className="pb-detail-meta-value">{selected.category}</span>
+                  </div>
+                  <div className="pb-detail-meta-item">
+                    <span className="pb-detail-meta-label">EAN</span>
+                    <span className="pb-detail-meta-value">{selected.ean}</span>
+                  </div>
+                  <div className="pb-detail-meta-item">
+                    <span className="pb-detail-meta-label">Pág. Catálogo</span>
+                    <span className="pb-detail-meta-value">{selected.catalog_page}</span>
+                  </div>
                 </div>
-                <h4 className="pb-name">{p.name}</h4>
-                <div className="pb-card-bottom">
-                  <span className="pb-price">{p.price_with_iva.toFixed(2)}€</span>
-                  <span className="pb-stock-num">{p.stock} un.</span>
+                <div className="pb-detail-bottom">
+                  <div className="pb-detail-prices">
+                    <span className="pb-detail-price">{selected.price_with_iva.toFixed(2)}€</span>
+                    <span className="pb-detail-price-net">s/IVA {selected.price.toFixed(2)}€</span>
+                  </div>
+                  <div className="pb-detail-stock-info">
+                    <span className={`pb-stock ${selected.in_stock ? "in" : "out"}`}>
+                      {selected.in_stock ? "Em stock" : "Esgotado"}
+                    </span>
+                    <span className="pb-stock-num">{selected.stock} un.</span>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            /* Product list view */
+            <>
+              <div className="pb-header">
+                <div className="pb-search-wrap">
+                  <svg className="pb-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                  <input
+                    className="pb-search"
+                    type="text"
+                    placeholder="Pesquisar produtos..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="pb-filters">
+                  <select
+                    className="pb-select"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="">Todas Categorias</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="pb-select"
+                    value={brandFilter}
+                    onChange={(e) => setBrandFilter(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="">Todas Marcas</option>
+                    {brands.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="pb-count">{filtered.length} produtos encontrados</div>
+              <div className="pb-grid">
+                {filtered.slice(0, 12).map((p) => (
+                  <div
+                    key={p.product_id}
+                    className="pb-card"
+                    onClick={(e) => { e.stopPropagation(); setSelected(p); }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="pb-card-top">
+                      <span className="pb-brand">{p.brand}</span>
+                      <span className={`pb-stock ${p.in_stock ? "in" : "out"}`}>
+                        {p.in_stock ? "Em stock" : "Esgotado"}
+                      </span>
+                    </div>
+                    <h4 className="pb-name">{p.name}</h4>
+                    <div className="pb-card-bottom">
+                      <span className="pb-price">{p.price_with_iva.toFixed(2)}€</span>
+                      <span className="pb-stock-num">{p.stock} un.</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -1010,7 +1082,28 @@ const styles = `
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    max-height: 420px;
+    max-height: 440px;
+  }
+  .pb-brand-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #1a6fb5;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .pb-logo {
+    height: 22px;
+    width: auto;
+    background: white;
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .pb-brand-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: white;
+    letter-spacing: 0.02em;
   }
   .pb-header {
     padding: 14px 16px 10px;
@@ -1139,6 +1232,119 @@ const styles = `
   .pb-stock-num {
     font-size: 0.68rem;
     color: var(--text-muted);
+  }
+
+  /* Product detail */
+  .pb-detail {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    position: relative;
+  }
+  .pb-detail-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 2;
+  }
+  .pb-detail-close:hover {
+    color: white;
+    border-color: #1a6fb5;
+    background: rgba(26, 111, 181, 0.15);
+  }
+  .pb-detail-img-wrap {
+    width: 100%;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .pb-detail-img {
+    max-height: 140px;
+    max-width: 90%;
+    object-fit: contain;
+  }
+  .pb-detail-img-fallback {
+    max-height: 50px;
+    opacity: 0.5;
+  }
+  .pb-detail-info { display: flex; flex-direction: column; gap: 8px; }
+  .pb-detail-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 4px 0 0;
+  }
+  .pb-detail-desc {
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .pb-detail-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .pb-detail-meta-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pb-detail-meta-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .pb-detail-meta-value {
+    font-size: 0.78rem;
+    color: rgba(245,243,239,0.8);
+    text-align: right;
+    max-width: 60%;
+  }
+  .pb-detail-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 4px;
+  }
+  .pb-detail-prices {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .pb-detail-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .pb-detail-price-net {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .pb-detail-stock-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   /* ── Responsive ── */
