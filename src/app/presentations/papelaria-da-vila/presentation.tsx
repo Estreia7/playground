@@ -113,41 +113,6 @@ export default function Presentation() {
     }
   };
 
-  if (!unlocked) {
-    return (
-      <div className="deck">
-        <style>{styles}</style>
-        <div className="pw-gate">
-          <div className="pw-card">
-            <div className="pw-logo">Aekios</div>
-            <p className="pw-subtitle">Papelaria da Vila × Aekios</p>
-            <h2 className="pw-title">Apresentação Privada</h2>
-            <p className="pw-desc">Introduza a palavra-passe para aceder.</p>
-            <form
-              className="pw-form"
-              onSubmit={(e) => { e.preventDefault(); handleUnlock(); }}
-            >
-              <input
-                className={`pw-input ${pwError ? "pw-input-error" : ""}`}
-                type="password"
-                placeholder="Palavra-passe"
-                value={pw}
-                onChange={(e) => { setPw(e.target.value); setPwError(false); }}
-                autoFocus
-              />
-              <button className="pw-btn" type="submit">
-                Entrar
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-              </button>
-            </form>
-            {pwError && <p className="pw-error">Palavra-passe incorreta</p>}
-            <p className="pw-conf">Confidencial · 2026</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => setIsFullscreen(true));
@@ -189,6 +154,41 @@ export default function Presentation() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [next, prev]);
+
+  if (!unlocked) {
+    return (
+      <div className="deck">
+        <style>{styles}</style>
+        <div className="pw-gate">
+          <div className="pw-card">
+            <div className="pw-logo">Aekios</div>
+            <p className="pw-subtitle">Papelaria da Vila × Aekios</p>
+            <h2 className="pw-title">Apresentação Privada</h2>
+            <p className="pw-desc">Introduza a palavra-passe para aceder.</p>
+            <form
+              className="pw-form"
+              onSubmit={(e) => { e.preventDefault(); handleUnlock(); }}
+            >
+              <input
+                className={`pw-input ${pwError ? "pw-input-error" : ""}`}
+                type="password"
+                placeholder="Palavra-passe"
+                value={pw}
+                onChange={(e) => { setPw(e.target.value); setPwError(false); }}
+                autoFocus
+              />
+              <button className="pw-btn" type="submit">
+                Entrar
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+              </button>
+            </form>
+            {pwError && <p className="pw-error">Palavra-passe incorreta</p>}
+            <p className="pw-conf">Confidencial · 2026</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="deck">
