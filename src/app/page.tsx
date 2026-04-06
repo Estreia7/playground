@@ -2,10 +2,11 @@ import Link from "next/link";
 
 const experiments = [
   {
-    title: "Getting Started",
-    description: "This is your playground — add experiments, presentations, and feature tests here.",
-    href: "#",
-    status: "info" as const,
+    title: "Papelaria da Vila",
+    description:
+      "Interactive sales deck — tailored software solutions by Aekios. Multi-language presentation (PT/EN/ES).",
+    href: "/presentations/papelaria-da-vila",
+    status: "live" as const,
   },
 ];
 
@@ -48,7 +49,13 @@ export default function Home() {
                 <h3 className="font-semibold tracking-tight group-hover:text-white">
                   {exp.title}
                 </h3>
-                <span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs text-zinc-400">
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs ${
+                    exp.status === "live"
+                      ? "bg-orange-600/20 text-orange-400"
+                      : "bg-zinc-800 text-zinc-400"
+                  }`}
+                >
                   {exp.status}
                 </span>
               </div>
