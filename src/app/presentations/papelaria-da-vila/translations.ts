@@ -31,6 +31,12 @@ export const translations: Record<Lang, {
     description: string;
     cards: { title: string; description: string; stat: string }[];
   };
+  cases: {
+    label: string;
+    title: string;
+    description: string;
+    items: { client: string; result: string; description: string }[];
+  };
   contact: {
     label: string;
     title: string;
@@ -96,6 +102,18 @@ export const translations: Record<Lang, {
             "Digitalização de workflows internos — desde faturação até logística de entregas — para reduzir erros e poupar tempo.",
           icon: "automation",
         },
+        {
+          title: "KPIs de Vendas & Performance",
+          description:
+            "Dashboards em tempo real com métricas de vendas, conversão, ticket médio e performance por vendedor — decisões baseadas em dados.",
+          icon: "kpi",
+        },
+        {
+          title: "Gestão & Otimização Financeira",
+          description:
+            "Controlo de margens, análise de custos, previsões de cash-flow e relatórios financeiros automatizados para uma gestão mais inteligente.",
+          icon: "finance",
+        },
       ],
     },
     why: {
@@ -127,6 +145,32 @@ export const translations: Record<Lang, {
           description:
             "Equipa acessível com manutenção contínua. O seu negócio nunca pára.",
           stat: "24/7",
+        },
+      ],
+    },
+    cases: {
+      label: "Casos Reais",
+      title: "Resultados que Falam por Si",
+      description:
+        "Empresas reais que transformaram as suas operações com soluções Aekios.",
+      items: [
+        {
+          client: "Distribuidora Algarve",
+          result: "Redução de 40% no tempo de processamento de encomendas",
+          description:
+            "Plataforma B2B com catálogo digital e gestão automatizada de encomendas que eliminou processos manuais.",
+        },
+        {
+          client: "Grupo RetailSul",
+          result: "Aumento de 65% nas vendas online em 6 meses",
+          description:
+            "E-commerce à medida com integração ERP e sistema de fidelização de clientes.",
+        },
+        {
+          client: "LogiExpress",
+          result: "Poupança de 20h/semana em tarefas administrativas",
+          description:
+            "Automação de faturação, gestão de rotas e tracking de entregas em tempo real.",
         },
       ],
     },
@@ -196,6 +240,18 @@ export const translations: Record<Lang, {
             "Digitize internal workflows — from invoicing to delivery logistics — to reduce errors and save time.",
           icon: "automation",
         },
+        {
+          title: "Sales KPIs & Performance",
+          description:
+            "Real-time dashboards with sales metrics, conversion rates, average ticket, and per-salesperson performance — data-driven decisions.",
+          icon: "kpi",
+        },
+        {
+          title: "Financial Management & Optimization",
+          description:
+            "Margin control, cost analysis, cash-flow forecasting, and automated financial reports for smarter management.",
+          icon: "finance",
+        },
       ],
     },
     why: {
@@ -227,6 +283,32 @@ export const translations: Record<Lang, {
           description:
             "Accessible team with ongoing maintenance. Your business never stops.",
           stat: "24/7",
+        },
+      ],
+    },
+    cases: {
+      label: "Real Cases",
+      title: "Results That Speak for Themselves",
+      description:
+        "Real businesses that transformed their operations with Aekios solutions.",
+      items: [
+        {
+          client: "Distribuidora Algarve",
+          result: "40% reduction in order processing time",
+          description:
+            "B2B platform with digital catalog and automated order management that eliminated manual processes.",
+        },
+        {
+          client: "Grupo RetailSul",
+          result: "65% increase in online sales in 6 months",
+          description:
+            "Custom e-commerce with ERP integration and customer loyalty system.",
+        },
+        {
+          client: "LogiExpress",
+          result: "Saved 20h/week on administrative tasks",
+          description:
+            "Invoicing automation, route management, and real-time delivery tracking.",
         },
       ],
     },
@@ -296,6 +378,18 @@ export const translations: Record<Lang, {
             "Digitalización de workflows internos — desde facturación hasta logística de entregas — para reducir errores y ahorrar tiempo.",
           icon: "automation",
         },
+        {
+          title: "KPIs de Ventas & Rendimiento",
+          description:
+            "Dashboards en tiempo real con métricas de ventas, conversión, ticket medio y rendimiento por vendedor — decisiones basadas en datos.",
+          icon: "kpi",
+        },
+        {
+          title: "Gestión & Optimización Financiera",
+          description:
+            "Control de márgenes, análisis de costos, previsiones de flujo de caja e informes financieros automatizados para una gestión más inteligente.",
+          icon: "finance",
+        },
       ],
     },
     why: {
@@ -327,6 +421,32 @@ export const translations: Record<Lang, {
           description:
             "Equipo accesible con mantenimiento continuo. Tu negocio nunca para.",
           stat: "24/7",
+        },
+      ],
+    },
+    cases: {
+      label: "Casos Reales",
+      title: "Resultados que Hablan por Sí Solos",
+      description:
+        "Empresas reales que transformaron sus operaciones con soluciones Aekios.",
+      items: [
+        {
+          client: "Distribuidora Algarve",
+          result: "Reducción del 40% en el tiempo de procesamiento de pedidos",
+          description:
+            "Plataforma B2B con catálogo digital y gestión automatizada de pedidos que eliminó procesos manuales.",
+        },
+        {
+          client: "Grupo RetailSul",
+          result: "Aumento del 65% en ventas online en 6 meses",
+          description:
+            "E-commerce a medida con integración ERP y sistema de fidelización de clientes.",
+        },
+        {
+          client: "LogiExpress",
+          result: "Ahorro de 20h/semana en tareas administrativas",
+          description:
+            "Automatización de facturación, gestión de rutas y seguimiento de entregas en tiempo real.",
         },
       ],
     },

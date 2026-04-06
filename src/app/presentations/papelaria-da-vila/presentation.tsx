@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { translations, type Lang } from "./translations";
 
-const TOTAL_SLIDES = 5;
+const TOTAL_SLIDES = 6;
 
 const langLabels: Record<Lang, string> = { pt: "PT", en: "EN", es: "ES" };
 
@@ -44,11 +44,31 @@ function AutomationIcon() {
   );
 }
 
+function KpiIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 11-6.219-8.56" />
+      <path d="M21 3v5h-5" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function FinanceIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+    </svg>
+  );
+}
+
 const iconMap: Record<string, () => React.ReactNode> = {
   store: () => <StoreIcon />,
   chart: () => <ChartIcon />,
   globe: () => <GlobeIcon />,
   automation: () => <AutomationIcon />,
+  kpi: () => <KpiIcon />,
+  finance: () => <FinanceIcon />,
 };
 
 /* ─── Main Presentation ─── */
@@ -56,8 +76,23 @@ export default function Presentation() {
   const [slide, setSlide] = useState(0);
   const [lang, setLang] = useState<Lang>("pt");
   const [animating, setAnimating] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const t = translations[lang];
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true));
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false));
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
 
   const goTo = useCallback(
     (n: number) => {
@@ -112,11 +147,25 @@ export default function Presentation() {
               </button>
             ))}
           </div>
+          <button className="fullscreen-btn" onClick={toggleFullscreen} title="Fullscreen">
+            {isFullscreen ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+            )}
+          </button>
           <span className="deck-counter">
             {slide + 1} / {TOTAL_SLIDES}
           </span>
         </div>
       </header>
+
+      {/* ─── Floating exit fullscreen ─── */}
+      {isFullscreen && (
+        <button className="fullscreen-exit" onClick={toggleFullscreen} title="Exit fullscreen">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+        </button>
+      )}
 
       {/* ─── Slides container ─── */}
       <main className="deck-slides">
@@ -128,6 +177,7 @@ export default function Presentation() {
           <SlideAbout t={t} />
           <SlideServices t={t} />
           <SlideWhy t={t} />
+          <SlideCases t={t} />
           <SlideContact t={t} />
         </div>
       </main>
@@ -261,6 +311,28 @@ function SlideWhy({ t }: { t: (typeof translations)["pt"] }) {
               <span className="why-stat">{card.stat}</span>
               <h3 className="why-card-title">{card.title}</h3>
               <p className="why-card-desc">{card.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
+  return (
+    <section className="slide slide-cases">
+      <div className="slide-inner">
+        <span className="slide-label">{t.cases.label}</span>
+        <h2 className="slide-title">{t.cases.title}</h2>
+        <p className="slide-desc">{t.cases.description}</p>
+        <div className="cases-grid">
+          {t.cases.items.map((item, i) => (
+            <div key={i} className="case-card">
+              <div className="case-number">{String(i + 1).padStart(2, "0")}</div>
+              <h3 className="case-client">{item.client}</h3>
+              <p className="case-result">{item.result}</p>
+              <p className="case-desc">{item.description}</p>
             </div>
           ))}
         </div>
@@ -573,7 +645,7 @@ const styles = `
   /* ── Slide: Services ── */
   .services-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
   }
   .service-card {
@@ -731,12 +803,107 @@ const styles = `
     border-radius: 4px;
   }
 
+  /* ── Fullscreen button ── */
+  .fullscreen-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .fullscreen-btn:hover {
+    color: var(--text);
+    border-color: var(--accent);
+    background: rgba(239, 72, 35, 0.08);
+  }
+
+  /* ── Floating exit ── */
+  .fullscreen-exit {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(13, 13, 13, 0.8);
+    backdrop-filter: blur(16px);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.25s;
+    opacity: 0.5;
+  }
+  .fullscreen-exit:hover {
+    opacity: 1;
+    color: white;
+    border-color: var(--accent);
+    background: rgba(239, 72, 35, 0.15);
+    transform: scale(1.1);
+  }
+
+  /* ── Slide: Cases ── */
+  .cases-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .case-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+  }
+  .case-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .case-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+    opacity: 0.3;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+  .case-client {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+  .case-result {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 0 0 10px;
+    line-height: 1.4;
+  }
+  .case-desc {
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .slide { padding: 32px 20px; }
     .deck-header, .deck-footer { padding: 12px 20px; }
     .services-grid { grid-template-columns: 1fr; }
     .why-grid { grid-template-columns: repeat(2, 1fr); }
+    .cases-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 480px) {
     .why-grid { grid-template-columns: 1fr; }
