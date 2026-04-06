@@ -1073,16 +1073,17 @@ const styles = `
     letter-spacing: 0.06em;
   }
 
-  /* Product browser */
+  /* Product browser — light Papelaria da Vila theme */
   .product-browser {
     flex: 1;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
     border-radius: var(--radius);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     max-height: 440px;
+    color: #1a1a1a;
   }
   .pb-brand-bar {
     display: flex;
@@ -1090,7 +1091,7 @@ const styles = `
     gap: 10px;
     padding: 10px 16px;
     background: #1a6fb5;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
   }
   .pb-logo {
     height: 22px;
@@ -1107,10 +1108,11 @@ const styles = `
   }
   .pb-header {
     padding: 14px 16px 10px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #eee;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    background: #fafafa;
   }
   .pb-search-wrap {
     position: relative;
@@ -1120,34 +1122,34 @@ const styles = `
   .pb-search-icon {
     position: absolute;
     left: 10px;
-    color: var(--text-muted);
+    color: #999;
     pointer-events: none;
   }
   .pb-search {
     width: 100%;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
+    background: #fff;
+    border: 1px solid #ddd;
     border-radius: 8px;
     padding: 8px 12px 8px 32px;
-    color: var(--text);
+    color: #1a1a1a;
     font-size: 0.82rem;
     outline: none;
     transition: border-color 0.2s;
     font-family: inherit;
   }
-  .pb-search::placeholder { color: var(--text-muted); }
-  .pb-search:focus { border-color: var(--accent); }
+  .pb-search::placeholder { color: #aaa; }
+  .pb-search:focus { border-color: #1a6fb5; }
   .pb-filters {
     display: flex;
     gap: 6px;
   }
   .pb-select {
     flex: 1;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
+    background: #fff;
+    border: 1px solid #ddd;
     border-radius: 6px;
     padding: 6px 8px;
-    color: var(--text);
+    color: #1a1a1a;
     font-size: 0.75rem;
     font-family: inherit;
     outline: none;
@@ -1155,13 +1157,14 @@ const styles = `
     transition: border-color 0.2s;
     -webkit-appearance: none;
   }
-  .pb-select:focus { border-color: var(--accent); }
-  .pb-select option { background: #1a1a1a; color: var(--text); }
+  .pb-select:focus { border-color: #1a6fb5; }
+  .pb-select option { background: #fff; color: #1a1a1a; }
   .pb-count {
     padding: 6px 16px;
     font-size: 0.72rem;
-    color: var(--text-muted);
+    color: #888;
     letter-spacing: 0.04em;
+    background: #fafafa;
   }
   .pb-grid {
     flex: 1;
@@ -1171,20 +1174,22 @@ const styles = `
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     align-content: start;
+    background: #f5f5f5;
   }
   .pb-grid::-webkit-scrollbar { width: 4px; }
   .pb-grid::-webkit-scrollbar-track { background: transparent; }
-  .pb-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  .pb-grid::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
   .pb-card {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border);
+    background: #fff;
+    border: 1px solid #e8e8e8;
     border-radius: 10px;
     padding: 12px;
     transition: all 0.2s;
   }
   .pb-card:hover {
-    border-color: var(--accent);
-    background: rgba(239, 72, 35, 0.04);
+    border-color: #1a6fb5;
+    box-shadow: 0 4px 12px rgba(26, 111, 181, 0.1);
+    transform: translateY(-2px);
   }
   .pb-card-top {
     display: flex;
@@ -1195,7 +1200,7 @@ const styles = `
   .pb-brand {
     font-size: 0.65rem;
     font-weight: 700;
-    color: var(--accent);
+    color: #1a6fb5;
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
@@ -1206,14 +1211,14 @@ const styles = `
     border-radius: 4px;
     letter-spacing: 0.02em;
   }
-  .pb-stock.in { background: rgba(34,197,94,0.12); color: #22c55e; }
-  .pb-stock.out { background: rgba(239,68,68,0.12); color: #ef4444; }
+  .pb-stock.in { background: rgba(34,197,94,0.1); color: #16a34a; }
+  .pb-stock.out { background: rgba(239,68,68,0.1); color: #dc2626; }
   .pb-name {
     font-size: 0.78rem;
     font-weight: 500;
     line-height: 1.35;
     margin: 0 0 8px;
-    color: rgba(245,243,239,0.85);
+    color: #333;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -1227,19 +1232,20 @@ const styles = `
   .pb-price {
     font-size: 0.88rem;
     font-weight: 700;
-    color: var(--text);
+    color: #1a1a1a;
   }
   .pb-stock-num {
     font-size: 0.68rem;
-    color: var(--text-muted);
+    color: #999;
   }
 
-  /* Product detail */
+  /* Product detail — light theme */
   .pb-detail {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
     position: relative;
+    background: #fff;
   }
   .pb-detail-close {
     position: absolute;
@@ -1251,17 +1257,17 @@ const styles = `
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-muted);
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #888;
     cursor: pointer;
     transition: all 0.2s;
     z-index: 2;
   }
   .pb-detail-close:hover {
-    color: white;
+    color: #fff;
     border-color: #1a6fb5;
-    background: rgba(26, 111, 181, 0.15);
+    background: #1a6fb5;
   }
   .pb-detail-img-wrap {
     width: 100%;
@@ -1269,10 +1275,11 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: #f5f5f5;
     border-radius: 10px;
     margin-bottom: 16px;
     overflow: hidden;
+    border: 1px solid #eee;
   }
   .pb-detail-img {
     max-height: 140px;
@@ -1281,7 +1288,7 @@ const styles = `
   }
   .pb-detail-img-fallback {
     max-height: 50px;
-    opacity: 0.5;
+    opacity: 0.4;
   }
   .pb-detail-info { display: flex; flex-direction: column; gap: 8px; }
   .pb-detail-name {
@@ -1289,11 +1296,12 @@ const styles = `
     font-weight: 600;
     line-height: 1.3;
     margin: 4px 0 0;
+    color: #1a1a1a;
   }
   .pb-detail-desc {
     font-size: 0.82rem;
     line-height: 1.5;
-    color: var(--text-muted);
+    color: #666;
     margin: 0;
   }
   .pb-detail-meta {
@@ -1301,8 +1309,8 @@ const styles = `
     flex-direction: column;
     gap: 6px;
     padding: 10px 0;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
   }
   .pb-detail-meta-item {
     display: flex;
@@ -1311,13 +1319,13 @@ const styles = `
   }
   .pb-detail-meta-label {
     font-size: 0.72rem;
-    color: var(--text-muted);
+    color: #999;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .pb-detail-meta-value {
     font-size: 0.78rem;
-    color: rgba(245,243,239,0.8);
+    color: #444;
     text-align: right;
     max-width: 60%;
   }
@@ -1335,11 +1343,11 @@ const styles = `
   .pb-detail-price {
     font-size: 1.3rem;
     font-weight: 700;
-    color: var(--text);
+    color: #1a6fb5;
   }
   .pb-detail-price-net {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: #999;
   }
   .pb-detail-stock-info {
     display: flex;
