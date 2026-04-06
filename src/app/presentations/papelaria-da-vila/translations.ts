@@ -149,7 +149,7 @@ export const translations: Record<Lang, {
       ],
     },
     cases: {
-      label: "Casos Reais",
+      label: "Da Estratégia à Realidade",
       title: "Resultados que Falam por Si",
       description:
         "Empresas reais que transformaram as suas operações com soluções Aekios.",
@@ -287,7 +287,7 @@ export const translations: Record<Lang, {
       ],
     },
     cases: {
-      label: "Real Cases",
+      label: "From Strategy to Reality",
       title: "Results That Speak for Themselves",
       description:
         "Real businesses that transformed their operations with Aekios solutions.",
@@ -425,7 +425,7 @@ export const translations: Record<Lang, {
       ],
     },
     cases: {
-      label: "Casos Reales",
+      label: "De la Estrategia a la Realidad",
       title: "Resultados que Hablan por Sí Solos",
       description:
         "Empresas reales que transformaron sus operaciones con soluciones Aekios.",
