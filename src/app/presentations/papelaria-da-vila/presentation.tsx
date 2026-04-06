@@ -419,69 +419,9 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
     });
   }, [products, search, categoryFilter, brandFilter]);
 
-  // Financial metrics
-  const financials = useMemo(() => {
-    const totalStock = products.reduce((s, p) => s + p.stock, 0);
-    const stockValue = products.reduce((s, p) => s + p.price * p.stock, 0);
-    const stockValueIva = products.reduce((s, p) => s + p.price_with_iva * p.stock, 0);
-    const avgPrice = products.reduce((s, p) => s + p.price_with_iva, 0) / products.length;
-    const ivaTotal = stockValueIva - stockValue;
-    const inStockCount = products.filter((p) => p.in_stock).length;
-    const outOfStockCount = products.length - inStockCount;
-    const maxPrice = Math.max(...products.map((p) => p.price_with_iva));
-    const minPrice = Math.min(...products.map((p) => p.price_with_iva));
-
-    // Top 5 highest value products (price * stock)
-    const topValue = [...products]
-      .sort((a, b) => b.price * b.stock - a.price * a.stock)
-      .slice(0, 5);
-
-    return { totalStock, stockValue, stockValueIva, avgPrice, ivaTotal, inStockCount, outOfStockCount, maxPrice, minPrice, topValue };
-  }, [products]);
-
-  // Analytics metrics
-  const analytics = useMemo(() => {
-    // Products per category (top 6)
-    const catCount: Record<string, number> = {};
-    products.forEach((p) => {
-      const cat = p.category.split(" > ")[0];
-      catCount[cat] = (catCount[cat] || 0) + 1;
-    });
-    const topCategories = Object.entries(catCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
-    const maxCatCount = topCategories[0]?.[1] || 1;
-
-    // Products per brand (top 6)
-    const brandCount: Record<string, number> = {};
-    products.forEach((p) => {
-      brandCount[p.brand] = (brandCount[p.brand] || 0) + 1;
-    });
-    const topBrands = Object.entries(brandCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
-    const maxBrandCount = topBrands[0]?.[1] || 1;
-
-    // Price distribution (ranges)
-    const ranges = [
-      { label: "0-5€", min: 0, max: 5 },
-      { label: "5-15€", min: 5, max: 15 },
-      { label: "15-50€", min: 15, max: 50 },
-      { label: "50-100€", min: 50, max: 100 },
-      { label: "100€+", min: 100, max: Infinity },
-    ];
-    const priceDistribution = ranges.map((r) => ({
-      label: r.label,
-      count: products.filter((p) => p.price_with_iva >= r.min && p.price_with_iva < r.max).length,
-    }));
-    const maxPriceCount = Math.max(...priceDistribution.map((d) => d.count), 1);
-
-    // Stock health
-    const lowStock = products.filter((p) => p.stock > 0 && p.stock <= 10).length;
-    const healthyStock = products.filter((p) => p.stock > 10).length;
-
-    return { topCategories, maxCatCount, topBrands, maxBrandCount, priceDistribution, maxPriceCount, lowStock, healthyStock };
-  }, [products]);
+  // Fictitious realistic financial data for a stationery wholesaler
+  const totalStock = products.reduce((s, p) => s + p.stock, 0);
+  const stockValue = products.reduce((s, p) => s + p.price * p.stock, 0);
 
   const tabLabels: Record<BrowserTab, { label: string; icon: string }> = {
     database: { label: "Base de Dados", icon: "db" },
@@ -669,60 +609,91 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
             <div className="pb-fin">
               <div className="pb-fin-kpis">
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value">{financials.stockValueIva.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
-                  <span className="pb-fin-kpi-label">Valor Total Stock (c/IVA)</span>
+                  <span className="pb-fin-kpi-value">487.320€</span>
+                  <span className="pb-fin-kpi-label">Faturação Anual (2025)</span>
                 </div>
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value">{financials.stockValue.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
-                  <span className="pb-fin-kpi-label">Valor Total Stock (s/IVA)</span>
+                  <span className="pb-fin-kpi-value">312.840€</span>
+                  <span className="pb-fin-kpi-label">Custos Operacionais</span>
                 </div>
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value">{financials.ivaTotal.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
-                  <span className="pb-fin-kpi-label">IVA Total Retido</span>
+                  <span className="pb-fin-kpi-value">174.480€</span>
+                  <span className="pb-fin-kpi-label">Lucro Bruto</span>
                 </div>
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value">{financials.avgPrice.toFixed(2)}€</span>
-                  <span className="pb-fin-kpi-label">Preço Médio (c/IVA)</span>
+                  <span className="pb-fin-kpi-value pb-fin-kpi-accent">35.8%</span>
+                  <span className="pb-fin-kpi-label">Margem Bruta</span>
                 </div>
               </div>
               <div className="pb-fin-row">
                 <div className="pb-fin-card">
-                  <h4 className="pb-fin-card-title">Resumo de Stock</h4>
+                  <h4 className="pb-fin-card-title">Demonstração de Resultados</h4>
                   <div className="pb-fin-stat-list">
                     <div className="pb-fin-stat-row">
-                      <span className="pb-fin-stat-label">Unidades Totais</span>
-                      <span className="pb-fin-stat-value">{financials.totalStock.toLocaleString("pt-PT")}</span>
+                      <span className="pb-fin-stat-label">Vendas Loja Física</span>
+                      <span className="pb-fin-stat-value">298.450€</span>
                     </div>
                     <div className="pb-fin-stat-row">
-                      <span className="pb-fin-stat-label">Em Stock</span>
-                      <span className="pb-fin-stat-value pb-fin-green">{financials.inStockCount}</span>
+                      <span className="pb-fin-stat-label">Vendas B2B</span>
+                      <span className="pb-fin-stat-value">142.870€</span>
                     </div>
                     <div className="pb-fin-stat-row">
-                      <span className="pb-fin-stat-label">Esgotados</span>
-                      <span className="pb-fin-stat-value pb-fin-red">{financials.outOfStockCount}</span>
+                      <span className="pb-fin-stat-label">Vendas Online</span>
+                      <span className="pb-fin-stat-value">46.000€</span>
+                    </div>
+                    <div className="pb-fin-stat-row pb-fin-divider">
+                      <span className="pb-fin-stat-label">Custo Mercadorias (CMV)</span>
+                      <span className="pb-fin-stat-value pb-fin-red">-218.640€</span>
                     </div>
                     <div className="pb-fin-stat-row">
-                      <span className="pb-fin-stat-label">Preço Mín.</span>
-                      <span className="pb-fin-stat-value">{financials.minPrice.toFixed(2)}€</span>
+                      <span className="pb-fin-stat-label">Salários (8 func.)</span>
+                      <span className="pb-fin-stat-value pb-fin-red">-62.400€</span>
                     </div>
                     <div className="pb-fin-stat-row">
-                      <span className="pb-fin-stat-label">Preço Máx.</span>
-                      <span className="pb-fin-stat-value">{financials.maxPrice.toFixed(2)}€</span>
+                      <span className="pb-fin-stat-label">Renda + Utilities</span>
+                      <span className="pb-fin-stat-value pb-fin-red">-18.600€</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Outros Custos</span>
+                      <span className="pb-fin-stat-value pb-fin-red">-13.200€</span>
+                    </div>
+                    <div className="pb-fin-stat-row pb-fin-total">
+                      <span className="pb-fin-stat-label">Resultado Líquido</span>
+                      <span className="pb-fin-stat-value pb-fin-green">121.480€</span>
                     </div>
                   </div>
                 </div>
                 <div className="pb-fin-card">
-                  <h4 className="pb-fin-card-title">Top 5 — Valor em Stock</h4>
+                  <h4 className="pb-fin-card-title">Inventário & Cash-Flow</h4>
                   <div className="pb-fin-stat-list">
-                    {financials.topValue.map((p, i) => (
-                      <div key={p.product_id} className="pb-fin-stat-row">
-                        <span className="pb-fin-stat-label pb-fin-rank">
-                          <span className="pb-fin-rank-num">{i + 1}</span>
-                          {p.name.length > 22 ? p.name.slice(0, 22) + "…" : p.name}
-                        </span>
-                        <span className="pb-fin-stat-value">{(p.price * p.stock).toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}€</span>
-                      </div>
-                    ))}
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Valor em Stock</span>
+                      <span className="pb-fin-stat-value">{stockValue.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}€</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Unidades em Armazém</span>
+                      <span className="pb-fin-stat-value">{totalStock.toLocaleString("pt-PT")}</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Rotação de Stock</span>
+                      <span className="pb-fin-stat-value">4.2x /ano</span>
+                    </div>
+                    <div className="pb-fin-stat-row pb-fin-divider">
+                      <span className="pb-fin-stat-label">Contas a Receber</span>
+                      <span className="pb-fin-stat-value">38.750€</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Contas a Pagar</span>
+                      <span className="pb-fin-stat-value pb-fin-red">-24.300€</span>
+                    </div>
+                    <div className="pb-fin-stat-row">
+                      <span className="pb-fin-stat-label">Prazo Médio Recebimento</span>
+                      <span className="pb-fin-stat-value">32 dias</span>
+                    </div>
+                    <div className="pb-fin-stat-row pb-fin-total">
+                      <span className="pb-fin-stat-label">Cash-Flow Mensal</span>
+                      <span className="pb-fin-stat-value pb-fin-green">+8.420€</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -732,82 +703,137 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
           {/* Tab: Análises */}
           {activeTab === "analytics" && (
             <div className="pb-ana">
+              {/* KPI row */}
+              <div className="pb-ana-kpis">
+                <div className="pb-ana-kpi">
+                  <span className="pb-ana-kpi-value">1.247</span>
+                  <span className="pb-ana-kpi-label">Encomendas / Mês</span>
+                  <span className="pb-ana-kpi-trend pb-ana-trend-up">+12%</span>
+                </div>
+                <div className="pb-ana-kpi">
+                  <span className="pb-ana-kpi-value">68€</span>
+                  <span className="pb-ana-kpi-label">Ticket Médio</span>
+                  <span className="pb-ana-kpi-trend pb-ana-trend-up">+4.2%</span>
+                </div>
+                <div className="pb-ana-kpi">
+                  <span className="pb-ana-kpi-value">82%</span>
+                  <span className="pb-ana-kpi-label">Taxa Retenção</span>
+                  <span className="pb-ana-kpi-trend pb-ana-trend-down">-1.3%</span>
+                </div>
+              </div>
+
+              {/* Monthly revenue chart */}
               <div className="pb-ana-section">
-                <h4 className="pb-ana-title">Produtos por Categoria</h4>
-                <div className="pb-ana-bars">
-                  {analytics.topCategories.map(([cat, count]) => (
-                    <div key={cat} className="pb-ana-bar-row">
-                      <span className="pb-ana-bar-label">{cat.length > 18 ? cat.slice(0, 18) + "…" : cat}</span>
-                      <div className="pb-ana-bar-track">
+                <h4 className="pb-ana-title">Faturação Mensal (2025)</h4>
+                <div className="pb-ana-chart">
+                  {[
+                    { m: "Jan", v: 32400 },
+                    { m: "Fev", v: 29800 },
+                    { m: "Mar", v: 38100 },
+                    { m: "Abr", v: 35600 },
+                    { m: "Mai", v: 41200 },
+                    { m: "Jun", v: 37800 },
+                    { m: "Jul", v: 28400 },
+                    { m: "Ago", v: 22100 },
+                    { m: "Set", v: 52600 },
+                    { m: "Out", v: 48300 },
+                    { m: "Nov", v: 45200 },
+                    { m: "Dez", v: 39800 },
+                  ].map((d) => (
+                    <div key={d.m} className="pb-ana-chart-col">
+                      <div className="pb-ana-chart-bar-wrap">
                         <div
-                          className="pb-ana-bar-fill pb-ana-bar-blue"
-                          style={{ width: `${(count / analytics.maxCatCount) * 100}%` }}
+                          className="pb-ana-chart-bar"
+                          style={{ height: `${(d.v / 52600) * 100}%` }}
                         />
                       </div>
-                      <span className="pb-ana-bar-value">{count}</span>
+                      <span className="pb-ana-chart-label">{d.m}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="pb-ana-section">
-                <h4 className="pb-ana-title">Produtos por Marca</h4>
-                <div className="pb-ana-bars">
-                  {analytics.topBrands.map(([brand, count]) => (
-                    <div key={brand} className="pb-ana-bar-row">
-                      <span className="pb-ana-bar-label">{brand.length > 18 ? brand.slice(0, 18) + "…" : brand}</span>
-                      <div className="pb-ana-bar-track">
-                        <div
-                          className="pb-ana-bar-fill pb-ana-bar-orange"
-                          style={{ width: `${(count / analytics.maxBrandCount) * 100}%` }}
-                        />
-                      </div>
-                      <span className="pb-ana-bar-value">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+
               <div className="pb-ana-row">
+                {/* Sales by channel */}
                 <div className="pb-ana-section pb-ana-half">
-                  <h4 className="pb-ana-title">Distribuição de Preços</h4>
+                  <h4 className="pb-ana-title">Vendas por Canal</h4>
                   <div className="pb-ana-bars">
-                    {analytics.priceDistribution.map((d) => (
-                      <div key={d.label} className="pb-ana-bar-row">
-                        <span className="pb-ana-bar-label">{d.label}</span>
+                    {[
+                      { label: "Loja Física", value: 61, color: "blue" },
+                      { label: "B2B Empresas", value: 29, color: "orange" },
+                      { label: "Online", value: 10, color: "green" },
+                    ].map((ch) => (
+                      <div key={ch.label} className="pb-ana-bar-row">
+                        <span className="pb-ana-bar-label">{ch.label}</span>
                         <div className="pb-ana-bar-track">
+                          <div className={`pb-ana-bar-fill pb-ana-bar-${ch.color}`} style={{ width: `${ch.value}%` }} />
+                        </div>
+                        <span className="pb-ana-bar-value">{ch.value}%</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pb-ana-mini-stats">
+                    <div className="pb-ana-mini">
+                      <span className="pb-ana-mini-label">Clientes B2B Ativos</span>
+                      <span className="pb-ana-mini-value">43</span>
+                    </div>
+                    <div className="pb-ana-mini">
+                      <span className="pb-ana-mini-label">Novos Clientes / Mês</span>
+                      <span className="pb-ana-mini-value">7</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top sellers */}
+                <div className="pb-ana-section pb-ana-half">
+                  <h4 className="pb-ana-title">Performance Vendedores</h4>
+                  <div className="pb-ana-sellers">
+                    {[
+                      { name: "Ana Rodrigues", sales: 14820, target: 15000 },
+                      { name: "Carlos Mendes", sales: 12340, target: 13000 },
+                      { name: "Sofia Almeida", sales: 11980, target: 12000 },
+                      { name: "Miguel Costa", sales: 9450, target: 11000 },
+                    ].map((s) => (
+                      <div key={s.name} className="pb-ana-seller">
+                        <div className="pb-ana-seller-top">
+                          <span className="pb-ana-seller-name">{s.name}</span>
+                          <span className="pb-ana-seller-pct">{Math.round((s.sales / s.target) * 100)}%</span>
+                        </div>
+                        <div className="pb-ana-seller-bar-track">
                           <div
-                            className="pb-ana-bar-fill pb-ana-bar-green"
-                            style={{ width: `${(d.count / analytics.maxPriceCount) * 100}%` }}
+                            className={`pb-ana-seller-bar-fill ${(s.sales / s.target) >= 0.9 ? "pb-ana-seller-good" : "pb-ana-seller-warn"}`}
+                            style={{ width: `${Math.min((s.sales / s.target) * 100, 100)}%` }}
                           />
                         </div>
-                        <span className="pb-ana-bar-value">{d.count}</span>
+                        <div className="pb-ana-seller-nums">
+                          <span>{s.sales.toLocaleString("pt-PT")}€</span>
+                          <span className="pb-ana-seller-target">meta {s.target.toLocaleString("pt-PT")}€</span>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="pb-ana-section pb-ana-half">
-                  <h4 className="pb-ana-title">Saúde do Stock</h4>
-                  <div className="pb-ana-health">
-                    <div className="pb-ana-health-item">
-                      <span className="pb-ana-health-dot pb-ana-dot-green" />
-                      <span className="pb-ana-health-label">Saudável (&gt;10 un.)</span>
-                      <span className="pb-ana-health-value">{analytics.healthyStock}</span>
+              </div>
+
+              {/* Top selling categories */}
+              <div className="pb-ana-section">
+                <h4 className="pb-ana-title">Top Categorias por Receita</h4>
+                <div className="pb-ana-bars">
+                  {[
+                    { label: "Material Escritório", value: 142300, pct: 100 },
+                    { label: "Papel & Impressão", value: 98700, pct: 69 },
+                    { label: "Arquivo & Organização", value: 72400, pct: 51 },
+                    { label: "Escolar", value: 65800, pct: 46 },
+                    { label: "Informática & Acess.", value: 48200, pct: 34 },
+                  ].map((c) => (
+                    <div key={c.label} className="pb-ana-bar-row">
+                      <span className="pb-ana-bar-label">{c.label}</span>
+                      <div className="pb-ana-bar-track">
+                        <div className="pb-ana-bar-fill pb-ana-bar-blue" style={{ width: `${c.pct}%` }} />
+                      </div>
+                      <span className="pb-ana-bar-value">{(c.value / 1000).toFixed(0)}k€</span>
                     </div>
-                    <div className="pb-ana-health-item">
-                      <span className="pb-ana-health-dot pb-ana-dot-yellow" />
-                      <span className="pb-ana-health-label">Baixo (1-10 un.)</span>
-                      <span className="pb-ana-health-value">{analytics.lowStock}</span>
-                    </div>
-                    <div className="pb-ana-health-item">
-                      <span className="pb-ana-health-dot pb-ana-dot-red" />
-                      <span className="pb-ana-health-label">Esgotado (0 un.)</span>
-                      <span className="pb-ana-health-value">{financials.outOfStockCount}</span>
-                    </div>
-                  </div>
-                  <div className="pb-ana-health-bar">
-                    <div className="pb-ana-hb-seg pb-ana-hb-green" style={{ flex: analytics.healthyStock }} />
-                    <div className="pb-ana-hb-seg pb-ana-hb-yellow" style={{ flex: analytics.lowStock }} />
-                    <div className="pb-ana-hb-seg pb-ana-hb-red" style={{ flex: financials.outOfStockCount }} />
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1764,28 +1790,14 @@ const styles = `
   }
   .pb-fin-green { color: #16a34a !important; }
   .pb-fin-red { color: #dc2626 !important; }
-  .pb-fin-rank {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    max-width: 65%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .pb-fin-kpi-accent { color: #EF4823 !important; }
+  .pb-fin-divider { padding-top: 7px; border-top: 1px solid #eee; }
+  .pb-fin-total {
+    padding-top: 7px;
+    border-top: 2px solid #e0e0e0;
   }
-  .pb-fin-rank-num {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    background: #1a6fb5;
-    color: #fff;
-    font-size: 0.6rem;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
+  .pb-fin-total .pb-fin-stat-label { font-weight: 700; color: #333; }
+  .pb-fin-total .pb-fin-stat-value { font-size: 0.82rem; }
 
   /* ── Tab: Análises ── */
   .pb-ana {
@@ -1795,11 +1807,49 @@ const styles = `
     background: #f9fafb;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
   }
   .pb-ana::-webkit-scrollbar { width: 4px; }
   .pb-ana::-webkit-scrollbar-track { background: transparent; }
   .pb-ana::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+
+  /* KPI row */
+  .pb-ana-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .pb-ana-kpi {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+  }
+  .pb-ana-kpi-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1a6fb5;
+  }
+  .pb-ana-kpi-label {
+    font-size: 0.6rem;
+    color: #888;
+  }
+  .pb-ana-kpi-trend {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+  .pb-ana-trend-up { background: rgba(22,163,74,0.1); color: #16a34a; }
+  .pb-ana-trend-down { background: rgba(220,38,38,0.1); color: #dc2626; }
+
   .pb-ana-section {
     background: #fff;
     border: 1px solid #e8e8e8;
@@ -1807,16 +1857,18 @@ const styles = `
     padding: 12px;
   }
   .pb-ana-title {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: #333;
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     letter-spacing: 0.01em;
   }
+
+  /* Bar chart (horizontal) */
   .pb-ana-bars {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
   .pb-ana-bar-row {
     display: flex;
@@ -1824,9 +1876,9 @@ const styles = `
     gap: 8px;
   }
   .pb-ana-bar-label {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     color: #666;
-    width: 90px;
+    width: 85px;
     flex-shrink: 0;
     text-align: right;
     overflow: hidden;
@@ -1835,14 +1887,14 @@ const styles = `
   }
   .pb-ana-bar-track {
     flex: 1;
-    height: 14px;
+    height: 12px;
     background: #f0f0f0;
-    border-radius: 4px;
+    border-radius: 3px;
     overflow: hidden;
   }
   .pb-ana-bar-fill {
     height: 100%;
-    border-radius: 4px;
+    border-radius: 3px;
     transition: width 0.4s ease;
     min-width: 4px;
   }
@@ -1850,59 +1902,128 @@ const styles = `
   .pb-ana-bar-orange { background: #EF4823; }
   .pb-ana-bar-green { background: #16a34a; }
   .pb-ana-bar-value {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     color: #444;
-    width: 28px;
+    width: 30px;
     text-align: right;
     flex-shrink: 0;
   }
+
+  /* Vertical bar chart (monthly revenue) */
+  .pb-ana-chart {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    height: 80px;
+    padding-top: 4px;
+  }
+  .pb-ana-chart-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+  }
+  .pb-ana-chart-bar-wrap {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .pb-ana-chart-bar {
+    width: 100%;
+    max-width: 20px;
+    background: #1a6fb5;
+    border-radius: 3px 3px 0 0;
+    transition: height 0.4s ease;
+    min-height: 3px;
+  }
+  .pb-ana-chart-label {
+    font-size: 0.55rem;
+    color: #999;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
   .pb-ana-row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
   .pb-ana-half { margin: 0; }
-  .pb-ana-health {
+
+  /* Mini stats under channels */
+  .pb-ana-mini-stats {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+  }
+  .pb-ana-mini {
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    margin-bottom: 10px;
-  }
-  .pb-ana-health-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.68rem;
-  }
-  .pb-ana-health-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .pb-ana-dot-green { background: #16a34a; }
-  .pb-ana-dot-yellow { background: #eab308; }
-  .pb-ana-dot-red { background: #dc2626; }
-  .pb-ana-health-label {
-    color: #666;
-    flex: 1;
-  }
-  .pb-ana-health-value {
-    font-weight: 700;
-    color: #333;
-  }
-  .pb-ana-health-bar {
-    display: flex;
-    height: 10px;
-    border-radius: 5px;
-    overflow: hidden;
     gap: 1px;
   }
-  .pb-ana-hb-seg { transition: flex 0.4s ease; }
-  .pb-ana-hb-green { background: #16a34a; }
-  .pb-ana-hb-yellow { background: #eab308; }
-  .pb-ana-hb-red { background: #dc2626; }
+  .pb-ana-mini-label {
+    font-size: 0.58rem;
+    color: #999;
+  }
+  .pb-ana-mini-value {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #1a6fb5;
+  }
+
+  /* Sellers performance */
+  .pb-ana-sellers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pb-ana-seller {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .pb-ana-seller-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pb-ana-seller-name {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #333;
+  }
+  .pb-ana-seller-pct {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #1a6fb5;
+  }
+  .pb-ana-seller-bar-track {
+    height: 6px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .pb-ana-seller-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .pb-ana-seller-good { background: #16a34a; }
+  .pb-ana-seller-warn { background: #eab308; }
+  .pb-ana-seller-nums {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.58rem;
+    color: #888;
+  }
+  .pb-ana-seller-target { color: #bbb; }
 
   /* ── Password gate ── */
   .pw-gate {
