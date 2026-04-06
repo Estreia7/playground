@@ -826,8 +826,8 @@ const styles = `
   /* ── Floating exit ── */
   .fullscreen-exit {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 72px;
+    right: 24px;
     z-index: 100;
     display: flex;
     align-items: center;
