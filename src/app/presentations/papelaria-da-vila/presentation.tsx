@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, Suspense } from "react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
+import CountUp from "react-countup";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Float } from "@react-three/drei";
+import * as THREE from "three";
 import { translations, type Lang } from "./translations";
 import productsData from "./products_database.json";
 
@@ -86,6 +91,73 @@ const iconMap: Record<string, () => React.ReactNode> = {
   kpi: () => <KpiIcon />,
   finance: () => <FinanceIcon />,
 };
+
+/* ─── Animation helpers ─── */
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: (i: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+  }),
+};
+
+const staggerContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+};
+
+function AnimatedCounter({ end, suffix = "", prefix = "", decimals = 0 }: { end: number; suffix?: string; prefix?: string; decimals?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  return (
+    <span ref={ref}>
+      {inView ? (
+        <CountUp start={0} end={end} duration={1.8} decimals={decimals} prefix={prefix} suffix={suffix} separator="." decimal="," />
+      ) : (
+        <span>{prefix}0{suffix}</span>
+      )}
+    </span>
+  );
+}
+
+/* ─── 3D Background Mesh ─── */
+function FloatingMesh() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame((_, delta) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x += delta * 0.08;
+      meshRef.current.rotation.y += delta * 0.12;
+    }
+  });
+  return (
+    <Float speed={1.5} rotationIntensity={0.3} floatIntensity={0.5}>
+      <mesh ref={meshRef}>
+        <icosahedronGeometry args={[1.6, 1]} />
+        <meshStandardMaterial
+          color="#EF4823"
+          wireframe
+          transparent
+          opacity={0.12}
+        />
+      </mesh>
+    </Float>
+  );
+}
+
+function CoverScene() {
+  return (
+    <div className="cover-3d">
+      <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+        <ambientLight intensity={0.5} />
+        <pointLight position={[10, 10, 10]} intensity={0.8} />
+        <Suspense fallback={null}>
+          <FloatingMesh />
+        </Suspense>
+      </Canvas>
+    </div>
+  );
+}
 
 /* ─── Password Gate ─── */
 const DECK_PASSWORD = "papelaria";
@@ -237,9 +309,10 @@ export default function Presentation() {
 
       {/* ─── Slides container ─── */}
       <main className="deck-slides">
-        <div
+        <motion.div
           className="deck-track"
-          style={{ transform: `translateX(-${slide * 100}%)` }}
+          animate={{ x: `-${slide * 100}%` }}
+          transition={{ type: "spring", stiffness: 260, damping: 30 }}
         >
           <SlideCover t={t} />
           <SlideAbout t={t} />
@@ -249,7 +322,7 @@ export default function Presentation() {
           <SlideWorkflow />
           <SlideInvoices />
           <SlideContact t={t} />
-        </div>
+        </motion.div>
       </main>
 
       {/* ─── Bottom nav ─── */}
@@ -289,9 +362,10 @@ export default function Presentation() {
 function SlideCover({ t }: { t: (typeof translations)["pt"] }) {
   return (
     <section className="slide slide-cover">
-      <div className="slide-inner">
+      <motion.div className="slide-inner" initial="hidden" animate="visible" variants={staggerContainer}>
+        <CoverScene />
         <div className="cover-glow" />
-        <div className="cover-image-wrap">
+        <motion.div className="cover-image-wrap" variants={fadeUp} custom={0}>
           <img
             src="/papelaria-warehouse.png"
             alt="Papelaria da Vila"
@@ -302,25 +376,29 @@ function SlideCover({ t }: { t: (typeof translations)["pt"] }) {
             alt="Papelaria da Vila Logo"
             className="cover-logo"
           />
-        </div>
-        <span className="slide-label">{t.cover.label}</span>
-        <h1 className="cover-title">{t.cover.title}</h1>
-        <p className="cover-subtitle">{t.cover.subtitle}</p>
-        <p className="cover-desc">{t.cover.description}</p>
-        <div className="cover-badges">
+        </motion.div>
+        <motion.span className="slide-label" variants={fadeUp} custom={1}>{t.cover.label}</motion.span>
+        <motion.h1 className="cover-title" variants={fadeUp} custom={2}>{t.cover.title}</motion.h1>
+        <motion.p className="cover-subtitle" variants={fadeUp} custom={3}>{t.cover.subtitle}</motion.p>
+        <motion.p className="cover-desc" variants={fadeUp} custom={4}>{t.cover.description}</motion.p>
+        <motion.div className="cover-badges" variants={fadeUp} custom={5}>
           <span className="badge">{t.cover.badge1}</span>
           <span className="badge">{t.cover.badge2}</span>
-        </div>
-        <a
+        </motion.div>
+        <motion.a
           href="https://aekios.com"
           target="_blank"
           rel="noopener noreferrer"
           className="btn-primary"
+          variants={fadeUp}
+          custom={6}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.97 }}
         >
           {t.cover.cta}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-        </a>
-      </div>
+        </motion.a>
+      </motion.div>
     </section>
   );
 }
@@ -328,19 +406,19 @@ function SlideCover({ t }: { t: (typeof translations)["pt"] }) {
 function SlideAbout({ t }: { t: (typeof translations)["pt"] }) {
   return (
     <section className="slide slide-about">
-      <div className="slide-inner">
-        <span className="slide-label">{t.about.label}</span>
-        <h2 className="slide-title">{t.about.title}</h2>
-        <p className="slide-desc">{t.about.description}</p>
-        <ul className="about-points">
+      <motion.div className="slide-inner" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer}>
+        <motion.span className="slide-label" variants={fadeUp}>{t.about.label}</motion.span>
+        <motion.h2 className="slide-title" variants={fadeUp}>{t.about.title}</motion.h2>
+        <motion.p className="slide-desc" variants={fadeUp}>{t.about.description}</motion.p>
+        <motion.ul className="about-points" variants={staggerContainer}>
           {t.about.points.map((p, i) => (
-            <li key={i} className="about-point">
+            <motion.li key={i} className="about-point" variants={fadeUp} custom={i}>
               <span className="point-dot" />
               {p}
-            </li>
+            </motion.li>
           ))}
-        </ul>
-      </div>
+        </motion.ul>
+      </motion.div>
     </section>
   );
 }
@@ -348,22 +426,22 @@ function SlideAbout({ t }: { t: (typeof translations)["pt"] }) {
 function SlideServices({ t }: { t: (typeof translations)["pt"] }) {
   return (
     <section className="slide slide-services">
-      <div className="slide-inner">
-        <span className="slide-label">{t.services.label}</span>
-        <h2 className="slide-title">{t.services.title}</h2>
-        <p className="slide-desc">{t.services.description}</p>
-        <div className="services-grid">
+      <motion.div className="slide-inner" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer}>
+        <motion.span className="slide-label" variants={fadeUp}>{t.services.label}</motion.span>
+        <motion.h2 className="slide-title" variants={fadeUp}>{t.services.title}</motion.h2>
+        <motion.p className="slide-desc" variants={fadeUp}>{t.services.description}</motion.p>
+        <motion.div className="services-grid" variants={staggerContainer}>
           {t.services.items.map((item, i) => (
-            <div key={i} className="service-card">
+            <motion.div key={i} className="service-card" variants={fadeUp} custom={i} whileHover={{ y: -6, borderColor: "#EF4823" }}>
               <div className="service-icon">
                 {iconMap[item.icon]?.()}
               </div>
               <h3 className="service-title">{item.title}</h3>
               <p className="service-desc">{item.description}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }
@@ -371,20 +449,20 @@ function SlideServices({ t }: { t: (typeof translations)["pt"] }) {
 function SlideWhy({ t }: { t: (typeof translations)["pt"] }) {
   return (
     <section className="slide slide-why">
-      <div className="slide-inner">
-        <span className="slide-label">{t.why.label}</span>
-        <h2 className="slide-title">{t.why.title}</h2>
-        <p className="slide-desc">{t.why.description}</p>
-        <div className="why-grid">
+      <motion.div className="slide-inner" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer}>
+        <motion.span className="slide-label" variants={fadeUp}>{t.why.label}</motion.span>
+        <motion.h2 className="slide-title" variants={fadeUp}>{t.why.title}</motion.h2>
+        <motion.p className="slide-desc" variants={fadeUp}>{t.why.description}</motion.p>
+        <motion.div className="why-grid" variants={staggerContainer}>
           {t.why.cards.map((card, i) => (
-            <div key={i} className="why-card">
+            <motion.div key={i} className="why-card" variants={fadeUp} custom={i} whileHover={{ y: -6, borderColor: "#EF4823" }}>
               <span className="why-stat">{card.stat}</span>
               <h3 className="why-card-title">{card.title}</h3>
               <p className="why-card-desc">{card.description}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }
@@ -441,15 +519,15 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
           <p className="slide-desc">{t.cases.description}</p>
           <div className="cases-stats">
             <div className="cases-stat-item">
-              <span className="cases-stat-num">{products.length}</span>
+              <span className="cases-stat-num"><AnimatedCounter end={products.length} /></span>
               <span className="cases-stat-label">Produtos</span>
             </div>
             <div className="cases-stat-item">
-              <span className="cases-stat-num">{brands.length}</span>
+              <span className="cases-stat-num"><AnimatedCounter end={brands.length} /></span>
               <span className="cases-stat-label">Marcas</span>
             </div>
             <div className="cases-stat-item">
-              <span className="cases-stat-num">{categories.length}</span>
+              <span className="cases-stat-num"><AnimatedCounter end={categories.length} /></span>
               <span className="cases-stat-label">Categorias</span>
             </div>
           </div>
@@ -611,19 +689,19 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
             <div className="pb-fin">
               <div className="pb-fin-kpis">
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value">487.320€</span>
+                  <span className="pb-fin-kpi-value"><AnimatedCounter end={487320} suffix="€" /></span>
                   <span className="pb-fin-kpi-label">Faturação Anual (2025)</span>
                 </div>
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value">312.840€</span>
+                  <span className="pb-fin-kpi-value"><AnimatedCounter end={312840} suffix="€" /></span>
                   <span className="pb-fin-kpi-label">Custos Operacionais</span>
                 </div>
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value">174.480€</span>
+                  <span className="pb-fin-kpi-value"><AnimatedCounter end={174480} suffix="€" /></span>
                   <span className="pb-fin-kpi-label">Lucro Bruto</span>
                 </div>
                 <div className="pb-fin-kpi">
-                  <span className="pb-fin-kpi-value pb-fin-kpi-accent">35.8%</span>
+                  <span className="pb-fin-kpi-value pb-fin-kpi-accent"><AnimatedCounter end={35.8} suffix="%" decimals={1} /></span>
                   <span className="pb-fin-kpi-label">Margem Bruta</span>
                 </div>
               </div>
@@ -708,17 +786,17 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
               {/* KPI row */}
               <div className="pb-ana-kpis">
                 <div className="pb-ana-kpi">
-                  <span className="pb-ana-kpi-value">1.247</span>
+                  <span className="pb-ana-kpi-value"><AnimatedCounter end={1247} /></span>
                   <span className="pb-ana-kpi-label">Encomendas / Mês</span>
                   <span className="pb-ana-kpi-trend pb-ana-trend-up">+12%</span>
                 </div>
                 <div className="pb-ana-kpi">
-                  <span className="pb-ana-kpi-value">68€</span>
+                  <span className="pb-ana-kpi-value"><AnimatedCounter end={68} suffix="€" /></span>
                   <span className="pb-ana-kpi-label">Ticket Médio</span>
                   <span className="pb-ana-kpi-trend pb-ana-trend-up">+4.2%</span>
                 </div>
                 <div className="pb-ana-kpi">
-                  <span className="pb-ana-kpi-value">82%</span>
+                  <span className="pb-ana-kpi-value"><AnimatedCounter end={82} suffix="%" /></span>
                   <span className="pb-ana-kpi-label">Taxa Retenção</span>
                   <span className="pb-ana-kpi-trend pb-ana-trend-down">-1.3%</span>
                 </div>
@@ -1357,24 +1435,27 @@ function SlideInvoices() {
 function SlideContact({ t }: { t: (typeof translations)["pt"] }) {
   return (
     <section className="slide slide-contact">
-      <div className="slide-inner slide-contact-inner">
+      <motion.div className="slide-inner slide-contact-inner" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer}>
         <div className="contact-glow" />
-        <span className="slide-label">{t.contact.label}</span>
-        <h2 className="contact-title">{t.contact.title}</h2>
-        <p className="slide-desc">{t.contact.description}</p>
-        <a
+        <motion.span className="slide-label" variants={fadeUp}>{t.contact.label}</motion.span>
+        <motion.h2 className="contact-title" variants={fadeUp}>{t.contact.title}</motion.h2>
+        <motion.p className="slide-desc" variants={fadeUp}>{t.contact.description}</motion.p>
+        <motion.a
           href={`mailto:${t.contact.email}`}
           className="btn-primary btn-lg"
+          variants={fadeUp}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.97 }}
         >
           {t.contact.cta}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-        </a>
-        <div className="contact-meta">
+        </motion.a>
+        <motion.div className="contact-meta" variants={fadeUp}>
           <span>{t.contact.email}</span>
           <span className="deck-sep">·</span>
           <span>{t.contact.details}</span>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }
@@ -1476,7 +1557,6 @@ const styles = `
   .deck-track {
     display: flex;
     height: 100%;
-    transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .slide {
     min-width: 100%;
@@ -1527,6 +1607,21 @@ const styles = `
     flex-direction: column;
     align-items: center;
   }
+  .cover-3d {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.7;
+  }
+  .cover-3d canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .slide-cover .slide-inner > *:not(.cover-3d):not(.cover-glow) {
+    position: relative;
+    z-index: 1;
+  }
   .cover-glow {
     position: absolute;
     width: 500px;
@@ -1538,6 +1633,7 @@ const styles = `
     left: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
+    z-index: 0;
   }
   .cover-title {
     font-size: clamp(2.4rem, 6vw, 4rem);
