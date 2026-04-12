@@ -874,18 +874,6 @@ function SlideWorkflow() {
         </div>
 
         <div className="wf-windows">
-          {/* ─ Arrow connectors ─ */}
-          <div className="wf-arrow wf-arrow-1">
-            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
-              <path d="M0 12h32m0 0l-6-6m6 6l-6 6" stroke={orderSent ? "#25D366" : "#444"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition:"stroke 0.4s"}} />
-            </svg>
-          </div>
-          <div className="wf-arrow wf-arrow-2">
-            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
-              <path d="M0 12h32m0 0l-6-6m6 6l-6 6" stroke={ticketGenerated ? "#1a6fb5" : "#444"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition:"stroke 0.4s"}} />
-            </svg>
-          </div>
-
           {/* ─── Window 1: WhatsApp ─── */}
           <div className={`wf-window wf-whatsapp ${orderSent ? "wf-sent" : ""}`}>
             <div className="wf-phone-frame">
@@ -943,6 +931,13 @@ function SlideWorkflow() {
             <span className="wf-window-label">Cliente — WhatsApp</span>
           </div>
 
+          {/* ─ Arrow 1 ─ */}
+          <div className="wf-arrow">
+            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+              <path d="M0 12h32m0 0l-6-6m6 6l-6 6" stroke={orderSent ? "#25D366" : "#444"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition:"stroke 0.4s"}} />
+            </svg>
+          </div>
+
           {/* ─── Window 2: WebApp ─── */}
           <div className={`wf-window wf-webapp ${ticketGenerated ? "wf-active" : ""}`}>
             <div className="wf-webapp-frame">
@@ -997,6 +992,13 @@ function SlideWorkflow() {
               </div>
             </div>
             <span className="wf-window-label">Back-Office — WebApp</span>
+          </div>
+
+          {/* ─ Arrow 2 ─ */}
+          <div className="wf-arrow">
+            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+              <path d="M0 12h32m0 0l-6-6m6 6l-6 6" stroke={ticketGenerated ? "#1a6fb5" : "#444"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition:"stroke 0.4s"}} />
+            </svg>
           </div>
 
           {/* ─── Window 3: Warehouse Tablet ─── */}
@@ -1069,245 +1071,195 @@ function SlideWorkflow() {
   );
 }
 
-/* ─── Slide: Invoice Scanner ─── */
-type ParsedInvoice = {
+/* ─── Slide: Invoice Scanner (Demo) ─── */
+type DemoInvoice = {
+  id: string;
+  label: string;
+  color: string;
   invoice_number: string;
   date: string;
   client_name: string;
   client_nif: string;
-  items: { description: string; quantity: number; unit_price: number; total: number }[];
   subtotal: number;
   vat_rate: number;
   vat_amount: number;
   total: number;
   payment_method: string;
+  items: { description: string; quantity: number; unit_price: number; total: number }[];
 };
 
+const DEMO_INVOICES: DemoInvoice[] = [
+  {
+    id: "inv-a",
+    label: "FT 2025/0347",
+    color: "#1a6fb5",
+    invoice_number: "FT 2025/0347",
+    date: "08/04/2025",
+    client_name: "Escola Básica da Estrela",
+    client_nif: "501 234 567",
+    subtotal: 487.80,
+    vat_rate: 23,
+    vat_amount: 112.19,
+    total: 599.99,
+    payment_method: "Transferência",
+    items: [
+      { description: "Resma Papel A4 Navigator 80g", quantity: 50, unit_price: 3.85, total: 192.50 },
+      { description: "Caneta BIC Cristal Azul cx100", quantity: 8, unit_price: 18.90, total: 151.20 },
+      { description: "Caderno A4 Pautado 96fl", quantity: 120, unit_price: 1.20, total: 144.10 },
+    ],
+  },
+  {
+    id: "inv-b",
+    label: "FT 2025/0348",
+    color: "#EF4823",
+    invoice_number: "FT 2025/0348",
+    date: "09/04/2025",
+    client_name: "Câmara Municipal de Vila Real",
+    client_nif: "680 012 345",
+    subtotal: 1243.90,
+    vat_rate: 23,
+    vat_amount: 286.10,
+    total: 1530.00,
+    payment_method: "Multibanco",
+    items: [
+      { description: "Toner HP 26A LaserJet Pro", quantity: 12, unit_price: 42.50, total: 510.00 },
+      { description: "Resma Papel A3 InaSet 80g", quantity: 30, unit_price: 6.80, total: 204.00 },
+      { description: "Dossier Lombada 80mm Esselte", quantity: 60, unit_price: 4.25, total: 255.00 },
+      { description: "Post-it Super Sticky 76x76 pk12", quantity: 25, unit_price: 10.99, total: 274.90 },
+    ],
+  },
+  {
+    id: "inv-c",
+    label: "FT 2025/0349",
+    color: "#16a34a",
+    invoice_number: "FT 2025/0349",
+    date: "10/04/2025",
+    client_name: "Contabilidade Sousa & Filhos",
+    client_nif: "509 876 543",
+    subtotal: 326.50,
+    vat_rate: 23,
+    vat_amount: 75.10,
+    total: 401.60,
+    payment_method: "Numerário",
+    items: [
+      { description: "Calculadora Casio MS-20UC", quantity: 5, unit_price: 14.90, total: 74.50 },
+      { description: "Agrafador Rapid E26 Full-strip", quantity: 3, unit_price: 22.50, total: 67.50 },
+      { description: "Papel Térmico 80mm rolo cx30", quantity: 4, unit_price: 28.90, total: 115.60 },
+      { description: "Capa Mola A4 Transparente cx50", quantity: 2, unit_price: 34.45, total: 68.90 },
+    ],
+  },
+];
+
 function SlideInvoices() {
-  const [files, setFiles] = useState<{ name: string; base64: string; mediaType: string; preview: string }[]>([]);
-  const [invoices, setInvoices] = useState<ParsedInvoice[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [droppedIds, setDroppedIds] = useState<string[]>([]);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [parsedInvoices, setParsedInvoices] = useState<DemoInvoice[]>([]);
   const [dragOver, setDragOver] = useState(false);
-  const [mobileStep, setMobileStep] = useState<"capture" | "confirm">("capture");
-  const isMobile = typeof window !== "undefined" && /Mobi|Android/i.test(navigator.userAgent);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const readFile = useCallback((file: File) => {
-    return new Promise<{ name: string; base64: string; mediaType: string; preview: string }>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        const base64 = dataUrl.split(",")[1];
-        resolve({
-          name: file.name,
-          base64,
-          mediaType: file.type || "image/jpeg",
-          preview: dataUrl,
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  }, []);
+  const availableInvoices = DEMO_INVOICES.filter((inv) => !droppedIds.includes(inv.id));
 
-  const handleFiles = useCallback(async (fileList: FileList | File[]) => {
-    const arr = Array.from(fileList).filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
-    const results = await Promise.all(arr.map(readFile));
-    setFiles((prev) => [...prev, ...results]);
-    if (isMobile) setMobileStep("confirm");
-  }, [readFile, isMobile]);
+  const processInvoice = useCallback((inv: DemoInvoice) => {
+    if (droppedIds.includes(inv.id)) return;
+    setDroppedIds((prev) => [...prev, inv.id]);
+    setProcessingId(inv.id);
+    setTimeout(() => {
+      setParsedInvoices((prev) => [...prev, inv]);
+      setProcessingId(null);
+    }, 1400);
+  }, [droppedIds]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    handleFiles(e.dataTransfer.files);
-  }, [handleFiles]);
-
-  const removeFile = useCallback((idx: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
-
-  const parseInvoices = useCallback(async () => {
-    if (!files.length) return;
-    setLoading(true);
-    setError("");
-    setInvoices([]);
-    try {
-      const res = await fetch("/api/parse-invoices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          images: files.map((f) => ({ base64: f.base64, mediaType: f.mediaType })),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to parse");
-      setInvoices(data.invoices);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao processar faturas");
-    } finally {
-      setLoading(false);
-    }
-  }, [files]);
+    const id = e.dataTransfer.getData("text/plain");
+    const inv = DEMO_INVOICES.find((d) => d.id === id);
+    if (inv) processInvoice(inv);
+  }, [processInvoice]);
 
   const handleReset = useCallback(() => {
-    setFiles([]);
-    setInvoices([]);
-    setError("");
-    setMobileStep("capture");
+    setDroppedIds([]);
+    setParsedInvoices([]);
+    setProcessingId(null);
+    setDraggingId(null);
   }, []);
 
   return (
     <section className="slide slide-invoices">
       <div className="slide-inner slide-invoices-inner">
-        {/* Left: drop zone / camera */}
+        {/* Left side */}
         <div className="inv-left">
           <span className="slide-label">Automação</span>
           <h2 className="slide-title" style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}>Scanner de Faturas</h2>
           <p className="slide-desc" style={{ fontSize: "0.92rem", marginBottom: "16px" }}>
-            Digitalize faturas em segundos. Arraste documentos ou tire uma fotografia — a IA extrai todos os dados automaticamente.
+            Arraste as faturas para a zona de digitalização — a IA extrai todos os dados em segundos.
           </p>
 
-          {!invoices.length && (
-            <>
-              {/* Desktop: drag & drop zone */}
-              {!isMobile && (
+          {/* Floating invoice documents */}
+          <div className="inv-docs">
+            {DEMO_INVOICES.map((inv) => {
+              const isDropped = droppedIds.includes(inv.id);
+              return (
                 <div
-                  className={`inv-dropzone ${dragOver ? "inv-dropzone-active" : ""} ${files.length ? "inv-dropzone-has-files" : ""}`}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleDrop}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = "image/*";
-                    input.multiple = true;
-                    input.onchange = () => input.files && handleFiles(input.files);
-                    input.click();
+                  key={inv.id}
+                  className={`inv-doc ${isDropped ? "inv-doc-dropped" : ""} ${draggingId === inv.id ? "inv-doc-dragging" : ""}`}
+                  draggable={!isDropped}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", inv.id);
+                    setDraggingId(inv.id);
                   }}
+                  onDragEnd={() => setDraggingId(null)}
+                  onClick={(e) => { e.stopPropagation(); if (!isDropped && !processingId) processInvoice(inv); }}
                 >
-                  {files.length === 0 ? (
-                    <>
-                      <svg className="inv-drop-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                      <span className="inv-drop-text">Arraste faturas aqui</span>
-                      <span className="inv-drop-sub">ou clique para selecionar</span>
-                    </>
-                  ) : (
-                    <div className="inv-file-list">
-                      {files.map((f, i) => (
-                        <div key={i} className="inv-file-item">
-                          <img src={f.preview} alt={f.name} className="inv-file-thumb" />
-                          <span className="inv-file-name">{f.name.length > 20 ? f.name.slice(0, 20) + "…" : f.name}</span>
-                          <button className="inv-file-remove" onClick={(e) => { e.stopPropagation(); removeFile(i); }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                          </button>
-                        </div>
-                      ))}
-                      <span className="inv-drop-sub" style={{ marginTop: "6px" }}>+ arrastar mais faturas</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Mobile: camera / file picker */}
-              {isMobile && mobileStep === "capture" && (
-                <div className="inv-mobile-capture">
-                  <button
-                    className="inv-mobile-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = "image/*";
-                      input.capture = "environment";
-                      input.onchange = () => input.files && handleFiles(input.files);
-                      input.click();
-                    }}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
-                    Fotografar Fatura
-                  </button>
-                  <button
-                    className="inv-mobile-btn inv-mobile-btn-sec"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = "image/*";
-                      input.multiple = true;
-                      input.onchange = () => input.files && handleFiles(input.files);
-                      input.click();
-                    }}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                    Escolher Ficheiro
-                  </button>
-                </div>
-              )}
-
-              {isMobile && mobileStep === "confirm" && files.length > 0 && (
-                <div className="inv-mobile-confirm">
-                  <div className="inv-file-list">
-                    {files.map((f, i) => (
-                      <div key={i} className="inv-file-item">
-                        <img src={f.preview} alt={f.name} className="inv-file-thumb" />
-                        <span className="inv-file-name">{f.name.length > 18 ? f.name.slice(0, 18) + "…" : f.name}</span>
-                        <button className="inv-file-remove" onClick={(e) => { e.stopPropagation(); removeFile(i); }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                        </button>
+                  <div className="inv-doc-icon" style={{ borderColor: isDropped ? "rgba(255,255,255,0.06)" : inv.color }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isDropped ? "rgba(255,255,255,0.15)" : inv.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    {isDropped && (
+                      <div className="inv-doc-check">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       </div>
-                    ))}
-                  </div>
-                  <button
-                    className="inv-mobile-btn inv-mobile-btn-sec"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = "image/*";
-                      input.capture = "environment";
-                      input.onchange = () => input.files && handleFiles(input.files);
-                      input.click();
-                    }}
-                  >
-                    + Adicionar Outra Fatura
-                  </button>
-                </div>
-              )}
-
-              {/* Action buttons */}
-              {files.length > 0 && (
-                <div className="inv-actions">
-                  <button className="inv-parse-btn" onClick={(e) => { e.stopPropagation(); parseInvoices(); }} disabled={loading}>
-                    {loading ? (
-                      <>
-                        <span className="inv-spinner" />
-                        A processar {files.length} fatura{files.length > 1 ? "s" : ""}…
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
-                        Analisar {files.length} Fatura{files.length > 1 ? "s" : ""}
-                      </>
                     )}
-                  </button>
+                  </div>
+                  <span className="inv-doc-label" style={{ color: isDropped ? "var(--text-muted)" : "var(--text)" }}>{inv.label}</span>
+                  <span className="inv-doc-client">{inv.client_name.length > 20 ? inv.client_name.slice(0, 20) + "…" : inv.client_name}</span>
                 </div>
-              )}
-              {error && <p className="inv-error">{error}</p>}
-            </>
-          )}
+              );
+            })}
+          </div>
 
-          {invoices.length > 0 && (
-            <div className="inv-done">
-              <div className="inv-done-badge">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                {invoices.length} fatura{invoices.length > 1 ? "s" : ""} processada{invoices.length > 1 ? "s" : ""}
+          {/* Drop zone */}
+          <div
+            className={`inv-dropzone ${dragOver ? "inv-dropzone-active" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
+            {processingId ? (
+              <div className="inv-drop-processing">
+                <span className="inv-spinner" />
+                <span>A digitalizar…</span>
               </div>
-              <button className="inv-reset-btn" onClick={(e) => { e.stopPropagation(); handleReset(); }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" /></svg>
-                Nova Digitalização
-              </button>
-            </div>
+            ) : (
+              <>
+                <svg className="inv-drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                <span className="inv-drop-text">
+                  {availableInvoices.length === 0 ? "Todas processadas" : "Arraste faturas aqui"}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Reset */}
+          {parsedInvoices.length > 0 && !processingId && (
+            <button className="inv-reset-btn" onClick={(e) => { e.stopPropagation(); handleReset(); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" /></svg>
+              Repetir Demo
+            </button>
           )}
         </div>
 
@@ -1317,14 +1269,17 @@ function SlideInvoices() {
             <div className="inv-browser-bar">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>
               <span>Base de Dados — Faturas</span>
+              {parsedInvoices.length > 0 && (
+                <span className="inv-browser-count">{parsedInvoices.length} registo{parsedInvoices.length > 1 ? "s" : ""}</span>
+              )}
             </div>
-            {invoices.length === 0 && !loading && (
+            {parsedInvoices.length === 0 && !processingId && (
               <div className="inv-empty">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"><rect x="2" y="3" width="20" height="18" rx="2" /><line x1="2" y1="9" x2="22" y2="9" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
                 <span>As faturas digitalizadas aparecem aqui</span>
               </div>
             )}
-            {loading && (
+            {processingId && parsedInvoices.length === 0 && (
               <div className="inv-loading">
                 <div className="inv-loading-anim">
                   <div className="inv-scan-line" />
@@ -1337,7 +1292,7 @@ function SlideInvoices() {
                 </div>
               </div>
             )}
-            {invoices.length > 0 && (
+            {parsedInvoices.length > 0 && (
               <div className="inv-table-wrap">
                 <table className="inv-table">
                   <thead>
@@ -1352,23 +1307,22 @@ function SlideInvoices() {
                     </tr>
                   </thead>
                   <tbody>
-                    {invoices.map((inv, i) => (
-                      <tr key={i}>
-                        <td className="inv-td-num">{inv.invoice_number || "—"}</td>
-                        <td>{inv.date || "—"}</td>
-                        <td className="inv-td-client">{inv.client_name || "—"}</td>
-                        <td className="inv-td-nif">{inv.client_nif || "—"}</td>
-                        <td className="inv-td-money">{inv.subtotal ? `${inv.subtotal.toFixed(2)}€` : "—"}</td>
-                        <td className="inv-td-money">{inv.vat_amount ? `${inv.vat_amount.toFixed(2)}€` : "—"}<br /><span className="inv-vat-rate">{inv.vat_rate ? `${inv.vat_rate}%` : ""}</span></td>
-                        <td className="inv-td-total">{inv.total ? `${inv.total.toFixed(2)}€` : "—"}</td>
+                    {parsedInvoices.map((inv) => (
+                      <tr key={inv.id} className="inv-row-enter">
+                        <td className="inv-td-num">{inv.invoice_number}</td>
+                        <td>{inv.date}</td>
+                        <td className="inv-td-client">{inv.client_name}</td>
+                        <td className="inv-td-nif">{inv.client_nif}</td>
+                        <td className="inv-td-money">{inv.subtotal.toFixed(2)}€</td>
+                        <td className="inv-td-money">{inv.vat_amount.toFixed(2)}€<br /><span className="inv-vat-rate">{inv.vat_rate}%</span></td>
+                        <td className="inv-td-total">{inv.total.toFixed(2)}€</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {/* Item detail for first invoice */}
-                {invoices[0]?.items?.length > 0 && (
+                {parsedInvoices[parsedInvoices.length - 1]?.items?.length > 0 && (
                   <div className="inv-items-section">
-                    <h4 className="inv-items-title">Itens — {invoices[0].invoice_number}</h4>
+                    <h4 className="inv-items-title">Itens — {parsedInvoices[parsedInvoices.length - 1].invoice_number}</h4>
                     <table className="inv-table inv-table-items">
                       <thead>
                         <tr>
@@ -1379,7 +1333,7 @@ function SlideInvoices() {
                         </tr>
                       </thead>
                       <tbody>
-                        {invoices[0].items.map((item, j) => (
+                        {parsedInvoices[parsedInvoices.length - 1].items.map((item, j) => (
                           <tr key={j}>
                             <td className="inv-td-desc">{item.description}</td>
                             <td>{item.quantity}</td>
