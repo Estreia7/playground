@@ -2551,145 +2551,103 @@ const styles = `
     min-width: 0;
   }
 
+  /* Floating invoice documents */
+  .inv-docs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .inv-doc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: grab;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+  }
+  .inv-doc:hover:not(.inv-doc-dropped) {
+    transform: translateY(-4px);
+  }
+  .inv-doc:active:not(.inv-doc-dropped) { cursor: grabbing; }
+  .inv-doc-dragging { opacity: 0.4; transform: scale(0.9); }
+  .inv-doc-dropped { opacity: 0.4; cursor: default; }
+  .inv-doc-icon {
+    width: 52px;
+    height: 62px;
+    border: 2px solid;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.03);
+    position: relative;
+    transition: all 0.3s;
+  }
+  .inv-doc:hover:not(.inv-doc-dropped) .inv-doc-icon {
+    background: rgba(255,255,255,0.06);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .inv-doc-check {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #16a34a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .inv-doc-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .inv-doc-client {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   /* Drop zone */
   .inv-dropzone {
     border: 2px dashed rgba(255,255,255,0.15);
     border-radius: var(--radius);
-    padding: 28px 20px;
+    padding: 20px;
     text-align: center;
-    cursor: pointer;
     transition: all 0.25s;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 6px;
     margin-bottom: 12px;
+    min-height: 70px;
   }
   .inv-dropzone:hover, .inv-dropzone-active {
     border-color: var(--accent);
-    background: rgba(239, 72, 35, 0.04);
-  }
-  .inv-dropzone-has-files {
-    padding: 14px;
-    border-style: solid;
-    border-color: rgba(255,255,255,0.1);
+    background: rgba(239, 72, 35, 0.06);
+    transform: scale(1.02);
   }
   .inv-drop-icon { color: var(--text-muted); }
   .inv-drop-text {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--text);
   }
-  .inv-drop-sub {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-  }
-
-  /* File list */
-  .inv-file-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 100%;
-  }
-  .inv-file-item {
+  .inv-drop-processing {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    padding: 6px 10px;
-  }
-  .inv-file-thumb {
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    object-fit: cover;
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  .inv-file-name {
-    flex: 1;
-    font-size: 0.75rem;
-    color: var(--text);
-  }
-  .inv-file-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(255,255,255,0.06);
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .inv-file-remove:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
-
-  /* Mobile capture */
-  .inv-mobile-capture {
-    display: flex;
-    flex-direction: column;
     gap: 10px;
-    margin-bottom: 12px;
-  }
-  .inv-mobile-confirm {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-  .inv-mobile-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 14px 20px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-size: 0.92rem;
+    font-size: 0.82rem;
     font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-  .inv-mobile-btn:hover { background: var(--accent-hover); }
-  .inv-mobile-btn-sec {
-    background: rgba(255,255,255,0.06);
-    color: var(--text);
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  .inv-mobile-btn-sec:hover { background: rgba(255,255,255,0.1); }
-
-  /* Actions */
-  .inv-actions { margin-bottom: 10px; }
-  .inv-parse-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding: 12px 20px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-  .inv-parse-btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
-  .inv-parse-btn:disabled { opacity: 0.7; cursor: wait; }
-  .inv-error {
-    font-size: 0.78rem;
-    color: #ef4444;
-    margin: 8px 0 0;
+    color: var(--accent);
   }
 
   /* Spinner */
@@ -2698,31 +2656,13 @@ const styles = `
     width: 16px;
     height: 16px;
     border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
+    border-top-color: var(--accent);
     border-radius: 50%;
     animation: inv-spin 0.6s linear infinite;
   }
   @keyframes inv-spin { to { transform: rotate(360deg); } }
 
-  /* Done state */
-  .inv-done {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 4px;
-  }
-  .inv-done-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    background: rgba(22,163,74,0.1);
-    border: 1px solid rgba(22,163,74,0.2);
-    border-radius: 10px;
-    color: #4ade80;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
+  /* Reset button */
   .inv-reset-btn {
     display: flex;
     align-items: center;
@@ -2762,6 +2702,12 @@ const styles = `
     font-size: 0.78rem;
     font-weight: 600;
     letter-spacing: 0.02em;
+  }
+  .inv-browser-count {
+    margin-left: auto;
+    font-size: 0.65rem;
+    opacity: 0.8;
+    font-weight: 500;
   }
   .inv-empty {
     flex: 1;
@@ -2859,6 +2805,13 @@ const styles = `
     vertical-align: top;
   }
   .inv-table tbody tr:hover { background: #f8fbff; }
+  .inv-row-enter {
+    animation: inv-row-in 0.4s ease-out;
+  }
+  @keyframes inv-row-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .inv-td-num { font-weight: 700; color: #1a6fb5; white-space: nowrap; }
   .inv-td-client { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .inv-td-nif { font-family: monospace; font-size: 0.68rem; color: #666; white-space: nowrap; }
