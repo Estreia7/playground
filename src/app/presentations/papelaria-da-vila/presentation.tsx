@@ -19,7 +19,7 @@ type Product = {
   catalog_page: number;
 };
 
-const TOTAL_SLIDES = 6;
+const TOTAL_SLIDES = 8;
 
 const langLabels: Record<Lang, string> = { pt: "PT", en: "EN", es: "ES" };
 
@@ -246,6 +246,8 @@ export default function Presentation() {
           <SlideServices t={t} />
           <SlideWhy t={t} />
           <SlideCases t={t} />
+          <SlideWorkflow />
+          <SlideInvoices />
           <SlideContact t={t} />
         </div>
       </main>
@@ -838,6 +840,560 @@ function SlideCases({ t }: { t: (typeof translations)["pt"] }) {
               </div>
             </div>
           )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Slide: Workflow Demo (WhatsApp → WebApp → Warehouse) ─── */
+function SlideWorkflow() {
+  const [orderSent, setOrderSent] = useState(false);
+  const [ticketGenerated, setTicketGenerated] = useState(false);
+  const [warehouseReady, setWarehouseReady] = useState(false);
+
+  const handleSendOrder = () => {
+    setOrderSent(true);
+    setTimeout(() => setTicketGenerated(true), 900);
+    setTimeout(() => setWarehouseReady(true), 1800);
+  };
+
+  const handleReset = () => {
+    setOrderSent(false);
+    setTicketGenerated(false);
+    setWarehouseReady(false);
+  };
+
+  return (
+    <section className="slide slide-workflow">
+      <div className="slide-inner slide-workflow-inner">
+        <div className="wf-header">
+          <span className="slide-label">Fluxo Automatizado</span>
+          <h2 className="slide-title">Do Pedido à Preparação</h2>
+          <p className="slide-desc">Encomendas feitas ao domingo à noite chegam organizadas ao armazém na segunda de manhã — sem intervenção manual.</p>
+        </div>
+
+        <div className="wf-windows">
+          {/* ─ Arrow connectors ─ */}
+          <div className="wf-arrow wf-arrow-1">
+            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+              <path d="M0 12h32m0 0l-6-6m6 6l-6 6" stroke={orderSent ? "#25D366" : "#444"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition:"stroke 0.4s"}} />
+            </svg>
+          </div>
+          <div className="wf-arrow wf-arrow-2">
+            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+              <path d="M0 12h32m0 0l-6-6m6 6l-6 6" stroke={ticketGenerated ? "#1a6fb5" : "#444"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transition:"stroke 0.4s"}} />
+            </svg>
+          </div>
+
+          {/* ─── Window 1: WhatsApp ─── */}
+          <div className={`wf-window wf-whatsapp ${orderSent ? "wf-sent" : ""}`}>
+            <div className="wf-phone-frame">
+              {/* Status bar */}
+              <div className="wf-phone-status">
+                <span>18:47</span>
+                <div className="wf-phone-status-icons">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.24 4.24 0 00-6 0zm-4-4l2 2a7.07 7.07 0 0110 0l2-2C15.68 9.68 8.32 9.68 5 13z"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+                </div>
+              </div>
+              {/* WhatsApp header */}
+              <div className="wf-wa-header">
+                <div className="wf-wa-avatar">PV</div>
+                <div className="wf-wa-header-info">
+                  <span className="wf-wa-name">Papelaria da Vila</span>
+                  <span className="wf-wa-status">online</span>
+                </div>
+              </div>
+              {/* Date chip */}
+              <div className="wf-wa-date">
+                <span>Domingo</span>
+              </div>
+              {/* Messages */}
+              <div className="wf-wa-messages">
+                <div className="wf-wa-msg wf-wa-msg-sent">
+                  <p>Olá! Queria fazer uma encomenda para segunda-feira por favor 🙏</p>
+                  <span className="wf-wa-time">18:45</span>
+                </div>
+                <div className="wf-wa-msg wf-wa-msg-sent">
+                  <p><strong>Encomenda #1247</strong></p>
+                  <p>• Resma Papel A4 Navigator × 10<br/>• Caneta BIC Cristal Azul × 50<br/>• Dossier A4 Lombada 80mm × 5<br/>• Post-it 76×76mm × 20</p>
+                  <span className="wf-wa-time">18:47</span>
+                </div>
+                <div className="wf-wa-msg wf-wa-msg-recv">
+                  <p>Recebido ✅ A sua encomenda será processada automaticamente e preparada na segunda de manhã!</p>
+                  <span className="wf-wa-time">18:47</span>
+                </div>
+              </div>
+              {/* Send button */}
+              <div className="wf-wa-bottom">
+                {!orderSent ? (
+                  <button className="wf-wa-send-btn" onClick={(e) => { e.stopPropagation(); handleSendOrder(); }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Enviar Encomenda
+                  </button>
+                ) : (
+                  <div className="wf-wa-sent-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Enviado
+                  </div>
+                )}
+              </div>
+            </div>
+            <span className="wf-window-label">Cliente — WhatsApp</span>
+          </div>
+
+          {/* ─── Window 2: WebApp ─── */}
+          <div className={`wf-window wf-webapp ${ticketGenerated ? "wf-active" : ""}`}>
+            <div className="wf-webapp-frame">
+              <div className="wf-webapp-topbar">
+                <div className="wf-webapp-dots">
+                  <span className="wf-dot-r"></span>
+                  <span className="wf-dot-y"></span>
+                  <span className="wf-dot-g"></span>
+                </div>
+                <span className="wf-webapp-url">app.papelariadavila.pt/encomendas</span>
+              </div>
+              <div className="wf-webapp-nav">
+                <span className="wf-webapp-nav-item active">Encomendas</span>
+                <span className="wf-webapp-nav-item">Clientes</span>
+                <span className="wf-webapp-nav-item">Stock</span>
+              </div>
+              <div className="wf-webapp-body">
+                {!orderSent && (
+                  <div className="wf-webapp-empty">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="12" y2="13"/></svg>
+                    <span>A aguardar encomendas...</span>
+                  </div>
+                )}
+                {orderSent && (
+                  <div className={`wf-webapp-order ${ticketGenerated ? "wf-webapp-order-ready" : "wf-webapp-order-entering"}`}>
+                    <div className="wf-webapp-order-header">
+                      <div className="wf-webapp-order-badge">NOVA</div>
+                      <span className="wf-webapp-order-id">#1247</span>
+                      <span className="wf-webapp-order-date">Dom 18:47</span>
+                    </div>
+                    <div className="wf-webapp-order-client">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      Escola Básica São João
+                    </div>
+                    <div className="wf-webapp-order-items">
+                      <div className="wf-webapp-item"><span>Resma Papel A4 Navigator</span><span>×10</span></div>
+                      <div className="wf-webapp-item"><span>Caneta BIC Cristal Azul</span><span>×50</span></div>
+                      <div className="wf-webapp-item"><span>Dossier A4 Lombada 80mm</span><span>×5</span></div>
+                      <div className="wf-webapp-item"><span>Post-it 76×76mm</span><span>×20</span></div>
+                    </div>
+                    <div className="wf-webapp-order-footer">
+                      <span className="wf-webapp-total">Total: 187.40€</span>
+                      {ticketGenerated && (
+                        <div className="wf-webapp-ticket-badge">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          Ticket gerado
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <span className="wf-window-label">Back-Office — WebApp</span>
+          </div>
+
+          {/* ─── Window 3: Warehouse Tablet ─── */}
+          <div className={`wf-window wf-warehouse ${warehouseReady ? "wf-active" : ""}`}>
+            <div className="wf-tablet-frame">
+              <div className="wf-tablet-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Armazém — Preparação</span>
+                <span className="wf-tablet-date">Seg, 08:00</span>
+              </div>
+              <div className="wf-tablet-body">
+                {!warehouseReady && (
+                  <div className="wf-tablet-empty">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                    <span>Sem encomendas pendentes</span>
+                  </div>
+                )}
+                {warehouseReady && (
+                  <div className="wf-tablet-order wf-tablet-order-appear">
+                    <div className="wf-tablet-order-top">
+                      <div className="wf-tablet-priority">PREPARAR</div>
+                      <span className="wf-tablet-order-id">#1247</span>
+                    </div>
+                    <div className="wf-tablet-client-info">
+                      <strong>Escola Básica São João</strong>
+                      <span>Entrega: Segunda-feira, manhã</span>
+                    </div>
+                    <div className="wf-tablet-items">
+                      <div className="wf-tablet-item">
+                        <div className="wf-tablet-check"></div>
+                        <span>Resma Papel A4 Navigator</span>
+                        <strong>×10</strong>
+                      </div>
+                      <div className="wf-tablet-item">
+                        <div className="wf-tablet-check"></div>
+                        <span>Caneta BIC Cristal Azul</span>
+                        <strong>×50</strong>
+                      </div>
+                      <div className="wf-tablet-item">
+                        <div className="wf-tablet-check"></div>
+                        <span>Dossier A4 Lombada 80mm</span>
+                        <strong>×5</strong>
+                      </div>
+                      <div className="wf-tablet-item">
+                        <div className="wf-tablet-check"></div>
+                        <span>Post-it 76×76mm</span>
+                        <strong>×20</strong>
+                      </div>
+                    </div>
+                    <div className="wf-tablet-note">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      Recebida via WhatsApp · Processada automaticamente
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <span className="wf-window-label">Armazém — Tablet</span>
+          </div>
+        </div>
+
+        {orderSent && (
+          <button className="wf-reset-btn" onClick={(e) => { e.stopPropagation(); handleReset(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            Repetir Demo
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ─── Slide: Invoice Scanner ─── */
+type ParsedInvoice = {
+  invoice_number: string;
+  date: string;
+  client_name: string;
+  client_nif: string;
+  items: { description: string; quantity: number; unit_price: number; total: number }[];
+  subtotal: number;
+  vat_rate: number;
+  vat_amount: number;
+  total: number;
+  payment_method: string;
+};
+
+function SlideInvoices() {
+  const [files, setFiles] = useState<{ name: string; base64: string; mediaType: string; preview: string }[]>([]);
+  const [invoices, setInvoices] = useState<ParsedInvoice[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [mobileStep, setMobileStep] = useState<"capture" | "confirm">("capture");
+  const isMobile = typeof window !== "undefined" && /Mobi|Android/i.test(navigator.userAgent);
+
+  const readFile = useCallback((file: File) => {
+    return new Promise<{ name: string; base64: string; mediaType: string; preview: string }>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(",")[1];
+        resolve({
+          name: file.name,
+          base64,
+          mediaType: file.type || "image/jpeg",
+          preview: dataUrl,
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleFiles = useCallback(async (fileList: FileList | File[]) => {
+    const arr = Array.from(fileList).filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
+    const results = await Promise.all(arr.map(readFile));
+    setFiles((prev) => [...prev, ...results]);
+    if (isMobile) setMobileStep("confirm");
+  }, [readFile, isMobile]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFiles(e.dataTransfer.files);
+  }, [handleFiles]);
+
+  const removeFile = useCallback((idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const parseInvoices = useCallback(async () => {
+    if (!files.length) return;
+    setLoading(true);
+    setError("");
+    setInvoices([]);
+    try {
+      const res = await fetch("/api/parse-invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          images: files.map((f) => ({ base64: f.base64, mediaType: f.mediaType })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to parse");
+      setInvoices(data.invoices);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao processar faturas");
+    } finally {
+      setLoading(false);
+    }
+  }, [files]);
+
+  const handleReset = useCallback(() => {
+    setFiles([]);
+    setInvoices([]);
+    setError("");
+    setMobileStep("capture");
+  }, []);
+
+  return (
+    <section className="slide slide-invoices">
+      <div className="slide-inner slide-invoices-inner">
+        {/* Left: drop zone / camera */}
+        <div className="inv-left">
+          <span className="slide-label">Automação</span>
+          <h2 className="slide-title" style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}>Scanner de Faturas</h2>
+          <p className="slide-desc" style={{ fontSize: "0.92rem", marginBottom: "16px" }}>
+            Digitalize faturas em segundos. Arraste documentos ou tire uma fotografia — a IA extrai todos os dados automaticamente.
+          </p>
+
+          {!invoices.length && (
+            <>
+              {/* Desktop: drag & drop zone */}
+              {!isMobile && (
+                <div
+                  className={`inv-dropzone ${dragOver ? "inv-dropzone-active" : ""} ${files.length ? "inv-dropzone-has-files" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.multiple = true;
+                    input.onchange = () => input.files && handleFiles(input.files);
+                    input.click();
+                  }}
+                >
+                  {files.length === 0 ? (
+                    <>
+                      <svg className="inv-drop-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                      <span className="inv-drop-text">Arraste faturas aqui</span>
+                      <span className="inv-drop-sub">ou clique para selecionar</span>
+                    </>
+                  ) : (
+                    <div className="inv-file-list">
+                      {files.map((f, i) => (
+                        <div key={i} className="inv-file-item">
+                          <img src={f.preview} alt={f.name} className="inv-file-thumb" />
+                          <span className="inv-file-name">{f.name.length > 20 ? f.name.slice(0, 20) + "…" : f.name}</span>
+                          <button className="inv-file-remove" onClick={(e) => { e.stopPropagation(); removeFile(i); }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                      <span className="inv-drop-sub" style={{ marginTop: "6px" }}>+ arrastar mais faturas</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mobile: camera / file picker */}
+              {isMobile && mobileStep === "capture" && (
+                <div className="inv-mobile-capture">
+                  <button
+                    className="inv-mobile-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = "image/*";
+                      input.capture = "environment";
+                      input.onchange = () => input.files && handleFiles(input.files);
+                      input.click();
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                    Fotografar Fatura
+                  </button>
+                  <button
+                    className="inv-mobile-btn inv-mobile-btn-sec"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = "image/*";
+                      input.multiple = true;
+                      input.onchange = () => input.files && handleFiles(input.files);
+                      input.click();
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                    Escolher Ficheiro
+                  </button>
+                </div>
+              )}
+
+              {isMobile && mobileStep === "confirm" && files.length > 0 && (
+                <div className="inv-mobile-confirm">
+                  <div className="inv-file-list">
+                    {files.map((f, i) => (
+                      <div key={i} className="inv-file-item">
+                        <img src={f.preview} alt={f.name} className="inv-file-thumb" />
+                        <span className="inv-file-name">{f.name.length > 18 ? f.name.slice(0, 18) + "…" : f.name}</span>
+                        <button className="inv-file-remove" onClick={(e) => { e.stopPropagation(); removeFile(i); }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    className="inv-mobile-btn inv-mobile-btn-sec"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = "image/*";
+                      input.capture = "environment";
+                      input.onchange = () => input.files && handleFiles(input.files);
+                      input.click();
+                    }}
+                  >
+                    + Adicionar Outra Fatura
+                  </button>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {files.length > 0 && (
+                <div className="inv-actions">
+                  <button className="inv-parse-btn" onClick={(e) => { e.stopPropagation(); parseInvoices(); }} disabled={loading}>
+                    {loading ? (
+                      <>
+                        <span className="inv-spinner" />
+                        A processar {files.length} fatura{files.length > 1 ? "s" : ""}…
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+                        Analisar {files.length} Fatura{files.length > 1 ? "s" : ""}
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+              {error && <p className="inv-error">{error}</p>}
+            </>
+          )}
+
+          {invoices.length > 0 && (
+            <div className="inv-done">
+              <div className="inv-done-badge">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                {invoices.length} fatura{invoices.length > 1 ? "s" : ""} processada{invoices.length > 1 ? "s" : ""}
+              </div>
+              <button className="inv-reset-btn" onClick={(e) => { e.stopPropagation(); handleReset(); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" /></svg>
+                Nova Digitalização
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right: results table */}
+        <div className="inv-right">
+          <div className="inv-browser">
+            <div className="inv-browser-bar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>
+              <span>Base de Dados — Faturas</span>
+            </div>
+            {invoices.length === 0 && !loading && (
+              <div className="inv-empty">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"><rect x="2" y="3" width="20" height="18" rx="2" /><line x1="2" y1="9" x2="22" y2="9" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
+                <span>As faturas digitalizadas aparecem aqui</span>
+              </div>
+            )}
+            {loading && (
+              <div className="inv-loading">
+                <div className="inv-loading-anim">
+                  <div className="inv-scan-line" />
+                </div>
+                <span className="inv-loading-text">A analisar com IA…</span>
+                <div className="inv-loading-steps">
+                  <span className="inv-step active">Leitura OCR</span>
+                  <span className="inv-step active">Extração de dados</span>
+                  <span className="inv-step">Validação NIF</span>
+                </div>
+              </div>
+            )}
+            {invoices.length > 0 && (
+              <div className="inv-table-wrap">
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th>N.º Fatura</th>
+                      <th>Data</th>
+                      <th>Cliente</th>
+                      <th>NIF</th>
+                      <th>Subtotal</th>
+                      <th>IVA</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((inv, i) => (
+                      <tr key={i}>
+                        <td className="inv-td-num">{inv.invoice_number || "—"}</td>
+                        <td>{inv.date || "—"}</td>
+                        <td className="inv-td-client">{inv.client_name || "—"}</td>
+                        <td className="inv-td-nif">{inv.client_nif || "—"}</td>
+                        <td className="inv-td-money">{inv.subtotal ? `${inv.subtotal.toFixed(2)}€` : "—"}</td>
+                        <td className="inv-td-money">{inv.vat_amount ? `${inv.vat_amount.toFixed(2)}€` : "—"}<br /><span className="inv-vat-rate">{inv.vat_rate ? `${inv.vat_rate}%` : ""}</span></td>
+                        <td className="inv-td-total">{inv.total ? `${inv.total.toFixed(2)}€` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* Item detail for first invoice */}
+                {invoices[0]?.items?.length > 0 && (
+                  <div className="inv-items-section">
+                    <h4 className="inv-items-title">Itens — {invoices[0].invoice_number}</h4>
+                    <table className="inv-table inv-table-items">
+                      <thead>
+                        <tr>
+                          <th>Descrição</th>
+                          <th>Qtd</th>
+                          <th>P. Unit.</th>
+                          <th>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoices[0].items.map((item, j) => (
+                          <tr key={j}>
+                            <td className="inv-td-desc">{item.description}</td>
+                            <td>{item.quantity}</td>
+                            <td className="inv-td-money">{item.unit_price.toFixed(2)}€</td>
+                            <td className="inv-td-money">{item.total.toFixed(2)}€</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>
@@ -2025,6 +2581,352 @@ const styles = `
   }
   .pb-ana-seller-target { color: #bbb; }
 
+  /* ── Slide: Invoice Scanner ── */
+  .slide-invoices-inner {
+    max-width: 1100px;
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+  }
+  .inv-left {
+    flex: 0 0 320px;
+    padding-top: 4px;
+  }
+  .inv-right {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Drop zone */
+  .inv-dropzone {
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .inv-dropzone:hover, .inv-dropzone-active {
+    border-color: var(--accent);
+    background: rgba(239, 72, 35, 0.04);
+  }
+  .inv-dropzone-has-files {
+    padding: 14px;
+    border-style: solid;
+    border-color: rgba(255,255,255,0.1);
+  }
+  .inv-drop-icon { color: var(--text-muted); }
+  .inv-drop-text {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .inv-drop-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  /* File list */
+  .inv-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
+  .inv-file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 6px 10px;
+  }
+  .inv-file-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .inv-file-name {
+    flex: 1;
+    font-size: 0.75rem;
+    color: var(--text);
+  }
+  .inv-file-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .inv-file-remove:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+
+  /* Mobile capture */
+  .inv-mobile-capture {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .inv-mobile-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .inv-mobile-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .inv-mobile-btn:hover { background: var(--accent-hover); }
+  .inv-mobile-btn-sec {
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .inv-mobile-btn-sec:hover { background: rgba(255,255,255,0.1); }
+
+  /* Actions */
+  .inv-actions { margin-bottom: 10px; }
+  .inv-parse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .inv-parse-btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+  .inv-parse-btn:disabled { opacity: 0.7; cursor: wait; }
+  .inv-error {
+    font-size: 0.78rem;
+    color: #ef4444;
+    margin: 8px 0 0;
+  }
+
+  /* Spinner */
+  .inv-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: inv-spin 0.6s linear infinite;
+  }
+  @keyframes inv-spin { to { transform: rotate(360deg); } }
+
+  /* Done state */
+  .inv-done {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .inv-done-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(22,163,74,0.1);
+    border: 1px solid rgba(22,163,74,0.2);
+    border-radius: 10px;
+    color: #4ade80;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .inv-reset-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    width: fit-content;
+  }
+  .inv-reset-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* Browser / table panel */
+  .inv-browser {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 420px;
+    color: #1a1a1a;
+  }
+  .inv-browser-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #1a6fb5;
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .inv-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 20px;
+    color: #aaa;
+    font-size: 0.78rem;
+  }
+
+  /* Loading animation */
+  .inv-loading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 40px 20px;
+  }
+  .inv-loading-anim {
+    width: 120px;
+    height: 80px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    background: #fafafa;
+  }
+  .inv-scan-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #1a6fb5;
+    box-shadow: 0 0 8px rgba(26,111,181,0.5);
+    animation: inv-scan 1.5s ease-in-out infinite;
+  }
+  @keyframes inv-scan {
+    0%, 100% { top: 0; }
+    50% { top: calc(100% - 2px); }
+  }
+  .inv-loading-text {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #555;
+  }
+  .inv-loading-steps {
+    display: flex;
+    gap: 16px;
+  }
+  .inv-step {
+    font-size: 0.68rem;
+    color: #ccc;
+    transition: color 0.3s;
+  }
+  .inv-step.active { color: #1a6fb5; font-weight: 600; }
+
+  /* Table */
+  .inv-table-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+  }
+  .inv-table-wrap::-webkit-scrollbar { width: 4px; height: 4px; }
+  .inv-table-wrap::-webkit-scrollbar-track { background: transparent; }
+  .inv-table-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
+  .inv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.72rem;
+  }
+  .inv-table th {
+    background: #f5f5f5;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 700;
+    color: #555;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 2px solid #e8e8e8;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .inv-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+    vertical-align: top;
+  }
+  .inv-table tbody tr:hover { background: #f8fbff; }
+  .inv-td-num { font-weight: 700; color: #1a6fb5; white-space: nowrap; }
+  .inv-td-client { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inv-td-nif { font-family: monospace; font-size: 0.68rem; color: #666; white-space: nowrap; }
+  .inv-td-money { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .inv-td-total { font-weight: 700; text-align: right; white-space: nowrap; color: #1a1a1a; }
+  .inv-vat-rate { font-size: 0.58rem; color: #999; }
+  .inv-td-desc { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Items detail */
+  .inv-items-section {
+    border-top: 2px solid #e8e8e8;
+    padding-top: 8px;
+  }
+  .inv-items-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #555;
+    padding: 6px 10px 0;
+    margin: 0;
+  }
+  .inv-table-items th { background: #fafafa; }
+
   /* ── Password gate ── */
   .pw-gate {
     flex: 1;
@@ -2121,6 +3023,10 @@ const styles = `
     .slide-cases-inner { flex-direction: column; }
     .cases-text { flex: none; }
     .product-browser { max-height: 320px; }
+    .slide-invoices-inner { flex-direction: column; }
+    .inv-left { flex: none; width: 100%; }
+    .inv-right { width: 100%; }
+    .inv-browser { max-height: 280px; }
   }
   @media (max-width: 480px) {
     .why-grid { grid-template-columns: 1fr; }
