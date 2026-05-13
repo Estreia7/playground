@@ -1,5 +1,12 @@
 const { getDb } = require('../db');
 
+// Bump whenever the scraper produces meaningfully different output for the
+// same URL — adds a column, changes price-extraction logic, etc. Cached
+// rows with a lower version are treated as cache-miss so the next run
+// re-scrapes with the new code.
+//   v1 — real Airbnb scrape (replaces SCRAPER_STUB=1 placeholder data).
+const SCHEMA_VERSION = 1;
+
 const TERMINAL = new Set(['done', 'error', 'cancelled', 'interrupted']);
 
 function nowSec() {
@@ -143,9 +150,11 @@ function cacheLookup(url, ttlDays) {
   const row = db
     .prepare(
       `SELECT result_json, last_analysed_at FROM listings
-       WHERE url = ? AND last_analysed_at >= ?`
+       WHERE url = ?
+         AND last_analysed_at >= ?
+         AND schema_version >= ?`
     )
-    .get(url, cutoff);
+    .get(url, cutoff, SCHEMA_VERSION);
   if (!row) return null;
   return { result: JSON.parse(row.result_json), lastAnalysedAt: row.last_analysed_at };
 }
@@ -153,12 +162,13 @@ function cacheLookup(url, ttlDays) {
 function cacheUpsert(url, result) {
   const db = getDb();
   db.prepare(
-    `INSERT INTO listings (url, last_analysed_at, result_json)
-     VALUES (?, ?, ?)
+    `INSERT INTO listings (url, last_analysed_at, result_json, schema_version)
+     VALUES (?, ?, ?, ?)
      ON CONFLICT(url) DO UPDATE SET
        last_analysed_at = excluded.last_analysed_at,
-       result_json = excluded.result_json`
-  ).run(url, nowSec(), JSON.stringify(result));
+       result_json = excluded.result_json,
+       schema_version = excluded.schema_version`
+  ).run(url, nowSec(), JSON.stringify(result), SCHEMA_VERSION);
 }
 
 module.exports = {

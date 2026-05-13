@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS listings (
   url              TEXT PRIMARY KEY,
   last_analysed_at INTEGER NOT NULL,
-  result_json      TEXT NOT NULL
+  result_json      TEXT NOT NULL,
+  schema_version   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_listings_last_analysed ON listings(last_analysed_at);
 
