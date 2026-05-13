@@ -1,0 +1,77 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Build & typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build Next.js
+        run: npm run build
+
+  deploy:
+    name: Deploy to Hetzner
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 49.13.150.6 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull, install, build, reload PM2
+        run: |
+          ssh -i ~/.ssh/id_ed25519 root@49.13.150.6 'set -e
+            cd /var/www/playground
+            git pull origin master
+            npm ci
+            cd backend && npm ci && cd ..
+            npm run build
+            pm2 startOrReload /var/www/playground/ecosystem.config.js
+            pm2 save'
+
+      - name: Smoke test
+        run: |
+          set -e
+          for i in 1 2 3 4 5; do
+            HOME_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' https://playground.bruno-dev.xyz/)
+            HEALTH_BODY=$(curl -sS https://playground.bruno-dev.xyz/api/airbnb/health || true)
+            if [ "$HOME_STATUS" = "200" ] && echo "$HEALTH_BODY" | grep -q '"ok":true'; then
+              echo "✓ Deploy verified (home=$HOME_STATUS, backend health ok)"
+              exit 0
+            fi
+            echo "Attempt $i: home=$HOME_STATUS body=$HEALTH_BODY — retrying in 5s"
+            sleep 5
+          done
+          echo "Smoke test failed after 5 attempts"
+          exit 1
