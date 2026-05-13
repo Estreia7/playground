@@ -32,6 +32,8 @@ export function useScrapperState() {
           status: "queued",
           createdAt: (payload.createdAt as number) || Math.floor(Date.now() / 1000),
           urls: (payload.urls as string[]) || [],
+          name: (payload.name as string) || "",
+          location: (payload.location as string) || "",
         });
         return { ...prev, [jobId]: created };
       }
@@ -115,6 +117,8 @@ export function useScrapperState() {
             startedAt?: number;
             finishedAt?: number;
             urls: string[];
+            name?: string;
+            location?: string;
           }>;
         };
         if (cancelled) return;
@@ -211,11 +215,11 @@ export function useScrapperState() {
     [visibleJobs]
   );
 
-  const submitJob = useCallback(async (urls: string[]) => {
+  const submitJob = useCallback(async (input: { urls: string[]; name: string; location: string }) => {
     const res = await fetch(`${API_BASE}/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls }),
+      body: JSON.stringify(input),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

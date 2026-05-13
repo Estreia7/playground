@@ -9,12 +9,19 @@ export function emptyJob(j: {
   status: JobStatus;
   createdAt: number;
   urls: string[];
+  name?: string;
+  location?: string;
 }): JobState {
   const listings: Record<string, ListingState> = {};
   for (const u of j.urls) {
     listings[u] = { url: u, status: "queued", monthsDone: 0, months: [] };
   }
-  return { ...j, listings };
+  return {
+    ...j,
+    name: j.name ?? "",
+    location: j.location ?? "",
+    listings,
+  };
 }
 
 export function statusColor(s: JobStatus | ListingState["status"]): string {

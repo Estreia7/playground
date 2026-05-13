@@ -26,10 +26,17 @@ function runMigrations(db) {
   // Idempotent ALTERs for columns added after the initial schema.
   // Use try/catch because SQLite raises "duplicate column name" when the
   // column already exists — there's no IF NOT EXISTS for ADD COLUMN.
-  try {
-    db.exec(`ALTER TABLE listings ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0`);
-  } catch (err) {
-    if (!/duplicate column name/i.test(err.message)) throw err;
+  const adds = [
+    `ALTER TABLE listings ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE jobs ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE jobs ADD COLUMN location TEXT NOT NULL DEFAULT ''`,
+  ];
+  for (const stmt of adds) {
+    try {
+      db.exec(stmt);
+    } catch (err) {
+      if (!/duplicate column name/i.test(err.message)) throw err;
+    }
   }
 }
 

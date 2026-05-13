@@ -13,14 +13,19 @@ function nextId() {
 }
 
 export function NewTaskView({
+  onSubmit,
   onSubmitted,
 }: {
+  onSubmit: (input: { urls: string[]; name: string; location: string }) => Promise<string>;
   onSubmitted: (jobId: string) => void | Promise<void>;
 }) {
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
   const [rows, setRows] = useState<Row[]>([{ id: nextId(), value: "" }]);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<number, string>>({});
   const [topError, setTopError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const filledCount = rows.filter((r) => r.value.trim().length > 0).length;
   const canAdd = rows.length < MAX_URLS;
@@ -50,13 +55,24 @@ export function NewTaskView({
   }
 
   function clearAll() {
+    setName("");
+    setLocation("");
     setRows([{ id: nextId(), value: "" }]);
     setErrors({});
     setTopError(null);
+    setNameError(null);
   }
 
   async function submit() {
     setTopError(null);
+    setNameError(null);
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setNameError("Task name is required");
+      return;
+    }
+
     const rowErrors: Record<number, string> = {};
     const urls: string[] = [];
 
@@ -88,17 +104,11 @@ export function NewTaskView({
     setErrors({});
     setSubmitting(true);
     try {
-      const res = await fetch("/api/airbnb/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls }),
+      const jobId = await onSubmit({
+        urls,
+        name: trimmedName,
+        location: location.trim(),
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setTopError(body.message || body.error || `HTTP ${res.status}`);
-        return;
-      }
-      const { jobId } = (await res.json()) as { jobId: string };
       clearAll();
       await onSubmitted(jobId);
     } catch (err) {
@@ -113,11 +123,50 @@ export function NewTaskView({
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">New task</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Add 1–{MAX_URLS} Airbnb listing URLs. Each URL becomes one row.
+          Name the task, optionally tag it with a location, then add 1–{MAX_URLS} Airbnb URLs.
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="task-name" className="mb-1 block text-xs font-medium text-zinc-400">
+            Task name <span className="text-red-400">*</span>
+          </label>
+          <input
+            id="task-name"
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError(null);
+            }}
+            placeholder="e.g. Algarve villas — May market check"
+            maxLength={120}
+            className={`w-full rounded-lg border bg-zinc-950 px-3 py-2 text-sm text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-orange-600/60 ${
+              nameError ? "border-red-600/50" : "border-zinc-800"
+            }`}
+          />
+          {nameError && <p className="mt-1 text-xs text-red-400">{nameError}</p>}
+        </div>
+        <div>
+          <label htmlFor="task-location" className="mb-1 block text-xs font-medium text-zinc-400">
+            Location <span className="text-zinc-600">(optional)</span>
+          </label>
+          <input
+            id="task-location"
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g. Quarteira, Portugal"
+            maxLength={120}
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-orange-600/60"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-400">URLs</label>
+        <div className="space-y-2">
         <AnimatePresence initial={false}>
           {rows.map((row, idx) => {
             const err = errors[row.id];
@@ -164,6 +213,7 @@ export function NewTaskView({
             );
           })}
         </AnimatePresence>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">

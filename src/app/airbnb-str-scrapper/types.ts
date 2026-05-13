@@ -38,4 +38,6 @@ export type JobState = {
   finishedAt?: number | null;
   urls: string[];
   listings: Record<string, ListingState>;
+  name: string;
+  location: string;
 };

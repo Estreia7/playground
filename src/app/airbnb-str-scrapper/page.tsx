@@ -53,7 +53,9 @@ export default function ScrapperPage() {
         </header>
 
         <main className="flex-1 px-6 py-6">
-          {view === "new" && <NewTaskView onSubmitted={handleSubmitted} />}
+          {view === "new" && (
+            <NewTaskView onSubmit={state.submitJob} onSubmitted={handleSubmitted} />
+          )}
           {view === "tasks" && (
             <TasksView
               jobs={state.visibleJobs}

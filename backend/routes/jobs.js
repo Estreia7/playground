@@ -11,6 +11,8 @@ const router = express.Router();
 
 const CreateBody = z.object({
   urls: z.array(z.string().min(1)).min(1).max(15),
+  name: z.string().trim().min(1).max(120),
+  location: z.string().trim().max(120).optional().default(''),
 });
 
 router.post('/jobs', (req, res) => {
@@ -28,8 +30,17 @@ router.post('/jobs', (req, res) => {
   if (normalized.length === 0) return res.status(400).json({ error: 'no-valid-urls' });
 
   const id = nanoid(10);
-  store.createJob({ id, urls: normalized });
-  emit(id, 'job-created', { jobId: id, urls: normalized, createdAt: Math.floor(Date.now() / 1000) });
+  const name = parsed.data.name.trim();
+  const location = (parsed.data.location || '').trim();
+
+  store.createJob({ id, urls: normalized, name, location });
+  emit(id, 'job-created', {
+    jobId: id,
+    urls: normalized,
+    name,
+    location,
+    createdAt: Math.floor(Date.now() / 1000),
+  });
   scheduler.kick();
 
   const job = store.getJob(id);

@@ -8,6 +8,8 @@ export async function exportJobToExcel(job: JobState) {
 
   const index = wb.addWorksheet("Index");
   index.columns = [
+    { header: "Task", key: "task", width: 30 },
+    { header: "Location", key: "location", width: 24 },
     { header: "URL", key: "url", width: 60 },
     { header: "Status", key: "status", width: 14 },
     { header: "Months done", key: "monthsDone", width: 14 },
@@ -20,6 +22,8 @@ export async function exportJobToExcel(job: JobState) {
     const adrs = ls?.months?.filter((m) => m.adr !== null).map((m) => m.adr as number) || [];
     const avg = adrs.length ? Math.round((adrs.reduce((a, b) => a + b, 0) / adrs.length) * 100) / 100 : null;
     index.addRow({
+      task: job.name || `#${job.id.slice(0, 6)}`,
+      location: job.location || "",
       url,
       status: ls?.status || "queued",
       monthsDone: ls?.monthsDone ?? 0,
@@ -46,7 +50,8 @@ export async function exportJobToExcel(job: JobState) {
       { header: "Notes", key: "notes", width: 28 },
     ];
     ws.getRow(1).font = { bold: true };
-    ws.getCell("A2").value = url;
+    const tag = [job.name, job.location].filter(Boolean).join(" — ");
+    ws.getCell("A2").value = tag ? `${tag}\n${url}` : url;
     ws.mergeCells("A2:D2");
     ws.getCell("A2").alignment = { wrapText: true };
     ws.getCell("A2").font = { italic: true, color: { argb: "FF666666" } };
@@ -64,7 +69,12 @@ export async function exportJobToExcel(job: JobState) {
   });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `airbnb-adr-${job.id}.xlsx`;
+  const safeName = (job.name || job.id)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || job.id;
+  a.download = `airbnb-adr-${safeName}.xlsx`;
   a.click();
   URL.revokeObjectURL(a.href);
 }

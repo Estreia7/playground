@@ -103,19 +103,26 @@ function JobRow({
         selected ? "bg-zinc-900" : ""
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs text-zinc-400">#{shortId(job.id)}</span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-zinc-100">
+            {job.name || `Task #${shortId(job.id)}`}
+          </p>
+          {job.location && (
+            <p className="mt-0.5 truncate text-[11px] text-zinc-500">{job.location}</p>
+          )}
+        </div>
         <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusColor(
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusColor(
             job.status
           )}`}
         >
           {job.status}
         </span>
       </div>
-      <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
+      <div className="mt-1.5 flex items-center justify-between text-[11px] text-zinc-500">
         <span>
-          {job.urls.length} URL{job.urls.length === 1 ? "" : "s"}
+          {job.urls.length} URL{job.urls.length === 1 ? "" : "s"} · #{shortId(job.id)}
         </span>
         <span>{fmtTime(job.createdAt)}</span>
       </div>
@@ -172,10 +179,12 @@ function JobDetail({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm text-zinc-300">#{shortId(job.id)}</span>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-lg font-semibold tracking-tight text-zinc-100">
+                {job.name || `Task #${shortId(job.id)}`}
+              </h3>
               <span
                 className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusColor(
                   job.status
@@ -184,8 +193,11 @@ function JobDetail({
                 {job.status}
               </span>
             </div>
+            {job.location && (
+              <p className="mt-0.5 text-sm text-zinc-400">{job.location}</p>
+            )}
             <p className="mt-1 text-xs text-zinc-500">
-              {job.urls.length} URL{job.urls.length === 1 ? "" : "s"} · submitted {fmtTime(job.createdAt)}
+              #{shortId(job.id)} · {job.urls.length} URL{job.urls.length === 1 ? "" : "s"} · submitted {fmtTime(job.createdAt)}
             </p>
           </div>
           <div className="flex gap-2">

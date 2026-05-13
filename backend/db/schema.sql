@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS jobs (
   started_at   INTEGER,
   finished_at  INTEGER,
   status       TEXT NOT NULL,
-  urls_json    TEXT NOT NULL
+  urls_json    TEXT NOT NULL,
+  name         TEXT NOT NULL DEFAULT '',
+  location     TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status_created ON jobs(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at);
