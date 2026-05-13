@@ -1,9 +1,12 @@
+const path = require('path');
+const root = __dirname;
+
 module.exports = {
   apps: [
     {
       name: 'playground',
-      cwd: './',
-      script: 'node_modules/next/dist/bin/next',
+      cwd: root,
+      script: path.join(root, 'node_modules/next/dist/bin/next'),
       args: 'start',
       instances: 1,
       exec_mode: 'fork',
@@ -16,8 +19,8 @@ module.exports = {
     },
     {
       name: 'airbnb-scrapper-backend',
-      cwd: './backend',
-      script: 'index.js',
+      cwd: path.join(root, 'backend'),
+      script: path.join(root, 'backend/index.js'),
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
