@@ -46,7 +46,7 @@ export default function ScrapperPage() {
               </Link>
               <span className="text-zinc-700">/</span>
               <h1 className="font-semibold tracking-tight">Airbnb STR Scrapper</h1>
-              <span className="rounded-full bg-amber-600/20 px-2 py-0.5 text-xs text-amber-400">draft</span>
+              <span className="rounded-full bg-orange-600/20 px-2 py-0.5 text-xs text-orange-400">live</span>
             </div>
             <ViewBadge view={view} />
           </div>

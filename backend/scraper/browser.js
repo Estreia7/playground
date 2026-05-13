@@ -40,7 +40,7 @@ async function launchContext(workerId) {
   const viewport = VIEWPORTS[workerId % VIEWPORTS.length];
 
   const context = await chromium.launchPersistentContext(profileDir(workerId), {
-    headless: process.env.HEADLESS === 'false' ? false : 'new',
+    headless: process.env.HEADLESS === 'false' ? false : true,
     viewport,
     userAgent: ua,
     locale: 'en-US',

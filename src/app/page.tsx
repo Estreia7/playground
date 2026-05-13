@@ -15,7 +15,7 @@ const experiments = [
     description:
       "Paste 1–15 Airbnb URLs, get a 12-month ADR table per listing. Playwright + stealth, SSE progress, Excel export.",
     href: "/airbnb-str-scrapper",
-    status: "draft" as const,
+    status: "live" as const,
     image: "/airbnb-scrapper-cover.svg",
   },
 ];
