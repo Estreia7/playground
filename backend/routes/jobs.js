@@ -60,6 +60,49 @@ router.get('/jobs/:id', (req, res) => {
   return res.json({ job, listings });
 });
 
+router.get('/jobs/:id/events', (req, res) => {
+  const job = store.getJob(req.params.id);
+  if (!job) return res.status(404).json({ error: 'not-found' });
+  return res.json({
+    job,
+    events: store.eventsForJob(req.params.id),
+    attempts: store.scrapeAttemptsForJob(req.params.id),
+  });
+});
+
+router.get('/metrics', (req, res) => {
+  const window = Math.min(parseInt(req.query.windowDays, 10) || 7, 90) * 86400;
+  const m = store.globalMetrics({ windowSeconds: window });
+
+  const totalAttempts = m.byOutcome.reduce((acc, r) => acc + r.n, 0);
+  const byOutcome = Object.fromEntries(m.byOutcome.map((r) => [r.outcome, r.n]));
+  const success = (byOutcome['success'] || 0) + (byOutcome['success-shrunk'] || 0);
+
+  const durations = m.jobsCompleted
+    .map((j) => (j.finishedAt - j.startedAt) * 1000)
+    .filter((d) => Number.isFinite(d) && d > 0)
+    .sort((a, b) => a - b);
+
+  const p50 = durations.length ? durations[Math.floor(durations.length * 0.5)] : null;
+  const p95 = durations.length ? durations[Math.floor(durations.length * 0.95)] : null;
+  const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : null;
+
+  return res.json({
+    windowDays: window / 86400,
+    totalAttempts,
+    byOutcome,
+    successRate: totalAttempts ? success / totalAttempts : null,
+    shrinkRate: totalAttempts ? (byOutcome['success-shrunk'] || 0) / totalAttempts : null,
+    priceFoundRate: totalAttempts ? success / totalAttempts : null,
+    cache: {
+      hits: m.cacheStats.cached || 0,
+      total: m.cacheStats.total || 0,
+      rate: m.cacheStats.total ? (m.cacheStats.cached || 0) / m.cacheStats.total : null,
+    },
+    jobDurationMs: { count: durations.length, avg, p50, p95 },
+  });
+});
+
 router.post('/jobs/:id/cancel', (req, res) => {
   const result = scheduler.cancel(req.params.id);
   if (!result.ok) return res.status(409).json({ error: result.reason });

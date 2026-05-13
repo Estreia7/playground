@@ -66,13 +66,29 @@ async function processListing({ jobId, url, workerId, signal }) {
           const rates = [];
           for (const g of samples) {
             if (signal?.aborted) throw new Error('Aborted');
+
             // Try the picked window first; if dates aren't available
             // (typically a minimum-stay rule), shrink by 1 night once.
+            let started = Date.now();
             let price = await extractPrice(page, g);
+            recordAttempt({
+              jobId, url, month: m.key, sample: g,
+              outcome: price?.totalPrice > 0 ? 'success' : 'dates-unavailable',
+              totalPrice: price?.totalPrice,
+              durationMs: Date.now() - started,
+            });
+
             if (!price && g.nights > 2) {
               const shrunk = { ...g, nights: g.nights - 1, end: addDaysToISO(g.start, g.nights - 1) };
               await randomDelay(3000, 6000, signal);
+              started = Date.now();
               price = await extractPrice(page, shrunk);
+              recordAttempt({
+                jobId, url, month: m.key, sample: shrunk,
+                outcome: price?.totalPrice > 0 ? 'success-shrunk' : 'no-price-found',
+                totalPrice: price?.totalPrice,
+                durationMs: Date.now() - started,
+              });
             }
             if (price?.totalPrice > 0 && price.nights > 0) {
               rates.push(price.totalPrice / price.nights);
@@ -123,6 +139,24 @@ function addDaysToISO(iso, n) {
   const d = new Date(iso + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+function recordAttempt({ jobId, url, month, sample, outcome, totalPrice, durationMs }) {
+  try {
+    store.insertScrapeAttempt({
+      jobId,
+      url,
+      month,
+      sampleStart: sample.start,
+      sampleEnd: sample.end,
+      sampleNights: sample.nights,
+      outcome,
+      totalPrice: totalPrice ?? null,
+      durationMs,
+    });
+  } catch (err) {
+    logger.warn('insertScrapeAttempt failed', err.message);
+  }
 }
 
 module.exports = { processListing };

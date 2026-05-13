@@ -173,6 +173,92 @@ function cacheUpsert(url, result) {
   ).run(url, nowSec(), JSON.stringify(result), SCHEMA_VERSION);
 }
 
+function insertScrapeAttempt(row) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO scrape_attempts
+       (job_id, url, month, sample_start, sample_end, sample_nights, outcome, total_price, duration_ms, ts)
+     VALUES (@jobId, @url, @month, @sampleStart, @sampleEnd, @sampleNights, @outcome, @totalPrice, @durationMs, @ts)`
+  ).run({
+    jobId: row.jobId,
+    url: row.url,
+    month: row.month,
+    sampleStart: row.sampleStart,
+    sampleEnd: row.sampleEnd,
+    sampleNights: row.sampleNights,
+    outcome: row.outcome,
+    totalPrice: row.totalPrice ?? null,
+    durationMs: row.durationMs,
+    ts: row.ts || nowSec(),
+  });
+}
+
+function scrapeAttemptsForJob(jobId) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT id, job_id AS jobId, url, month, sample_start AS sampleStart,
+              sample_end AS sampleEnd, sample_nights AS sampleNights,
+              outcome, total_price AS totalPrice, duration_ms AS durationMs, ts
+         FROM scrape_attempts
+        WHERE job_id = ?
+        ORDER BY ts ASC, id ASC`
+    )
+    .all(jobId);
+}
+
+function eventsForJob(jobId) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT seq, event_type AS type, payload_json AS payload, ts
+         FROM job_events
+        WHERE job_id = ?
+        ORDER BY seq ASC`
+    )
+    .all(jobId)
+    .map((r) => ({ ...r, payload: JSON.parse(r.payload) }));
+}
+
+function globalMetrics({ windowSeconds = 7 * 86400 } = {}) {
+  const db = getDb();
+  const cutoff = nowSec() - windowSeconds;
+
+  const byOutcome = db
+    .prepare(
+      `SELECT outcome, COUNT(*) AS n
+         FROM scrape_attempts
+        WHERE ts >= ?
+        GROUP BY outcome`
+    )
+    .all(cutoff);
+
+  const cacheStats = db
+    .prepare(
+      `SELECT
+         SUM(CASE WHEN status = 'cached' THEN 1 ELSE 0 END) AS cached,
+         COUNT(*) AS total
+         FROM listing_results
+        WHERE finished_at >= ?`
+    )
+    .get(cutoff);
+
+  const jobsCompleted = db
+    .prepare(
+      `SELECT id, started_at AS startedAt, finished_at AS finishedAt
+         FROM jobs
+        WHERE status IN ('done','error','cancelled','interrupted')
+          AND finished_at IS NOT NULL
+          AND started_at IS NOT NULL
+          AND finished_at >= ?
+        ORDER BY finished_at DESC
+        LIMIT 200`
+    )
+    .all(cutoff);
+
+  return { byOutcome, cacheStats, jobsCompleted, windowSeconds };
+}
+
 module.exports = {
   createJob,
   getJob,
@@ -190,5 +276,9 @@ module.exports = {
   listingResults,
   cacheLookup,
   cacheUpsert,
+  insertScrapeAttempt,
+  scrapeAttemptsForJob,
+  eventsForJob,
+  globalMetrics,
   TERMINAL,
 };

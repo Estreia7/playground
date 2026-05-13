@@ -36,3 +36,20 @@ CREATE TABLE IF NOT EXISTS listing_results (
   finished_at INTEGER NOT NULL,
   PRIMARY KEY (job_id, url)
 );
+
+CREATE TABLE IF NOT EXISTS scrape_attempts (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_id        TEXT NOT NULL,
+  url           TEXT NOT NULL,
+  month         TEXT NOT NULL,
+  sample_start  TEXT NOT NULL,
+  sample_end    TEXT NOT NULL,
+  sample_nights INTEGER NOT NULL,
+  outcome       TEXT NOT NULL,
+  total_price   REAL,
+  duration_ms   INTEGER NOT NULL,
+  ts            INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scrape_attempts_ts ON scrape_attempts(ts);
+CREATE INDEX IF NOT EXISTS idx_scrape_attempts_job ON scrape_attempts(job_id);
+CREATE INDEX IF NOT EXISTS idx_scrape_attempts_outcome ON scrape_attempts(outcome);
