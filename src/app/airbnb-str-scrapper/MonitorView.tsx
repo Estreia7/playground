@@ -162,7 +162,7 @@ export function MonitorView({
             <h3 className="text-sm font-semibold">Jobs</h3>
             <span className="text-xs text-zinc-500">{jobs.length}</span>
           </div>
-          <div className="max-h-[60vh] overflow-y-auto">
+          <div className="thin-scroll max-h-[60vh] overflow-y-auto">
             {jobs.length === 0 && (
               <p className="px-4 py-6 text-center text-xs text-zinc-500">No jobs yet</p>
             )}
@@ -341,7 +341,7 @@ function EventTimeline({ events, loading }: { events: EventRow[]; loading: boole
           Event timeline — {events.length} event{events.length === 1 ? "" : "s"}
         </p>
       </div>
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div className="thin-scroll max-h-[60vh] overflow-y-auto">
         <table className="w-full text-[11px]">
           <thead className="sticky top-0 bg-zinc-900/95 backdrop-blur">
             <tr className="border-b border-zinc-800 text-left text-zinc-500">

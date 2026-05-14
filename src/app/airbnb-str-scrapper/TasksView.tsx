@@ -29,7 +29,7 @@ export function TasksView({
           <h2 className="text-sm font-semibold tracking-tight">Tasks</h2>
           <span className="text-xs text-zinc-500">{jobs.length}</span>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto">
+        <div className="thin-scroll max-h-[70vh] overflow-y-auto">
           <AnimatePresence initial={false}>
             {jobs.length === 0 && (
               <div className="px-4 py-10 text-center">
