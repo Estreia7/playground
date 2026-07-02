@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { fileToDataUrl, processPage, type EnhanceMode } from "./imaging";
+import {
+  fileToDataUrl,
+  makeBaseImage,
+  suggestCrop,
+  type BaseImage,
+  type EnhanceMode,
+  type ProcessedPage,
+  type Rect,
+} from "./imaging";
+import { CropModal } from "./CropModal";
 import { buildPdf, blobToBase64 } from "./pdf";
 import {
   docTypeMeta,
@@ -13,26 +22,34 @@ import {
 
 let pageSeq = 0;
 
+interface PendingCrop {
+  base: BaseImage;
+  suggested: Rect;
+}
+
 export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
   const [pages, setPages] = useState<ScanPage[]>([]);
   const [mode, setMode] = useState<EnhanceMode>("auto");
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingCrop | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
-  const [classification, setClassification] = useState<Classification | null>(
-    null
-  );
+
+  const [classification, setClassification] = useState<Classification | null>(null);
   const [classifying, setClassifying] = useState(false);
+
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCameraOn(false);
   }, []);
 
@@ -40,93 +57,133 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
 
   async function startCamera() {
     setError(null);
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      // Older/mobile browsers: fall back to the native camera capture input.
+      cameraInputRef.current?.click();
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 } },
+        video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
       setCameraOn(true);
-    } catch {
-      setError(
-        "Camera unavailable. Grant permission, use HTTPS, or upload a file instead."
-      );
+      // Attach after state flip so the <video> is mounted.
+      requestAnimationFrame(async () => {
+        const v = videoRef.current;
+        if (!v) return;
+        v.srcObject = stream;
+        try {
+          await v.play();
+        } catch {
+          // Autoplay can reject on mobile; the muted+playsInline video usually
+          // still renders. Ignore — user can still press Capture.
+        }
+      });
+    } catch (e) {
+      stopCamera();
+      const name = e instanceof DOMException ? e.name : "";
+      if (name === "NotAllowedError") {
+        setError("Camera permission was denied. Using file capture instead.");
+      } else {
+        setError("Live camera unavailable here — using file capture instead.");
+      }
+      cameraInputRef.current?.click();
     }
   }
 
-  async function addProcessed(dataUrl: string) {
-    setBusy(true);
+  // From any source image → prepare a base image + suggested crop → open modal.
+  async function prepare(src: string) {
+    setPreparing(true);
+    setError(null);
     try {
-      const p = await processPage(dataUrl, mode);
-      setPages((prev) => [
-        ...prev,
-        { id: `p${pageSeq++}`, dataUrl: p.dataUrl, width: p.width, height: p.height },
-      ]);
-      setClassification(null); // stale once pages change
-    } catch {
-      setError("Could not process that image.");
+      const base = await makeBaseImage(src);
+      const suggested = await suggestCrop(base);
+      setPending({ base, suggested });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not process that image.");
     } finally {
-      setBusy(false);
+      setPreparing(false);
     }
   }
 
-  async function capture() {
+  async function captureFromVideo() {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !video.videoWidth) return;
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d")!.drawImage(video, 0, 0);
-    await addProcessed(canvas.toDataURL("image/jpeg", 0.95));
+    await prepare(canvas.toDataURL("image/jpeg", 0.95));
   }
 
   async function onFiles(files: FileList | null) {
     if (!files?.length) return;
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
-      const url = await fileToDataUrl(file);
-      await addProcessed(url);
+    const file = files[0];
+    if (file.type.startsWith("image/") || file.type === "") {
+      try {
+        const url = await fileToDataUrl(file);
+        await prepare(url);
+      } catch {
+        setError("Could not read that file.");
+      }
+    } else {
+      setError("Please choose an image file.");
     }
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (uploadRef.current) uploadRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   }
 
-  function removePage(id: string) {
-    setPages((prev) => prev.filter((p) => p.id !== id));
-    setClassification(null);
-  }
-
-  async function reprocessAll(next: EnhanceMode) {
-    // Note: re-enhancing an already-processed JPEG compounds a little, but is
-    // fine for a preview toggle. Fresh captures use the current mode directly.
-    setMode(next);
-  }
-
-  async function classify() {
-    if (!pages.length) return;
+  // Auto-classify using the first page whenever pages change to a non-empty set
+  // and we don't yet have a classification.
+  async function autoClassify(firstDataUrl: string) {
     setClassifying(true);
-    setError(null);
     try {
-      const first = pages[0];
-      const base64 = first.dataUrl.split(",")[1];
       const res = await fetch("/api/monte-scan/classify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64, mediaType: "image/jpeg" }),
+        body: JSON.stringify({ base64: firstDataUrl, mediaType: "image/jpeg" }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Classification failed");
+      if (!res.ok) throw new Error(json.error || "Detection failed");
       const c = json.classification as Classification;
       setClassification(c);
-      if (!name) setName(c.suggestedName || c.label || "scan");
+      setName((prev) => prev || c.suggestedName || c.label || "scan");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Classification failed");
+      // Non-fatal: keep the page, just show a soft note.
+      setError(
+        e instanceof Error
+          ? `Auto-detect skipped: ${e.message}`
+          : "Auto-detect skipped."
+      );
     } finally {
       setClassifying(false);
     }
+  }
+
+  function acceptCrop(page: ProcessedPage) {
+    const isFirst = pages.length === 0;
+    const newPage: ScanPage = {
+      id: `p${pageSeq++}`,
+      dataUrl: page.dataUrl,
+      width: page.width,
+      height: page.height,
+    };
+    setPages((prev) => [...prev, newPage]);
+    setPending(null);
+    if (isFirst) autoClassify(page.dataUrl); // auto-detect on first page
+  }
+
+  function removePage(id: string) {
+    setPages((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      if (next.length === 0) setClassification(null);
+      return next;
+    });
   }
 
   async function save() {
@@ -151,7 +208,6 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Save failed");
       onSaved(json.document as StoredDoc);
-      // reset
       setPages([]);
       setClassification(null);
       setName("");
@@ -185,10 +241,10 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
                 <video
                   ref={videoRef}
                   playsInline
+                  autoPlay
                   muted
                   className="h-full w-full object-cover"
                 />
-                {/* viewfinder brackets */}
                 <div className="pointer-events-none absolute inset-6">
                   {(["tl", "tr", "bl", "br"] as const).map((c) => (
                     <span
@@ -209,7 +265,15 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-600">
                 <ScanIcon />
-                <p className="text-sm">Start the camera or upload a file</p>
+                <p className="text-sm">Take a photo or upload a file</p>
+                <p className="text-xs text-zinc-700">
+                  We&apos;ll auto-crop and detect the type for you
+                </p>
+              </div>
+            )}
+            {preparing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm text-zinc-200">
+                Preparing crop…
               </div>
             )}
           </div>
@@ -220,56 +284,50 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
                 onClick={startCamera}
                 className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-500"
               >
-                Start camera
+                Take photo
               </button>
             ) : (
               <>
                 <button
-                  onClick={capture}
-                  disabled={busy}
+                  onClick={captureFromVideo}
+                  disabled={preparing}
                   className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-500 disabled:opacity-50"
                 >
-                  {busy ? "Processing…" : "Capture page"}
+                  Capture
                 </button>
                 <button
                   onClick={stopCamera}
                   className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-500"
                 >
-                  Stop
+                  Stop camera
                 </button>
               </>
             )}
 
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => uploadRef.current?.click()}
               className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-500"
             >
               Upload file
             </button>
+
+            {/* Native camera capture (mobile fallback) */}
             <input
-              ref={fileInputRef}
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
-              multiple
+              capture="environment"
               hidden
               onChange={(e) => onFiles(e.target.files)}
             />
-
-            <div className="ml-auto flex items-center gap-1 rounded-lg border border-zinc-800 p-1">
-              {(["auto", "color", "grayscale", "bw"] as EnhanceMode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => reprocessAll(m)}
-                  className={`rounded px-2.5 py-1 text-xs capitalize transition-colors ${
-                    mode === m
-                      ? "bg-zinc-700 text-white"
-                      : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  {m === "bw" ? "B&W" : m}
-                </button>
-              ))}
-            </div>
+            {/* Plain file picker */}
+            <input
+              ref={uploadRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => onFiles(e.target.files)}
+            />
           </div>
         </div>
 
@@ -281,7 +339,10 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
                 Pages ({pages.length})
               </h3>
               <button
-                onClick={() => setPages([])}
+                onClick={() => {
+                  setPages([]);
+                  setClassification(null);
+                }}
                 className="text-xs text-zinc-500 hover:text-zinc-300"
               >
                 Clear all
@@ -321,40 +382,42 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
         )}
       </div>
 
-      {/* Right: details / actions */}
+      {/* Right: auto-detected type + save */}
       <div className="space-y-4">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-          <h3 className="text-sm font-medium text-zinc-300">Auto-detect</h3>
-          <p className="mt-1 text-xs text-zinc-500">
-            Claude reads the first page to detect the document type and suggest a
-            name.
-          </p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-zinc-300">Document type</h3>
+            {classifying && (
+              <span className="text-xs text-orange-400">detecting…</span>
+            )}
+          </div>
 
-          <button
-            onClick={classify}
-            disabled={!pages.length || classifying}
-            className="mt-3 w-full rounded-lg border border-orange-600/40 bg-orange-600/10 px-4 py-2 text-sm font-medium text-orange-300 transition-colors hover:bg-orange-600/20 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {classifying ? "Detecting…" : "Detect document type"}
-          </button>
-
-          <AnimatePresence>
-            {classification && meta && (
+          <AnimatePresence mode="wait">
+            {!pages.length ? (
+              <p key="empty" className="mt-2 text-xs text-zinc-500">
+                Capture a page and Monte Scan will auto-detect what it is.
+              </p>
+            ) : classifying ? (
+              <div key="loading" className="mt-3 space-y-2">
+                <div className="h-5 w-32 animate-pulse rounded bg-zinc-800" />
+                <div className="h-3 w-48 animate-pulse rounded bg-zinc-800" />
+              </div>
+            ) : classification && meta ? (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-4 space-y-2 overflow-hidden"
+                key="result"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-3 space-y-2"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{meta.emoji}</span>
+                  <span className="text-2xl">{meta.emoji}</span>
                   <div>
                     <p className="text-sm font-medium text-zinc-100">
                       {classification.label}
                     </p>
                     <p className="text-[11px] text-zinc-500">
-                      {Math.round(classification.confidence * 100)}% confidence ·{" "}
-                      {meta.label}
+                      {Math.round((classification.confidence ?? 0) * 100)}%
+                      confidence · {meta.label}
                     </p>
                   </div>
                 </div>
@@ -373,7 +436,21 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
                     ))}
                   </div>
                 )}
+                <button
+                  onClick={() => pages[0] && autoClassify(pages[0].dataUrl)}
+                  className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
+                >
+                  Re-detect
+                </button>
               </motion.div>
+            ) : (
+              <button
+                key="retry"
+                onClick={() => pages[0] && autoClassify(pages[0].dataUrl)}
+                className="mt-3 w-full rounded-lg border border-orange-600/40 bg-orange-600/10 px-4 py-2 text-sm font-medium text-orange-300 hover:bg-orange-600/20"
+              >
+                Detect document type
+              </button>
             )}
           </AnimatePresence>
         </div>
@@ -395,7 +472,11 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
               disabled={!pages.length || saving}
               className="w-full rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-orange-500 disabled:opacity-40"
             >
-              {saving ? "Saving…" : `Save PDF (${pages.length} page${pages.length === 1 ? "" : "s"})`}
+              {saving
+                ? "Saving…"
+                : `Save PDF (${pages.length} page${
+                    pages.length === 1 ? "" : "s"
+                  })`}
             </button>
             <button
               onClick={downloadPreview}
@@ -408,18 +489,39 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-900/50 bg-red-950/40 px-4 py-3 text-xs text-red-300">
+          <div className="rounded-lg border border-amber-900/50 bg-amber-950/30 px-4 py-3 text-xs text-amber-300">
             {error}
           </div>
         )}
       </div>
+
+      {pending && (
+        <CropModal
+          base={pending.base}
+          suggested={pending.suggested}
+          mode={mode}
+          onModeChange={setMode}
+          onCancel={() => setPending(null)}
+          onAccept={acceptCrop}
+          busy={false}
+        />
+      )}
     </div>
   );
 }
 
 function ScanIcon() {
   return (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M3 7V5a2 2 0 0 1 2-2h2" />
       <path d="M17 3h2a2 2 0 0 1 2 2v2" />
       <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
