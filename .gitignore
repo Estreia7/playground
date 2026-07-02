@@ -38,6 +38,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# monte-scan stored documents
+/storage/monte-scan
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

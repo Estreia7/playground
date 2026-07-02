@@ -18,6 +18,14 @@ const experiments = [
     status: "live" as const,
     image: "/airbnb-scrapper-cover.svg",
   },
+  {
+    title: "Monte Scan",
+    description:
+      "Scan documents & ID cards with your camera, auto-detect the type, crop & enhance, export to PDF, store, and share on WhatsApp.",
+    href: "/monte-scan",
+    status: "live" as const,
+    image: "/monte-scan-cover.svg",
+  },
 ];
 
 export default function Home() {
