@@ -33,6 +33,7 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
   const [pending, setPending] = useState<PendingCrop | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
 
   const [classification, setClassification] = useState<Classification | null>(null);
   const [classifying, setClassifying] = useState(false);
@@ -50,10 +51,47 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
     setCameraOn(false);
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  // Attach the stream once the <video> is actually in the DOM (cameraOn flips
+  // it on). Doing this in an effect — not a one-shot rAF — is what makes the
+  // live preview reliably render on mobile Safari/Chrome.
+  useEffect(() => {
+    if (!cameraOn) return;
+    const v = videoRef.current;
+    const stream = streamRef.current;
+    if (!v || !stream) return;
+
+    v.srcObject = stream;
+    v.setAttribute("playsinline", "true");
+    v.muted = true;
+
+    let cancelled = false;
+    const markReady = () => {
+      if (!cancelled && v.videoWidth > 0) setCameraReady(true);
+    };
+    v.addEventListener("loadedmetadata", markReady);
+    v.addEventListener("playing", markReady);
+
+    v.play().catch(() => {
+      // Autoplay may reject until a user gesture; the tracks are still live so
+      // a frame usually arrives shortly and 'playing' fires.
+    });
+
+    // Safety net: some browsers don't fire the events reliably.
+    const t = setTimeout(markReady, 800);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      v.removeEventListener("loadedmetadata", markReady);
+      v.removeEventListener("playing", markReady);
+    };
+  }, [cameraOn]);
 
   async function startCamera() {
     setError(null);
@@ -61,36 +99,38 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
       typeof navigator === "undefined" ||
       !navigator.mediaDevices?.getUserMedia
     ) {
-      // Older/mobile browsers: fall back to the native camera capture input.
+      // Older/insecure-context browsers: fall back to native camera capture.
       cameraInputRef.current?.click();
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+      } catch {
+        // Retry without the facingMode constraint (some webcams reject it).
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
       streamRef.current = stream;
-      setCameraOn(true);
-      // Attach after state flip so the <video> is mounted.
-      requestAnimationFrame(async () => {
-        const v = videoRef.current;
-        if (!v) return;
-        v.srcObject = stream;
-        try {
-          await v.play();
-        } catch {
-          // Autoplay can reject on mobile; the muted+playsInline video usually
-          // still renders. Ignore — user can still press Capture.
-        }
-      });
+      setCameraReady(false);
+      setCameraOn(true); // effect above attaches + plays the stream
     } catch (e) {
       stopCamera();
       const name = e instanceof DOMException ? e.name : "";
-      if (name === "NotAllowedError") {
-        setError("Camera permission was denied. Using file capture instead.");
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setError(
+          "Camera permission was blocked. Opening the device camera instead."
+        );
+      } else if (name === "NotFoundError") {
+        setError("No camera found — opening the device camera instead.");
       } else {
-        setError("Live camera unavailable here — using file capture instead.");
+        setError("Live camera unavailable here — opening the device camera.");
       }
       cameraInputRef.current?.click();
     }
@@ -113,7 +153,10 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
 
   async function captureFromVideo() {
     const video = videoRef.current;
-    if (!video || !video.videoWidth) return;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setError("Camera is still warming up — try Capture again in a moment.");
+      return;
+    }
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -271,6 +314,11 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
                 </p>
               </div>
             )}
+            {cameraOn && !cameraReady && !preparing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm text-zinc-300">
+                Starting camera…
+              </div>
+            )}
             {preparing && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm text-zinc-200">
                 Preparing crop…
@@ -280,20 +328,28 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
 
           <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800 p-3">
             {!cameraOn ? (
-              <button
-                onClick={startCamera}
-                className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-500"
-              >
-                Take photo
-              </button>
+              <>
+                <button
+                  onClick={startCamera}
+                  className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-500"
+                >
+                  Live camera
+                </button>
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-500"
+                >
+                  Take photo
+                </button>
+              </>
             ) : (
               <>
                 <button
                   onClick={captureFromVideo}
-                  disabled={preparing}
+                  disabled={preparing || !cameraReady}
                   className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-500 disabled:opacity-50"
                 >
-                  Capture
+                  {cameraReady ? "Capture" : "Starting…"}
                 </button>
                 <button
                   onClick={stopCamera}
