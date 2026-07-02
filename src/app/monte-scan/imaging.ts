@@ -95,6 +95,35 @@ export async function suggestCrop(base: BaseImage): Promise<Rect> {
 }
 
 /**
+ * Ask the vision model to detect the document's bounding box. Returns a rect
+ * in the base image's pixel coordinates, or null if the model didn't find a
+ * clear document (caller should keep the heuristic/full-frame box).
+ */
+export async function detectCropAI(base: BaseImage): Promise<Rect | null> {
+  const res = await fetch("/api/monte-scan/detect-crop", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ base64: base.dataUrl, mediaType: "image/jpeg" }),
+  });
+  if (!res.ok) throw new Error(`detect-crop ${res.status}`);
+  const json = (await res.json()) as {
+    crop?: { x: number; y: number; w: number; h: number; found?: boolean };
+  };
+  const c = json.crop;
+  if (!c || c.found === false) return null;
+
+  const rect: Rect = {
+    x: Math.round(c.x * base.width),
+    y: Math.round(c.y * base.height),
+    w: Math.round(c.w * base.width),
+    h: Math.round(c.h * base.height),
+  };
+  // Ignore degenerate boxes.
+  if (rect.w < base.width * 0.15 || rect.h < base.height * 0.15) return null;
+  return rect;
+}
+
+/**
  * Apply a crop rectangle + enhancement to a base image and return the final
  * page JPEG ready for the PDF.
  */

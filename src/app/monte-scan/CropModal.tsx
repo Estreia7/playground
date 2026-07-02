@@ -15,6 +15,7 @@ type Handle = "move" | "nw" | "ne" | "sw" | "se" | null;
 export function CropModal({
   base,
   suggested,
+  aiLoading,
   mode,
   onModeChange,
   onCancel,
@@ -23,6 +24,7 @@ export function CropModal({
 }: {
   base: BaseImage;
   suggested: Rect;
+  aiLoading: boolean;
   mode: EnhanceMode;
   onModeChange: (m: EnhanceMode) => void;
   onCancel: () => void;
@@ -31,8 +33,16 @@ export function CropModal({
 }) {
   const [rect, setRect] = useState<Rect>(suggested);
   const [applying, setApplying] = useState(false);
+  // Once the user drags/resizes, stop auto-syncing to AI suggestions.
+  const [touched, setTouched] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ handle: Handle; startX: number; startY: number; orig: Rect } | null>(null);
+
+  // When the AI refines the suggested box, snap to it — unless the user has
+  // already started adjusting the crop themselves.
+  useEffect(() => {
+    if (!touched) setRect(suggested);
+  }, [suggested, touched]);
 
   // Scale factor from displayed pixels to base-image pixels.
   function scaleFactor() {
@@ -49,6 +59,7 @@ export function CropModal({
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setTouched(true);
     const p = clientPoint(e);
     drag.current = { handle, startX: p.x, startY: p.y, orig: { ...rect } };
   }
@@ -110,6 +121,7 @@ export function CropModal({
   }
 
   function resetFull() {
+    setTouched(true);
     setRect({ x: 0, y: 0, w: base.width, h: base.height });
   }
 
@@ -136,7 +148,15 @@ export function CropModal({
         className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"
       >
         <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <h3 className="font-semibold text-zinc-100">Adjust crop</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-zinc-100">Adjust crop</h3>
+            {aiLoading && !touched && (
+              <span className="flex items-center gap-1.5 rounded-full bg-orange-600/15 px-2 py-0.5 text-[11px] text-orange-300">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+                AI finding document…
+              </span>
+            )}
+          </div>
           <button
             onClick={onCancel}
             className="text-zinc-500 hover:text-zinc-300"
@@ -165,7 +185,11 @@ export function CropModal({
             <div className="pointer-events-none absolute inset-0 rounded-lg bg-black/50" />
             {/* crop window (clear) */}
             <div
-              className="absolute cursor-move border-2 border-orange-500 shadow-[0_0_0_9999px_rgba(0,0,0,0)]"
+              className={`absolute cursor-move border-2 border-orange-500 ${
+                aiLoading && !touched
+                  ? "transition-all duration-300 ease-out"
+                  : ""
+              }`}
               style={{
                 left: `${pct.left}%`,
                 top: `${pct.top}%`,

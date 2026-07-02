@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  detectCropAI,
   fileToDataUrl,
   makeBaseImage,
   suggestCrop,
@@ -25,6 +26,7 @@ let pageSeq = 0;
 interface PendingCrop {
   base: BaseImage;
   suggested: Rect;
+  aiLoading: boolean; // AI is still refining the suggested box
 }
 
 export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
@@ -137,16 +139,32 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
   }
 
   // From any source image → prepare a base image + suggested crop → open modal.
+  // The modal opens immediately with a fast heuristic box, then the AI refines
+  // the suggested crop in the background and updates it in place.
   async function prepare(src: string) {
     setPreparing(true);
     setError(null);
     try {
       const base = await makeBaseImage(src);
-      const suggested = await suggestCrop(base);
-      setPending({ base, suggested });
+      const heuristic = await suggestCrop(base);
+      setPending({ base, suggested: heuristic, aiLoading: true });
+      setPreparing(false);
+
+      // Background: let Claude detect the document's bounding box.
+      detectCropAI(base)
+        .then((aiRect) => {
+          setPending((prev) => {
+            if (!prev || prev.base !== base) return prev; // superseded
+            return { ...prev, suggested: aiRect ?? prev.suggested, aiLoading: false };
+          });
+        })
+        .catch(() => {
+          setPending((prev) =>
+            prev && prev.base === base ? { ...prev, aiLoading: false } : prev
+          );
+        });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not process that image.");
-    } finally {
       setPreparing(false);
     }
   }
@@ -555,6 +573,7 @@ export function ScanView({ onSaved }: { onSaved: (doc: StoredDoc) => void }) {
         <CropModal
           base={pending.base}
           suggested={pending.suggested}
+          aiLoading={pending.aiLoading}
           mode={mode}
           onModeChange={setMode}
           onCancel={() => setPending(null)}
