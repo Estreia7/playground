@@ -74,7 +74,7 @@ export function buildSummary(job: JobState): {
 
 export const API_BASE = "/api/airbnb";
 export const AIRBNB_URL_RE = /^https?:\/\/(www\.)?airbnb\.[a-z.]+\/rooms\/\d+/i;
-export const MAX_URLS = 15;
+export const MAX_URLS = 35;
 
 export function emptyJob(j: {
   id: string;

@@ -10,7 +10,7 @@ const { normalizeAirbnbUrl } = require('../lib/urlNormalize');
 const router = express.Router();
 
 const CreateBody = z.object({
-  urls: z.array(z.string().min(1)).min(1).max(15),
+  urls: z.array(z.string().min(1)).min(1).max(35),
   name: z.string().trim().min(1).max(120),
   location: z.string().trim().max(120).optional().default(''),
 });
