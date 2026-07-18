@@ -7,7 +7,7 @@ export async function exportJobToExcel(job: JobState) {
   wb.creator = "playground";
   wb.created = new Date();
 
-  const { rows, monthAverages, overallAvg } = buildSummary(job);
+  const { rows, monthAverages, overallAvg, avgReviewsScore } = buildSummary(job);
 
   // --- Summary sheet: the matrix shown in the UI -----------------------
   const summary = wb.addWorksheet("Summary");
@@ -15,6 +15,7 @@ export async function exportJobToExcel(job: JobState) {
     { header: "Listing", key: "title", width: 34 },
     { header: "Reviews", key: "reviews", width: 10 },
     { header: "Score", key: "score", width: 8 },
+    { header: "Recent on market", key: "recent", width: 16 },
     ...MONTH_LABELS.map((m) => ({ header: m, key: m, width: 8 })),
     { header: "Avg", key: "avg", width: 10 },
   ];
@@ -31,16 +32,28 @@ export async function exportJobToExcel(job: JobState) {
       title: r.title,
       reviews: r.reviewsCount,
       score: r.reviewsScore,
+      recent: r.recent ? "Yes" : "No",
       avg: r.avgAdr,
     };
+    // Excluded (manually hidden) cells are left blank so they don't skew a
+    // reader's eye or any downstream formula.
     r.adrByMonth.forEach((v, i) => {
-      row[MONTH_LABELS[i]] = v;
+      row[MONTH_LABELS[i]] = r.excludedByMonth[i] ? null : v;
     });
     summary.addRow(row);
   }
 
+  const recentTally = `${rows.filter((r) => r.recent).length} yes · ${
+    rows.filter((r) => !r.recent).length
+  } no`;
+
   // Trailing "Average / month" row.
-  const avgRow: Record<string, unknown> = { title: "Average / month", avg: overallAvg };
+  const avgRow: Record<string, unknown> = {
+    title: "Average / month",
+    score: avgReviewsScore,
+    recent: recentTally,
+    avg: overallAvg,
+  };
   monthAverages.forEach((v, i) => {
     avgRow[MONTH_LABELS[i]] = v;
   });

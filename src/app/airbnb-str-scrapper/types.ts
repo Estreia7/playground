@@ -47,4 +47,11 @@ export type JobState = {
   listings: Record<string, ListingState>;
   name: string;
   location: string;
+  // Manually hidden ADR cells, keyed "url|monthIndex" (monthIndex 0..11,
+  // Jan..Dec). Excluded cells are greyed and dropped from all averages.
+  excluded: Set<string>;
 };
+
+export function cellKey(url: string, monthIndex: number): string {
+  return `${url}|${monthIndex}`;
+}

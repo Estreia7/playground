@@ -37,6 +37,17 @@ CREATE TABLE IF NOT EXISTS listing_results (
   PRIMARY KEY (job_id, url)
 );
 
+-- Per-job manual exclusions: a listing/month ADR cell the user hid because
+-- the scraped value looked unrealistic. Excluded cells are greyed in the UI
+-- and dropped from every average.
+CREATE TABLE IF NOT EXISTS excluded_cells (
+  job_id      TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  month_index INTEGER NOT NULL,
+  PRIMARY KEY (job_id, url, month_index)
+);
+CREATE INDEX IF NOT EXISTS idx_excluded_cells_job ON excluded_cells(job_id);
+
 CREATE TABLE IF NOT EXISTS scrape_attempts (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   job_id        TEXT NOT NULL,

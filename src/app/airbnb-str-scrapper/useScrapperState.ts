@@ -151,8 +151,9 @@ export function useScrapperState() {
                   meta?: ListingMeta;
                   result: MonthResult[];
                 }>;
+                excluded?: string[];
               };
-              return { meta: data.job, listings: data.listings };
+              return { meta: data.job, listings: data.listings, excluded: data.excluded };
             } catch {
               return j;
             }
@@ -171,6 +172,7 @@ export function useScrapperState() {
                 meta?: ListingMeta;
                 result: MonthResult[];
               }>;
+              excluded?: string[];
             };
             const base = emptyJob(e.meta);
             for (const l of e.listings) {
@@ -182,6 +184,7 @@ export function useScrapperState() {
                 meta: l.meta,
               };
             }
+            base.excluded = new Set(e.excluded ?? []);
             next[e.meta.id] = base;
             ord.push(e.meta.id);
           } else {
@@ -263,6 +266,48 @@ export function useScrapperState() {
     await fetch(`${API_BASE}/jobs/${id}`, { method: "DELETE" });
   }, []);
 
+  // Hide/show a single ADR cell. Optimistic: flip the local Set immediately,
+  // persist to the backend, and roll back if the request fails.
+  const toggleExclusion = useCallback(
+    async (jobId: string, url: string, monthIndex: number) => {
+      const key = `${url}|${monthIndex}`;
+      let willExclude = true;
+      setJobs((prev) => {
+        const job = prev[jobId];
+        if (!job) return prev;
+        const next = new Set(job.excluded);
+        if (next.has(key)) {
+          next.delete(key);
+          willExclude = false;
+        } else {
+          next.add(key);
+          willExclude = true;
+        }
+        return { ...prev, [jobId]: { ...job, excluded: next } };
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/jobs/${jobId}/exclusions`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, monthIndex, excluded: willExclude }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        console.warn("toggleExclusion failed, rolling back", err);
+        setJobs((prev) => {
+          const job = prev[jobId];
+          if (!job) return prev;
+          const next = new Set(job.excluded);
+          if (willExclude) next.delete(key);
+          else next.add(key);
+          return { ...prev, [jobId]: { ...job, excluded: next } };
+        });
+      }
+    },
+    []
+  );
+
   const currentJob = selected ? jobs[selected] : null;
 
   return {
@@ -275,5 +320,6 @@ export function useScrapperState() {
     submitJob,
     cancelJob,
     deleteJob,
+    toggleExclusion,
   };
 }

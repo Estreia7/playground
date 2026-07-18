@@ -13,6 +13,7 @@ export function TasksView({
   onCancel,
   onDelete,
   onNewTask,
+  onToggleExclusion,
 }: {
   jobs: JobState[];
   selected: string | null;
@@ -21,6 +22,7 @@ export function TasksView({
   onCancel: (id: string) => void;
   onDelete: (id: string) => void;
   onNewTask: () => void;
+  onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
 }) {
   return (
     <div className="grid h-full gap-4 lg:grid-cols-[320px_1fr]">
@@ -67,7 +69,12 @@ export function TasksView({
           </div>
         )}
         {current && (
-          <JobDetail job={current} onCancel={() => onCancel(current.id)} onDelete={() => onDelete(current.id)} />
+          <JobDetail
+            job={current}
+            onCancel={() => onCancel(current.id)}
+            onDelete={() => onDelete(current.id)}
+            onToggleExclusion={onToggleExclusion}
+          />
         )}
       </div>
     </div>
@@ -165,10 +172,12 @@ function JobDetail({
   job,
   onCancel,
   onDelete,
+  onToggleExclusion,
 }: {
   job: JobState;
   onCancel: () => void;
   onDelete: () => void;
+  onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
 }) {
   const active = job.status === "queued" || job.status === "running";
   const totalMonths = job.urls.length * 12;
@@ -243,14 +252,23 @@ function JobDetail({
         </div>
       </div>
 
-      <SummaryTable job={job} />
+      <SummaryTable job={job} onToggleExclusion={onToggleExclusion} />
     </div>
   );
 }
 
-function SummaryTable({ job }: { job: JobState }) {
-  const { rows, monthAverages, overallAvg } = buildSummary(job);
+function SummaryTable({
+  job,
+  onToggleExclusion,
+}: {
+  job: JobState;
+  onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
+}) {
+  const { rows, monthAverages, overallAvg, avgReviewsScore, recentYes, recentNo } =
+    buildSummary(job);
   const fmt = (v: number | null) => (v !== null ? v.toFixed(0) : "—");
+  // Prices can only be hidden once the job has finished scraping.
+  const jobDone = job.status !== "queued" && job.status !== "running";
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/30">
@@ -258,7 +276,9 @@ function SummaryTable({ job }: { job: JobState }) {
         <h4 className="text-sm font-semibold tracking-tight text-zinc-100">
           ADR by month · {rows.length} listing{rows.length === 1 ? "" : "s"}
         </h4>
-        <span className="text-[11px] text-zinc-500">values are nightly ADR</span>
+        <span className="text-[11px] text-zinc-500">
+          {jobDone ? "hover a price → click the eye to exclude it" : "values are nightly ADR"}
+        </span>
       </div>
       <div className="thin-scroll overflow-x-auto">
         <table className="w-full border-collapse text-xs">
@@ -269,6 +289,12 @@ function SummaryTable({ job }: { job: JobState }) {
               </th>
               <th className="px-2 py-2 text-right font-medium">Reviews</th>
               <th className="px-2 py-2 text-right font-medium">Score</th>
+              <th className="px-2 py-2 text-center font-medium">
+                Recent on market
+                <span className="mt-0.5 block text-[10px] font-normal text-zinc-600">
+                  {recentYes} yes · {recentNo} no
+                </span>
+              </th>
               {MONTH_LABELS.map((m) => (
                 <th key={m} className="px-2 py-2 text-right font-medium">
                   {m}
@@ -279,7 +305,7 @@ function SummaryTable({ job }: { job: JobState }) {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.url} className="border-b border-zinc-900 hover:bg-zinc-900/50">
+              <tr key={r.url} className="group border-b border-zinc-900 hover:bg-zinc-900/50">
                 <td className="sticky left-0 z-10 max-w-[220px] bg-zinc-900/95 px-3 py-2">
                   <a
                     href={r.url}
@@ -297,15 +323,25 @@ function SummaryTable({ job }: { job: JobState }) {
                 <td className="px-2 py-2 text-right text-zinc-400">
                   {r.reviewsScore !== null ? r.reviewsScore.toFixed(2) : "—"}
                 </td>
-                {r.adrByMonth.map((v, i) => (
-                  <td
-                    key={i}
-                    className={`px-2 py-2 text-right font-mono ${
-                      v !== null ? "text-zinc-200" : "text-zinc-700"
+                <td className="px-2 py-2 text-center">
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      r.recent
+                        ? "bg-emerald-600/20 text-emerald-400"
+                        : "bg-zinc-700/40 text-zinc-400"
                     }`}
                   >
-                    {fmt(v)}
-                  </td>
+                    {r.recent ? "Yes" : "No"}
+                  </span>
+                </td>
+                {r.adrByMonth.map((v, i) => (
+                  <AdrCell
+                    key={i}
+                    value={v}
+                    excluded={r.excludedByMonth[i]}
+                    canToggle={jobDone && v !== null}
+                    onToggle={() => onToggleExclusion(job.id, r.url, i)}
+                  />
                 ))}
                 <td className="px-2 py-2 text-right font-mono font-semibold text-orange-300">
                   {fmt(r.avgAdr)}
@@ -319,6 +355,12 @@ function SummaryTable({ job }: { job: JobState }) {
                 Average / month
               </td>
               <td className="px-2 py-2" />
+              <td
+                className="px-2 py-2 text-right font-semibold text-zinc-200"
+                title="Average review score across listings"
+              >
+                {avgReviewsScore !== null ? avgReviewsScore.toFixed(2) : "—"}
+              </td>
               <td className="px-2 py-2" />
               {monthAverages.map((v, i) => (
                 <td key={i} className="px-2 py-2 text-right font-mono font-semibold text-zinc-200">
@@ -338,6 +380,67 @@ function SummaryTable({ job }: { job: JobState }) {
         </p>
       )}
     </div>
+  );
+}
+
+function AdrCell({
+  value,
+  excluded,
+  canToggle,
+  onToggle,
+}: {
+  value: number | null;
+  excluded: boolean;
+  canToggle: boolean;
+  onToggle: () => void;
+}) {
+  const text = value !== null ? value.toFixed(0) : "—";
+  const empty = value === null;
+
+  return (
+    <td
+      className={`group/cell relative px-2 py-2 text-right font-mono ${
+        excluded
+          ? "text-zinc-600 line-through"
+          : empty
+          ? "text-zinc-700"
+          : "text-zinc-200"
+      }`}
+    >
+      <span className="inline-flex items-center justify-end gap-1">
+        {canToggle && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={excluded ? "Include this price" : "Exclude this price"}
+            title={excluded ? "Include in averages" : "Exclude from averages"}
+            className={`shrink-0 text-zinc-500 hover:text-orange-400 ${
+              excluded ? "opacity-100" : "opacity-0 group-hover/cell:opacity-100"
+            } transition-opacity`}
+          >
+            <EyeIcon off={excluded} />
+          </button>
+        )}
+        <span>{text}</span>
+      </span>
+    </td>
+  );
+}
+
+function EyeIcon({ off }: { off: boolean }) {
+  if (off) {
+    return (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
   );
 }
 

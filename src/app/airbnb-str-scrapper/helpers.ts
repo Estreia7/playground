@@ -1,17 +1,30 @@
-import type { JobState, JobStatus, ListingState } from "./types";
+import { cellKey, type JobState, type JobStatus, type ListingState } from "./types";
 
 export const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+// A listing is "recent on market" when it has at most this many reviews.
+// A listing with no reviews at all is brand-new, so it also counts as recent.
+export const RECENT_MAX_REVIEWS = 15;
+
+export function isRecentOnMarket(reviewsCount: number | null): boolean {
+  if (reviewsCount === null) return true; // no reviews yet = brand-new
+  return reviewsCount <= RECENT_MAX_REVIEWS;
+}
+
 export type SummaryRow = {
   url: string;
   title: string;
   reviewsCount: number | null;
   reviewsScore: number | null;
+  recent: boolean;
   // 12 slots, Jan..Dec; null = not scraped / no price for that month.
   adrByMonth: (number | null)[];
+  // true where the user manually hid that month's ADR.
+  excludedByMonth: boolean[];
+  // per-listing average over included (non-hidden) months only.
   avgAdr: number | null;
 };
 
@@ -35,41 +48,60 @@ function listingTitle(url: string, ls: ListingState | undefined): string {
 
 // Build the summary matrix for a job: one row per listing (Jan..Dec ADR +
 // per-listing average) plus a trailing per-month average across all listings.
+function roundMean(vals: number[]): number | null {
+  if (!vals.length) return null;
+  return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100;
+}
+
 export function buildSummary(job: JobState): {
   rows: SummaryRow[];
   monthAverages: (number | null)[];
   overallAvg: number | null;
+  avgReviewsScore: number | null;
+  recentYes: number;
+  recentNo: number;
 } {
   const rows: SummaryRow[] = job.urls.map((url) => {
     const ls = job.listings[url];
     const adrByMonth = adrByCalendarMonth(ls);
-    const present = adrByMonth.filter((v): v is number => v !== null);
-    const avgAdr = present.length
-      ? Math.round((present.reduce((a, b) => a + b, 0) / present.length) * 100) / 100
-      : null;
+    const excludedByMonth = adrByMonth.map((_, i) => job.excluded.has(cellKey(url, i)));
+    // Per-listing average counts only months that have a value AND aren't hidden.
+    const included = adrByMonth.filter(
+      (v, i): v is number => v !== null && !excludedByMonth[i]
+    );
+    const reviewsCount = ls?.meta?.reviewsCount ?? null;
     return {
       url,
       title: listingTitle(url, ls),
-      reviewsCount: ls?.meta?.reviewsCount ?? null,
+      reviewsCount,
       reviewsScore: ls?.meta?.reviewsScore ?? null,
+      recent: isRecentOnMarket(reviewsCount),
       adrByMonth,
-      avgAdr,
+      excludedByMonth,
+      avgAdr: roundMean(included),
     };
   });
 
   const monthAverages: (number | null)[] = Array.from({ length: 12 }, (_, i) => {
-    const vals = rows.map((r) => r.adrByMonth[i]).filter((v): v is number => v !== null);
-    return vals.length
-      ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100
-      : null;
+    const vals = rows
+      .filter((r) => !r.excludedByMonth[i])
+      .map((r) => r.adrByMonth[i])
+      .filter((v): v is number => v !== null);
+    return roundMean(vals);
   });
 
-  const allAvgs = rows.map((r) => r.avgAdr).filter((v): v is number => v !== null);
-  const overallAvg = allAvgs.length
-    ? Math.round((allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length) * 100) / 100
-    : null;
+  const overallAvg = roundMean(
+    rows.map((r) => r.avgAdr).filter((v): v is number => v !== null)
+  );
 
-  return { rows, monthAverages, overallAvg };
+  const avgReviewsScore = roundMean(
+    rows.map((r) => r.reviewsScore).filter((v): v is number => v !== null)
+  );
+
+  const recentYes = rows.filter((r) => r.recent).length;
+  const recentNo = rows.length - recentYes;
+
+  return { rows, monthAverages, overallAvg, avgReviewsScore, recentYes, recentNo };
 }
 
 export const API_BASE = "/api/airbnb";
@@ -93,6 +125,7 @@ export function emptyJob(j: {
     name: j.name ?? "",
     location: j.location ?? "",
     listings,
+    excluded: new Set<string>(),
   };
 }
 

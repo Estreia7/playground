@@ -57,7 +57,26 @@ router.get('/jobs/:id', (req, res) => {
   const job = store.getJob(req.params.id);
   if (!job) return res.status(404).json({ error: 'not-found' });
   const listings = store.listingResults(req.params.id);
-  return res.json({ job, listings });
+  const excluded = store.excludedCells(req.params.id);
+  return res.json({ job, listings, excluded });
+});
+
+const ExclusionBody = z.object({
+  url: z.string().min(1),
+  monthIndex: z.number().int().min(0).max(11),
+  excluded: z.boolean(),
+});
+
+// Toggle a single ADR cell's exclusion (hide/show an unrealistic price).
+router.put('/jobs/:id/exclusions', (req, res) => {
+  const job = store.getJob(req.params.id);
+  if (!job) return res.status(404).json({ error: 'not-found' });
+  const parsed = ExclusionBody.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'invalid-body', issues: parsed.error.issues });
+  }
+  store.setCellExcluded({ jobId: req.params.id, ...parsed.data });
+  return res.json({ ok: true, excluded: store.excludedCells(req.params.id) });
 });
 
 router.get('/jobs/:id/events', (req, res) => {

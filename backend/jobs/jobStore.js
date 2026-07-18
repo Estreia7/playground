@@ -112,6 +112,7 @@ function deleteJob(id) {
   const tx = db.transaction((jobId) => {
     db.prepare(`DELETE FROM job_events WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM listing_results WHERE job_id = ?`).run(jobId);
+    db.prepare(`DELETE FROM excluded_cells WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM jobs WHERE id = ?`).run(jobId);
   });
   tx(id);
@@ -167,6 +168,30 @@ function listingResults(jobId) {
       // any existing consumers; `meta` is exposed alongside it.
       return { url: r.url, status: r.status, finishedAt: r.finishedAt, meta, result: months };
     });
+}
+
+// --- Manual per-job ADR-cell exclusions ------------------------------------
+// A cell is (url, monthIndex 0..11). Returned as "url|monthIndex" strings so
+// the frontend can key a Set directly.
+function excludedCells(jobId) {
+  const db = getDb();
+  return db
+    .prepare(`SELECT url, month_index AS monthIndex FROM excluded_cells WHERE job_id = ?`)
+    .all(jobId)
+    .map((r) => `${r.url}|${r.monthIndex}`);
+}
+
+function setCellExcluded({ jobId, url, monthIndex, excluded }) {
+  const db = getDb();
+  if (excluded) {
+    db.prepare(
+      `INSERT OR IGNORE INTO excluded_cells (job_id, url, month_index) VALUES (?, ?, ?)`
+    ).run(jobId, url, monthIndex);
+  } else {
+    db.prepare(
+      `DELETE FROM excluded_cells WHERE job_id = ? AND url = ? AND month_index = ?`
+    ).run(jobId, url, monthIndex);
+  }
 }
 
 function cacheLookup(url, ttlDays) {
@@ -297,6 +322,8 @@ module.exports = {
   lastEventSeq,
   saveListingResult,
   listingResults,
+  excludedCells,
+  setCellExcluded,
   cacheLookup,
   cacheUpsert,
   insertScrapeAttempt,
