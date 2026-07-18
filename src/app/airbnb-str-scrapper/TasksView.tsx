@@ -1,8 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import type { JobState, JobStatus, ListingState } from "./types";
-import { fmtTime, shortId, shortUrl, statusColor } from "./helpers";
+import type { JobState } from "./types";
+import { buildSummary, fmtTime, MONTH_LABELS, shortId, statusColor } from "./helpers";
 import { exportJobToExcel } from "./exportExcel";
 
 export function TasksView({
@@ -243,86 +243,101 @@ function JobDetail({
         </div>
       </div>
 
-      <div className="space-y-3">
-        {job.urls.map((url) => (
-          <ListingPanel key={url} url={url} listing={job.listings[url]} />
-        ))}
-      </div>
+      <SummaryTable job={job} />
     </div>
   );
 }
 
-function ListingPanel({ url, listing }: { url: string; listing: ListingState | undefined }) {
-  const ls = listing || { url, status: "queued" as const, monthsDone: 0, months: [] };
-  const pct = Math.round((ls.monthsDone / 12) * 100);
+function SummaryTable({ job }: { job: JobState }) {
+  const { rows, monthAverages, overallAvg } = buildSummary(job);
+  const fmt = (v: number | null) => (v !== null ? v.toFixed(0) : "—");
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/30">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-        <div className="min-w-0">
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            className="block truncate text-sm text-zinc-200 hover:text-orange-400"
-          >
-            {shortUrl(url)}
-          </a>
-          <p className="truncate text-xs text-zinc-500">{url}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {ls.status === "running" && ls.currentMonth && (
-            <span className="text-[10px] text-zinc-500">{ls.currentMonth}</span>
-          )}
-          <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase ${statusColor(ls.status)}`}>
-            {ls.status}
-          </span>
-        </div>
+      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+        <h4 className="text-sm font-semibold tracking-tight text-zinc-100">
+          ADR by month · {rows.length} listing{rows.length === 1 ? "" : "s"}
+        </h4>
+        <span className="text-[11px] text-zinc-500">values are nightly ADR</span>
       </div>
-
-      {(ls.status === "running" || ls.status === "queued") && (
-        <div className="px-4 pt-3">
-          <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-800">
-            <div className="h-full bg-orange-600 transition-all" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="mt-1 text-[10px] text-zinc-500">{ls.monthsDone} / 12 months</p>
-        </div>
+      <div className="thin-scroll overflow-x-auto">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-zinc-800 text-zinc-500">
+              <th className="sticky left-0 z-10 bg-zinc-900/95 px-3 py-2 text-left font-medium">
+                Listing
+              </th>
+              <th className="px-2 py-2 text-right font-medium">Reviews</th>
+              <th className="px-2 py-2 text-right font-medium">Score</th>
+              {MONTH_LABELS.map((m) => (
+                <th key={m} className="px-2 py-2 text-right font-medium">
+                  {m}
+                </th>
+              ))}
+              <th className="px-2 py-2 text-right font-semibold text-zinc-300">Avg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.url} className="border-b border-zinc-900 hover:bg-zinc-900/50">
+                <td className="sticky left-0 z-10 max-w-[220px] bg-zinc-900/95 px-3 py-2">
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block truncate text-zinc-200 hover:text-orange-400"
+                    title={r.title}
+                  >
+                    {r.title}
+                  </a>
+                </td>
+                <td className="px-2 py-2 text-right text-zinc-400">
+                  {r.reviewsCount ?? "—"}
+                </td>
+                <td className="px-2 py-2 text-right text-zinc-400">
+                  {r.reviewsScore !== null ? r.reviewsScore.toFixed(2) : "—"}
+                </td>
+                {r.adrByMonth.map((v, i) => (
+                  <td
+                    key={i}
+                    className={`px-2 py-2 text-right font-mono ${
+                      v !== null ? "text-zinc-200" : "text-zinc-700"
+                    }`}
+                  >
+                    {fmt(v)}
+                  </td>
+                ))}
+                <td className="px-2 py-2 text-right font-mono font-semibold text-orange-300">
+                  {fmt(r.avgAdr)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-zinc-700 bg-zinc-900/70">
+              <td className="sticky left-0 z-10 bg-zinc-900 px-3 py-2 font-semibold text-zinc-300">
+                Average / month
+              </td>
+              <td className="px-2 py-2" />
+              <td className="px-2 py-2" />
+              {monthAverages.map((v, i) => (
+                <td key={i} className="px-2 py-2 text-right font-mono font-semibold text-zinc-200">
+                  {fmt(v)}
+                </td>
+              ))}
+              <td className="px-2 py-2 text-right font-mono font-bold text-orange-300">
+                {fmt(overallAvg)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {rows.every((r) => r.adrByMonth.every((v) => v === null)) && (
+        <p className="px-4 py-3 text-xs text-zinc-500">
+          No ADR data yet — values appear as each listing&apos;s months complete.
+        </p>
       )}
-
-      <AnimatePresence>
-        {ls.months.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="p-4">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-left text-zinc-500">
-                    <th className="py-1.5 font-medium">Month</th>
-                    <th className="py-1.5 text-right font-medium">ADR</th>
-                    <th className="py-1.5 text-right font-medium">Samples</th>
-                    <th className="py-1.5 font-medium">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ls.months.map((m) => (
-                    <tr key={m.month} className="border-b border-zinc-900">
-                      <td className="py-1.5 font-mono text-zinc-300">{m.month}</td>
-                      <td className="py-1.5 text-right text-zinc-200">{m.adr !== null ? m.adr.toFixed(2) : "—"}</td>
-                      <td className="py-1.5 text-right text-zinc-500">{m.samples}</td>
-                      <td className="py-1.5 text-zinc-500">{m.notes || ""}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {ls.error && <p className="mt-2 text-xs text-red-400">{ls.error}</p>}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
+

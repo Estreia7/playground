@@ -12,6 +12,7 @@ const { launchContext } = require('../scraper/browser');
 const { navigateToMonth, openCalendar } = require('../scraper/calendar');
 const { extractGaps } = require('../scraper/extractGaps');
 const { extractPrice } = require('../scraper/extractPrice');
+const { extractMeta } = require('../scraper/extractMeta');
 const { pickSampleGaps } = require('../scraper/pickSampleGaps');
 const { nextTwelveMonths } = require('../lib/months');
 const { randomDelay } = require('../lib/delay');
@@ -25,8 +26,9 @@ async function processListing({ jobId, url, workerId, signal }) {
   const ttlDays = parseInt(process.env.CACHE_TTL_DAYS || '7', 10);
   const cached = store.cacheLookup(url, ttlDays);
   if (cached) {
-    emit(jobId, 'listing-done', { jobId, url, status: 'cached', months: cached.result });
-    store.saveListingResult({ jobId, url, status: 'cached', result: cached.result });
+    const { meta, months } = normalizeResult(cached.result);
+    emit(jobId, 'listing-done', { jobId, url, status: 'cached', meta, months });
+    store.saveListingResult({ jobId, url, status: 'cached', result: { meta, months } });
     return;
   }
 
@@ -37,9 +39,20 @@ async function processListing({ jobId, url, workerId, signal }) {
   const deadline = Date.now() + PER_LISTING_TIMEOUT_MS;
 
   let session = null;
+  let meta = { title: null, reviewsCount: null, reviewsScore: null };
   try {
     session = await launchContext(workerId);
     const page = await session.context.newPage();
+
+    // Listing-level metadata (title, review count/score) — scraped once,
+    // before the month loop. Never let a meta failure abort the ADR run.
+    try {
+      meta = await extractMeta(page, url, signal);
+      emit(jobId, 'listing-meta', { jobId, url, meta });
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      logger.warn(`meta extraction failed for ${url}:`, err.message);
+    }
 
     for (const m of months) {
       if (signal?.aborted) throw new Error('Aborted');
@@ -117,9 +130,9 @@ async function processListing({ jobId, url, workerId, signal }) {
     await page.close().catch(() => {});
 
     const finalStatus = signal?.aborted ? 'cancelled' : 'done';
-    emit(jobId, 'listing-done', { jobId, url, status: finalStatus, months: results });
-    store.saveListingResult({ jobId, url, status: finalStatus, result: results });
-    if (finalStatus === 'done') store.cacheUpsert(url, results);
+    emit(jobId, 'listing-done', { jobId, url, status: finalStatus, meta, months: results });
+    store.saveListingResult({ jobId, url, status: finalStatus, result: { meta, months: results } });
+    if (finalStatus === 'done') store.cacheUpsert(url, { meta, months: results });
   } catch (err) {
     const status = signal?.aborted ? 'cancelled' : 'error';
     const monthsCompleted = results.length;
@@ -128,11 +141,25 @@ async function processListing({ jobId, url, workerId, signal }) {
         .slice(monthsCompleted)
         .map((m) => ({ month: m.key, adr: null, samples: 0, notes: status }))
     );
-    emit(jobId, 'listing-done', { jobId, url, status, months: padded, error: err.message });
-    store.saveListingResult({ jobId, url, status, result: padded });
+    emit(jobId, 'listing-done', { jobId, url, status, meta, months: padded, error: err.message });
+    store.saveListingResult({ jobId, url, status, result: { meta, months: padded } });
   } finally {
     if (session) await session.close().catch(() => {});
   }
+}
+
+// Stored results may be either the legacy bare months-array (pre-meta) or the
+// current { meta, months } object. Normalize to the object shape.
+function normalizeResult(result) {
+  const emptyMeta = { title: null, reviewsCount: null, reviewsScore: null };
+  if (Array.isArray(result)) return { meta: emptyMeta, months: result };
+  if (result && typeof result === 'object') {
+    return {
+      meta: { ...emptyMeta, ...(result.meta || {}) },
+      months: Array.isArray(result.months) ? result.months : [],
+    };
+  }
+  return { meta: emptyMeta, months: [] };
 }
 
 function addDaysToISO(iso, n) {

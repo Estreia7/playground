@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { JobState, JobStatus, ListingState, MonthResult } from "./types";
+import type { JobState, JobStatus, ListingMeta, ListingState, MonthResult } from "./types";
 import { API_BASE, emptyJob } from "./helpers";
 
 type JobsMap = Record<string, JobState>;
@@ -51,6 +51,19 @@ export function useScrapperState() {
         };
       }
 
+      if (type === "listing-meta") {
+        const url = payload.url as string;
+        const meta = payload.meta as ListingMeta | undefined;
+        const ls = job.listings[url] || { url, status: "running", monthsDone: 0, months: [] };
+        return {
+          ...prev,
+          [jobId]: {
+            ...job,
+            listings: { ...job.listings, [url]: { ...ls, meta: meta ?? ls.meta } },
+          },
+        };
+      }
+
       if (type === "progress") {
         const url = payload.url as string;
         const ls = job.listings[url] || { url, status: "running", monthsDone: 0, months: [] };
@@ -72,6 +85,7 @@ export function useScrapperState() {
         const url = payload.url as string;
         const months = (payload.months as MonthResult[]) || [];
         const status = (payload.status as ListingState["status"]) || "done";
+        const meta = payload.meta as ListingMeta | undefined;
         const ls = job.listings[url] || { url, status, monthsDone: months.length, months };
         return {
           ...prev,
@@ -84,6 +98,7 @@ export function useScrapperState() {
                 status,
                 months,
                 monthsDone: months.length,
+                meta: meta ?? ls.meta,
                 error: payload.error as string | undefined,
               },
             },
@@ -130,7 +145,12 @@ export function useScrapperState() {
               if (!r.ok) return j;
               const data = (await r.json()) as {
                 job: typeof j;
-                listings: Array<{ url: string; status: ListingState["status"]; result: MonthResult[] }>;
+                listings: Array<{
+                  url: string;
+                  status: ListingState["status"];
+                  meta?: ListingMeta;
+                  result: MonthResult[];
+                }>;
               };
               return { meta: data.job, listings: data.listings };
             } catch {
@@ -145,7 +165,12 @@ export function useScrapperState() {
           if ("meta" in (entry as object)) {
             const e = entry as {
               meta: typeof list[number];
-              listings: Array<{ url: string; status: ListingState["status"]; result: MonthResult[] }>;
+              listings: Array<{
+                url: string;
+                status: ListingState["status"];
+                meta?: ListingMeta;
+                result: MonthResult[];
+              }>;
             };
             const base = emptyJob(e.meta);
             for (const l of e.listings) {
@@ -154,6 +179,7 @@ export function useScrapperState() {
                 status: l.status,
                 monthsDone: l.result.length,
                 months: l.result,
+                meta: l.meta,
               };
             }
             next[e.meta.id] = base;

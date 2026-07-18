@@ -1,5 +1,77 @@
 import type { JobState, JobStatus, ListingState } from "./types";
 
+export const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+export type SummaryRow = {
+  url: string;
+  title: string;
+  reviewsCount: number | null;
+  reviewsScore: number | null;
+  // 12 slots, Jan..Dec; null = not scraped / no price for that month.
+  adrByMonth: (number | null)[];
+  avgAdr: number | null;
+};
+
+// Map a listing's scraped months (keyed "YYYY-MM") onto a fixed Jan..Dec
+// calendar. Within a rolling 12-month window each calendar month appears at
+// most once, so this is a clean 1:1 placement.
+function adrByCalendarMonth(ls: ListingState | undefined): (number | null)[] {
+  const slots: (number | null)[] = Array(12).fill(null);
+  for (const m of ls?.months ?? []) {
+    const mm = parseInt(m.month.slice(5, 7), 10);
+    if (mm >= 1 && mm <= 12) slots[mm - 1] = m.adr;
+  }
+  return slots;
+}
+
+function listingTitle(url: string, ls: ListingState | undefined): string {
+  const t = ls?.meta?.title?.trim();
+  if (t) return t;
+  return shortUrl(url);
+}
+
+// Build the summary matrix for a job: one row per listing (Jan..Dec ADR +
+// per-listing average) plus a trailing per-month average across all listings.
+export function buildSummary(job: JobState): {
+  rows: SummaryRow[];
+  monthAverages: (number | null)[];
+  overallAvg: number | null;
+} {
+  const rows: SummaryRow[] = job.urls.map((url) => {
+    const ls = job.listings[url];
+    const adrByMonth = adrByCalendarMonth(ls);
+    const present = adrByMonth.filter((v): v is number => v !== null);
+    const avgAdr = present.length
+      ? Math.round((present.reduce((a, b) => a + b, 0) / present.length) * 100) / 100
+      : null;
+    return {
+      url,
+      title: listingTitle(url, ls),
+      reviewsCount: ls?.meta?.reviewsCount ?? null,
+      reviewsScore: ls?.meta?.reviewsScore ?? null,
+      adrByMonth,
+      avgAdr,
+    };
+  });
+
+  const monthAverages: (number | null)[] = Array.from({ length: 12 }, (_, i) => {
+    const vals = rows.map((r) => r.adrByMonth[i]).filter((v): v is number => v !== null);
+    return vals.length
+      ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100
+      : null;
+  });
+
+  const allAvgs = rows.map((r) => r.avgAdr).filter((v): v is number => v !== null);
+  const overallAvg = allAvgs.length
+    ? Math.round((allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length) * 100) / 100
+    : null;
+
+  return { rows, monthAverages, overallAvg };
+}
+
 export const API_BASE = "/api/airbnb";
 export const AIRBNB_URL_RE = /^https?:\/\/(www\.)?airbnb\.[a-z.]+\/rooms\/\d+/i;
 export const MAX_URLS = 15;

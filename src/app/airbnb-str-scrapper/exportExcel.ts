@@ -1,4 +1,5 @@
 import type { JobState } from "./types";
+import { buildSummary, MONTH_LABELS } from "./helpers";
 
 export async function exportJobToExcel(job: JobState) {
   const ExcelJS = (await import("exceljs")).default;
@@ -6,31 +7,47 @@ export async function exportJobToExcel(job: JobState) {
   wb.creator = "playground";
   wb.created = new Date();
 
-  const index = wb.addWorksheet("Index");
-  index.columns = [
-    { header: "Task", key: "task", width: 30 },
-    { header: "Location", key: "location", width: 24 },
-    { header: "URL", key: "url", width: 60 },
-    { header: "Status", key: "status", width: 14 },
-    { header: "Months done", key: "monthsDone", width: 14 },
-    { header: "Avg ADR", key: "avgAdr", width: 12 },
-  ];
-  index.getRow(1).font = { bold: true };
+  const { rows, monthAverages, overallAvg } = buildSummary(job);
 
-  for (const url of job.urls) {
-    const ls = job.listings[url];
-    const adrs = ls?.months?.filter((m) => m.adr !== null).map((m) => m.adr as number) || [];
-    const avg = adrs.length ? Math.round((adrs.reduce((a, b) => a + b, 0) / adrs.length) * 100) / 100 : null;
-    index.addRow({
-      task: job.name || `#${job.id.slice(0, 6)}`,
-      location: job.location || "",
-      url,
-      status: ls?.status || "queued",
-      monthsDone: ls?.monthsDone ?? 0,
-      avgAdr: avg,
-    });
+  // --- Summary sheet: the matrix shown in the UI -----------------------
+  const summary = wb.addWorksheet("Summary");
+  summary.columns = [
+    { header: "Listing", key: "title", width: 34 },
+    { header: "Reviews", key: "reviews", width: 10 },
+    { header: "Score", key: "score", width: 8 },
+    ...MONTH_LABELS.map((m) => ({ header: m, key: m, width: 8 })),
+    { header: "Avg", key: "avg", width: 10 },
+  ];
+  summary.getRow(1).font = { bold: true };
+
+  const tag = [job.name, job.location].filter(Boolean).join(" — ");
+  if (tag) {
+    summary.spliceRows(1, 0, [tag]);
+    summary.getRow(1).font = { italic: true, color: { argb: "FF666666" } };
   }
 
+  for (const r of rows) {
+    const row: Record<string, unknown> = {
+      title: r.title,
+      reviews: r.reviewsCount,
+      score: r.reviewsScore,
+      avg: r.avgAdr,
+    };
+    r.adrByMonth.forEach((v, i) => {
+      row[MONTH_LABELS[i]] = v;
+    });
+    summary.addRow(row);
+  }
+
+  // Trailing "Average / month" row.
+  const avgRow: Record<string, unknown> = { title: "Average / month", avg: overallAvg };
+  monthAverages.forEach((v, i) => {
+    avgRow[MONTH_LABELS[i]] = v;
+  });
+  const added = summary.addRow(avgRow);
+  added.font = { bold: true };
+
+  // --- Per-listing detail sheets (month, ADR, samples, notes) ----------
   const usedNames = new Set<string>();
   let sheetIdx = 1;
   for (const url of job.urls) {
@@ -50,8 +67,16 @@ export async function exportJobToExcel(job: JobState) {
       { header: "Notes", key: "notes", width: 28 },
     ];
     ws.getRow(1).font = { bold: true };
-    const tag = [job.name, job.location].filter(Boolean).join(" — ");
-    ws.getCell("A2").value = tag ? `${tag}\n${url}` : url;
+
+    const title = ls.meta?.title || url;
+    const reviewLine = [
+      ls.meta?.reviewsScore != null ? `★ ${ls.meta.reviewsScore}` : null,
+      ls.meta?.reviewsCount != null ? `${ls.meta.reviewsCount} reviews` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const header = [title, reviewLine, url].filter(Boolean).join("\n");
+    ws.getCell("A2").value = header;
     ws.mergeCells("A2:D2");
     ws.getCell("A2").alignment = { wrapText: true };
     ws.getCell("A2").font = { italic: true, color: { argb: "FF666666" } };
@@ -69,11 +94,12 @@ export async function exportJobToExcel(job: JobState) {
   });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  const safeName = (job.name || job.id)
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || job.id;
+  const safeName =
+    (job.name || job.id)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40) || job.id;
   a.download = `airbnb-adr-${safeName}.xlsx`;
   a.click();
   URL.revokeObjectURL(a.href);

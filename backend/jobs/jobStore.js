@@ -5,7 +5,25 @@ const { getDb } = require('../db');
 // rows with a lower version are treated as cache-miss so the next run
 // re-scrapes with the new code.
 //   v1 — real Airbnb scrape (replaces SCRAPER_STUB=1 placeholder data).
-const SCHEMA_VERSION = 1;
+//   v2 — result shape is now { meta, months }; meta carries title +
+//        reviewsCount + reviewsScore scraped from the listing page.
+const SCHEMA_VERSION = 2;
+
+const EMPTY_META = { title: null, reviewsCount: null, reviewsScore: null };
+
+// Stored results are either the legacy bare months-array (schema v1 and the
+// live-progress payloads) or the current { meta, months } object. Normalize
+// to the object shape so consumers never have to branch.
+function normalizeResult(result) {
+  if (Array.isArray(result)) return { meta: { ...EMPTY_META }, months: result };
+  if (result && typeof result === 'object') {
+    return {
+      meta: { ...EMPTY_META, ...(result.meta || {}) },
+      months: Array.isArray(result.months) ? result.months : [],
+    };
+  }
+  return { meta: { ...EMPTY_META }, months: [] };
+}
 
 const TERMINAL = new Set(['done', 'error', 'cancelled', 'interrupted']);
 
@@ -143,7 +161,12 @@ function listingResults(jobId) {
        FROM listing_results WHERE job_id = ? ORDER BY finished_at ASC`
     )
     .all(jobId)
-    .map((r) => ({ ...r, result: JSON.parse(r.result) }));
+    .map((r) => {
+      const { meta, months } = normalizeResult(JSON.parse(r.result));
+      // `result` stays as the months array for backward compatibility with
+      // any existing consumers; `meta` is exposed alongside it.
+      return { url: r.url, status: r.status, finishedAt: r.finishedAt, meta, result: months };
+    });
 }
 
 function cacheLookup(url, ttlDays) {

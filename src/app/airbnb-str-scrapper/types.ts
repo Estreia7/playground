@@ -21,12 +21,19 @@ export type MonthResult = {
   notes: string;
 };
 
+export type ListingMeta = {
+  title: string | null;
+  reviewsCount: number | null;
+  reviewsScore: number | null;
+};
+
 export type ListingState = {
   url: string;
   status: ListingStatus;
   currentMonth?: string;
   monthsDone: number;
   months: MonthResult[];
+  meta?: ListingMeta;
   error?: string;
 };
 
