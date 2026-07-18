@@ -57,6 +57,7 @@ export function buildSummary(job: JobState): {
   rows: SummaryRow[];
   monthAverages: (number | null)[];
   overallAvg: number | null;
+  totalReviews: number | null;
   avgReviewsScore: number | null;
   recentYes: number;
   recentNo: number;
@@ -94,6 +95,11 @@ export function buildSummary(job: JobState): {
     rows.map((r) => r.avgAdr).filter((v): v is number => v !== null)
   );
 
+  const reviewCounts = rows.map((r) => r.reviewsCount).filter((v): v is number => v !== null);
+  const totalReviews = reviewCounts.length
+    ? reviewCounts.reduce((a, b) => a + b, 0)
+    : null;
+
   const avgReviewsScore = roundMean(
     rows.map((r) => r.reviewsScore).filter((v): v is number => v !== null)
   );
@@ -101,7 +107,7 @@ export function buildSummary(job: JobState): {
   const recentYes = rows.filter((r) => r.recent).length;
   const recentNo = rows.length - recentYes;
 
-  return { rows, monthAverages, overallAvg, avgReviewsScore, recentYes, recentNo };
+  return { rows, monthAverages, overallAvg, totalReviews, avgReviewsScore, recentYes, recentNo };
 }
 
 export const API_BASE = "/api/airbnb";

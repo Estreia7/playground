@@ -7,7 +7,7 @@ export async function exportJobToExcel(job: JobState) {
   wb.creator = "playground";
   wb.created = new Date();
 
-  const { rows, monthAverages, overallAvg, avgReviewsScore } = buildSummary(job);
+  const { rows, monthAverages, overallAvg, totalReviews, avgReviewsScore } = buildSummary(job);
 
   // --- Summary sheet: the matrix shown in the UI -----------------------
   const summary = wb.addWorksheet("Summary");
@@ -50,6 +50,7 @@ export async function exportJobToExcel(job: JobState) {
   // Trailing "Average / month" row.
   const avgRow: Record<string, unknown> = {
     title: "Average / month",
+    reviews: totalReviews,
     score: avgReviewsScore,
     recent: recentTally,
     avg: overallAvg,

@@ -264,7 +264,7 @@ function SummaryTable({
   job: JobState;
   onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
 }) {
-  const { rows, monthAverages, overallAvg, avgReviewsScore, recentYes, recentNo } =
+  const { rows, monthAverages, overallAvg, totalReviews, avgReviewsScore, recentYes, recentNo } =
     buildSummary(job);
   const fmt = (v: number | null) => (v !== null ? v.toFixed(0) : "—");
   // Prices can only be hidden once the job has finished scraping.
@@ -354,7 +354,12 @@ function SummaryTable({
               <td className="sticky left-0 z-10 bg-zinc-900 px-3 py-2 font-semibold text-zinc-300">
                 Average / month
               </td>
-              <td className="px-2 py-2" />
+              <td
+                className="px-2 py-2 text-right font-semibold text-zinc-200"
+                title="Total reviews across listings"
+              >
+                {totalReviews !== null ? totalReviews.toLocaleString() : "—"}
+              </td>
               <td
                 className="px-2 py-2 text-right font-semibold text-zinc-200"
                 title="Average review score across listings"
