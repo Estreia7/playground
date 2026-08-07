@@ -113,6 +113,8 @@ export type HostJobState = {
   name: string;
   profileUrl: string;
   phase: HostPhase;
+  // Live listing-discovery counter streamed during the profile phase.
+  profileFound?: number;
   host: HostMeta | null;
   listings: Record<string, HostListing>;
   listingOrder: string[];

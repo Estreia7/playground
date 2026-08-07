@@ -19,6 +19,15 @@ const { emit } = require('../jobs/jobManager');
 const logger = require('../lib/logger');
 
 const PER_LISTING_TIMEOUT_MS = 4 * 60 * 1000;
+const PROFILE_PHASE_TIMEOUT_MS = 8 * 60 * 1000;
+
+function withTimeout(promise, ms, label) {
+  let timer;
+  const guard = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+  });
+  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
+}
 
 async function runHostJob(job, { signal }) {
   const jobId = job.id;
@@ -34,7 +43,20 @@ async function runHostJob(job, { signal }) {
   try {
     session = await launchContext(0);
     const page = await session.context.newPage();
-    profile = await scrapeHostProfile(page, profileUrl, signal);
+    // Live discovery counter so the UI shows movement during the (long)
+    // profile phase; throttled to one event per change.
+    let lastFound = -1;
+    const onProgress = (found) => {
+      if (found === lastFound) return;
+      lastFound = found;
+      emit(jobId, 'host-phase', { jobId, phase: 'profile', found });
+    };
+    // Hard watchdog: a wedged browser must fail the job, not block the queue.
+    profile = await withTimeout(
+      scrapeHostProfile(page, profileUrl, signal, onProgress),
+      PROFILE_PHASE_TIMEOUT_MS,
+      'profile phase'
+    );
     await page.close().catch(() => {});
   } catch (err) {
     if (signal?.aborted) return { cancelled: true, errored: false };

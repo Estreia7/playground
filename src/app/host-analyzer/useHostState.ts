@@ -268,7 +268,14 @@ export function useHostState() {
         }
 
         if (type === "host-phase") {
-          return { ...prev, [jobId]: { ...job, phase: (payload.phase as HostJobState["phase"]) } };
+          return {
+            ...prev,
+            [jobId]: {
+              ...job,
+              phase: payload.phase as HostJobState["phase"],
+              profileFound: (payload.found as number) ?? job.profileFound,
+            },
+          };
         }
 
         if (type === "host-profile-done") {

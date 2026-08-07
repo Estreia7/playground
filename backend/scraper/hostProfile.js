@@ -71,7 +71,7 @@ async function harvestCards(page) {
     .catch(() => []);
 }
 
-async function scrapeHostProfile(page, profileUrl, signal) {
+async function scrapeHostProfile(page, profileUrl, signal, onProgress) {
   if (process.env.SCRAPER_STUB === '1') return stubHostProfile(profileUrl);
   if (signal?.aborted) throw new Error('Aborted');
 
@@ -126,8 +126,11 @@ async function scrapeHostProfile(page, profileUrl, signal) {
 
   // Harvest / scroll / "Show more listings" loop. The modal grid loads ~12
   // cards per click of the bottom button; harvest EVERY round so nothing is
-  // lost if earlier cards leave the DOM.
+  // lost if earlier cards leave the DOM. Every locator action here carries a
+  // SHORT timeout: a hidden matched button once burned 25 rounds x 35s of
+  // scroll-into-view retries, freezing the whole job for a quarter hour.
   let stale = 0;
+  let clickFailures = 0;
   for (let round = 0; round < MAX_SCROLL_ROUNDS; round++) {
     if (signal?.aborted) throw new Error('Aborted');
 
@@ -147,31 +150,34 @@ async function scrapeHostProfile(page, profileUrl, signal) {
     await randomDelay(1000, 1800, signal);
 
     const added = merge(await harvestCards(page));
+    if (onProgress) onProgress(seen.size);
     if (declared && seen.size >= declared) break;
 
     const dialog = page.locator('[role="dialog"]').first();
     const inDialog = (await dialog.count()) > 0;
     // Outside the dialog only the explicit "Show more listings" label is safe
-    // to click — the profile page has unrelated "Show more" buttons.
+    // to click — the profile page has unrelated "Show more" buttons. Only a
+    // VISIBLE button counts; hidden matches must not stall the loop.
     const more = (inDialog ? dialog : page)
-      .locator('button')
+      .locator('button:visible')
       .filter({
         hasText: inDialog
           ? /show more listings|mostrar mais|show more/i
           : /show more listings|mostrar mais an[uú]ncios/i,
       })
       .first();
-    const hasMore = (await more.count()) > 0;
+    const hasMore = await more.isVisible({ timeout: 1500 }).catch(() => false);
 
-    if (hasMore) {
-      stale = 0;
+    if (hasMore && clickFailures < 2) {
       try {
-        await more.scrollIntoViewIfNeeded();
-        await more.click({ timeout: 5000 });
+        await more.scrollIntoViewIfNeeded({ timeout: 3000 });
+        await more.click({ timeout: 4000 });
         await randomDelay(1500, 2500, signal);
+        clickFailures = 0;
+        stale = 0;
       } catch (err) {
-        logger.warn('show-more-listings click failed:', err.message);
-        stale += 1;
+        clickFailures += 1;
+        logger.warn(`show-more-listings click failed (${clickFailures}):`, err.message);
       }
     } else if (added === 0) {
       stale += 1;

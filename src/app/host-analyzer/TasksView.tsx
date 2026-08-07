@@ -93,7 +93,8 @@ export function NewTargetForm({
 
 function jobProgress(job: HostJobState): string | null {
   if (job.status !== "running") return null;
-  if (job.phase === "profile") return "Reading profile";
+  if (job.phase === "profile")
+    return job.profileFound ? `Discovering listings (${job.profileFound})` : "Reading profile";
   if (job.phase === "listings") {
     const total = job.listingOrder.length;
     const done = job.listingOrder.filter((u) => {
