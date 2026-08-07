@@ -55,21 +55,25 @@ async function scrapeHostProfile(page, profileUrl, signal) {
   const data = await page.evaluate(() => {
     const out = { hostName: null, listingsCount: null, listings: [] };
 
-    // Host name: "Hi, I'm X" heading or the first h1/h2.
+    // Host name: "About X" heading (current layout), "Hi, I'm X" (older),
+    // then the page title as a fallback.
     const headings = Array.from(document.querySelectorAll('h1, h2')).map((h) =>
       (h.innerText || '').trim()
     );
     for (const t of headings) {
-      const m = t.match(/(?:hi,?\s+i['’]m|olá,?\s+sou\s+o?a?)\s+(.{1,60})/i);
+      const m =
+        t.match(/^(?:about|acerca de|sobre)\s+(.{1,60})$/i) ||
+        t.match(/(?:hi,?\s+i['’]m|olá,?\s+sou\s+o?a?)\s+(.{1,60})/i);
       if (m) {
         out.hostName = m[1].trim();
         break;
       }
     }
     if (!out.hostName) {
-      // Page title tends to be "<Name> - Airbnb".
-      const t = (document.title || '').split(/\s[-–|]\s/)[0].trim();
-      if (t && !/airbnb/i.test(t)) out.hostName = t;
+      // Page title tends to be "<Name> - Airbnb" (but "Host profile · Airbnb"
+      // in some variants, which is useless).
+      const t = (document.title || '').split(/\s[-–|·]\s/)[0].trim();
+      if (t && !/airbnb|host profile/i.test(t)) out.hostName = t;
     }
 
     // Declared listing count: "14 listings" / "Listings (14)" / "14 anúncios".

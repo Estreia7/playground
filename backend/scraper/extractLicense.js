@@ -16,6 +16,17 @@ async function extractLicense(page, listingUrl, signal) {
   if (process.env.SCRAPER_STUB === '1') return stubLicense(listingUrl);
   if (signal?.aborted) throw new Error('Aborted');
 
+  // The description section hydrates late — much later than the JSON-LD that
+  // extractMeta reads. Wait for it explicitly (this was the cause of a full
+  // 0/12 miss on the first live run: every eval fired before it existed).
+  await page
+    .waitForSelector(
+      '[data-section-id="DESCRIPTION_DEFAULT"], [data-section-id="DESCRIPTION_MODAL"]',
+      { timeout: 20_000 }
+    )
+    .catch(() => {});
+  await randomDelay(1500, 2500, signal);
+
   // Location line: "Entire rental unit in Albufeira, Portugal".
   const locationText = await page
     .evaluate(() => {
@@ -28,8 +39,8 @@ async function extractLicense(page, listingUrl, signal) {
     })
     .catch(() => null);
 
-  // Try the collapsed description first — the AL number is usually visible
-  // even before expanding.
+  // Try the collapsed description first — the AL number ("Registration
+  // Details" block) is usually visible even before expanding.
   let alNumber = await page
     .evaluate((reSource) => {
       const re = new RegExp(reSource, 'i');
@@ -42,16 +53,19 @@ async function extractLicense(page, listingUrl, signal) {
     }, AL_RE.source)
     .catch(() => null);
 
-  // Expand the full description modal and retry.
+  // Expand the description's own "Show more" (strictly scoped — the page has
+  // many other Show more buttons) and read the full-description modal.
   if (!alNumber) {
     try {
       const showMore = page
-        .locator('[data-section-id="DESCRIPTION_DEFAULT"] button, button')
+        .locator('[data-section-id="DESCRIPTION_DEFAULT"] button')
         .filter({ hasText: /show more|mostrar mais/i })
         .first();
       if (await showMore.count()) {
-        await showMore.click({ timeout: 5000 });
-        await randomDelay(1000, 1800, signal);
+        await showMore.scrollIntoViewIfNeeded().catch(() => {});
+        await showMore.click({ timeout: 6000 });
+        await page.waitForSelector('[role="dialog"]', { timeout: 10_000 }).catch(() => {});
+        await randomDelay(1200, 2000, signal);
         alNumber = await page
           .evaluate((reSource) => {
             const re = new RegExp(reSource, 'i');
@@ -62,6 +76,7 @@ async function extractLicense(page, listingUrl, signal) {
           }, AL_RE.source)
           .catch(() => null);
         await page.keyboard.press('Escape').catch(() => {});
+        await randomDelay(500, 900, signal);
       }
     } catch (err) {
       logger.warn(`description expand failed for ${listingUrl}:`, err.message);
@@ -78,6 +93,9 @@ async function extractLicense(page, listingUrl, signal) {
         return m ? m[1] : null;
       }, AL_RE.source)
       .catch(() => null);
+    if (!alNumber) {
+      logger.warn(`no AL number found on ${listingUrl}`);
+    }
   }
 
   return { alNumber, locationText };
