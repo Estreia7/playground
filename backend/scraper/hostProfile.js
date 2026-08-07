@@ -24,7 +24,7 @@ async function scrapeHostProfile(page, profileUrl, signal) {
   await dismissCookieBanner(page);
 
   // Expand the listings section when the profile tucks it behind a
-  // "View all N listings" link/button.
+  // "View all N listings" link/button. That opens a modal grid.
   const viewAll = page
     .locator('a, button')
     .filter({ hasText: /view all \d+|show all \d+|ver todos/i })
@@ -39,12 +39,44 @@ async function scrapeHostProfile(page, profileUrl, signal) {
     }
   }
 
-  // Scroll to force lazy card loading until the anchor count plateaus.
+  // The modal grid lazy-loads: only the first ~12 cards render, with a
+  // "Show more listings" button at the bottom for the rest. Keep clicking
+  // it until it's gone.
+  for (let round = 0; round < 15; round++) {
+    if (signal?.aborted) throw new Error('Aborted');
+    const dialog = page.locator('[role="dialog"]').first();
+    const inDialog = (await dialog.count()) > 0;
+    // Outside the dialog only the explicit "Show more listings" label is safe
+    // to click — the profile page has unrelated "Show more" buttons.
+    const more = (inDialog ? dialog : page)
+      .locator('button')
+      .filter({
+        hasText: inDialog
+          ? /show more listings|mostrar mais|show more/i
+          : /show more listings|mostrar mais an[uú]ncios/i,
+      })
+      .first();
+    if (!(await more.count())) break;
+    try {
+      await more.scrollIntoViewIfNeeded();
+      await more.click({ timeout: 5000 });
+    } catch (err) {
+      logger.warn('show-more-listings click failed:', err.message);
+      break;
+    }
+    await randomDelay(1500, 2500, signal);
+  }
+
+  // Scroll to force lazy card loading until the anchor count plateaus
+  // (covers the non-modal layout; inside the modal the button loop above
+  // already materialized every card).
   let prevCount = -1;
   for (let round = 0; round < MAX_SCROLL_ROUNDS; round++) {
     if (signal?.aborted) throw new Error('Aborted');
     const count = await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
+      const dlg = document.querySelector('[role="dialog"]');
+      if (dlg) dlg.scrollTop = dlg.scrollHeight;
       return document.querySelectorAll('a[href*="/rooms/"]').length;
     });
     await randomDelay(900, 1600, signal);
