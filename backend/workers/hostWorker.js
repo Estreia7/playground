@@ -23,7 +23,7 @@ const PER_LISTING_TIMEOUT_MS = 4 * 60 * 1000;
 async function runHostJob(job, { signal }) {
   const jobId = job.id;
   const profileUrl = job.urls[0];
-  const maxListings = parseInt(process.env.HOST_MAX_LISTINGS || '40', 10);
+  const maxListings = parseInt(process.env.HOST_MAX_LISTINGS || '80', 10);
   let errored = false;
 
   // --- Phase 1: host profile ------------------------------------------------

@@ -13,37 +13,142 @@ const { randomDelay } = require('../lib/delay');
 
 const MAX_SCROLL_ROUNDS = 25;
 
+// Collect whatever listing cards are in the DOM right now.
+// Called repeatedly while scrolling/clicking, so a virtualized grid (cards
+// dropping out of the DOM) still gets fully harvested.
+async function harvestCards(page) {
+  return page
+    .evaluate(() => {
+      const found = [];
+      for (const a of document.querySelectorAll('a[href*="/rooms/"]')) {
+        const m = (a.getAttribute('href') || '').match(/\/rooms\/(?:plus\/)?(\d+)/);
+        if (!m) continue;
+        const roomId = m[1];
+
+        const card = a.closest('[data-testid], article, li, div') || a;
+        const lines = (card.innerText || '')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        let title = null;
+        let locationText = null;
+        let reviewsScore = null;
+        let reviewsCount = null;
+
+        for (const line of lines) {
+          // "4.85 (23)" / "4,85 · 23 reviews" rating fragments.
+          const rm = line.match(/^([0-5][.,]\d{1,2})\s*[·(]?\s*(\d+)?/);
+          if (rm && reviewsScore === null && parseFloat(rm[1].replace(',', '.')) <= 5) {
+            reviewsScore = parseFloat(rm[1].replace(',', '.'));
+            if (rm[2]) reviewsCount = parseInt(rm[2], 10);
+            continue;
+          }
+          // "Apartment in Albufeira" style card subtitle.
+          if (!locationText && /\b(in|em)\s+[A-ZÀ-Ú]/.test(line) && line.length < 80) {
+            locationText = line;
+            continue;
+          }
+          if (!title && line.length > 3 && !/^€|\bnight\b|\bnoite\b/i.test(line)) {
+            title = line;
+          }
+        }
+
+        const label = (a.getAttribute('aria-label') || '').trim();
+        if (label && (!title || title.length < 4)) title = label;
+
+        found.push({
+          roomId,
+          url: `https://www.airbnb.com/rooms/${roomId}`,
+          title: title || null,
+          locationText: locationText || null,
+          reviewsScore,
+          reviewsCount,
+        });
+      }
+      return found;
+    })
+    .catch(() => []);
+}
+
 async function scrapeHostProfile(page, profileUrl, signal) {
   if (process.env.SCRAPER_STUB === '1') return stubHostProfile(profileUrl);
   if (signal?.aborted) throw new Error('Aborted');
 
   await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.waitForSelector('main, h1, h2', { timeout: 30_000 }).catch(() => {});
-  await randomDelay(2000, 3500, signal);
+  // Wait for actual listing cards, not just the page frame — the listings
+  // section hydrates late on heavy profiles (a 48-listing host previously
+  // raced this and only the ~10 carousel cards were caught).
+  await page.waitForSelector('a[href*="/rooms/"]', { timeout: 30_000 }).catch(() => {});
+  await randomDelay(2500, 4000, signal);
 
   await dismissCookieBanner(page);
 
-  // Expand the listings section when the profile tucks it behind a
-  // "View all N listings" link/button. That opens a modal grid.
+  const seen = new Map();
+  function merge(cards) {
+    let added = 0;
+    for (const c of cards) {
+      if (!seen.has(c.roomId)) {
+        seen.set(c.roomId, c);
+        added += 1;
+      }
+    }
+    return added;
+  }
+  merge(await harvestCards(page));
+
+  // Declared listing count, read early: "View all 48 listings" / "N listings".
+  const declared = await page
+    .evaluate(() => {
+      const body = document.body?.innerText || '';
+      const cm =
+        body.match(/(?:view|show) all (\d+) listings?/i) ||
+        body.match(/(\d+)\s+listings?\b/i) ||
+        body.match(/listings?\s*\((\d+)\)/i) ||
+        body.match(/(\d+)\s+an[uú]ncios?\b/i);
+      return cm ? parseInt(cm[1], 10) : null;
+    })
+    .catch(() => null);
+
+  // Expand the listings modal when present ("View all N listings").
   const viewAll = page
     .locator('a, button')
     .filter({ hasText: /view all \d+|show all \d+|ver todos/i })
     .first();
-  if (await viewAll.count()) {
-    try {
-      await viewAll.click({ timeout: 5000 });
-      await page.waitForLoadState('domcontentloaded').catch(() => {});
-      await randomDelay(2000, 3500, signal);
-    } catch (err) {
-      logger.warn('view-all click failed (continuing with visible cards):', err.message);
-    }
+  try {
+    await viewAll.waitFor({ timeout: 8000 });
+    await viewAll.click({ timeout: 5000 });
+    await page.waitForSelector('[role="dialog"]', { timeout: 10_000 }).catch(() => {});
+    await randomDelay(2000, 3500, signal);
+  } catch {
+    // Small hosts have no view-all affordance; the carousel is everything.
   }
 
-  // The modal grid lazy-loads: only the first ~12 cards render, with a
-  // "Show more listings" button at the bottom for the rest. Keep clicking
-  // it until it's gone.
-  for (let round = 0; round < 15; round++) {
+  // Harvest / scroll / "Show more listings" loop. The modal grid loads ~12
+  // cards per click of the bottom button; harvest EVERY round so nothing is
+  // lost if earlier cards leave the DOM.
+  let stale = 0;
+  for (let round = 0; round < MAX_SCROLL_ROUNDS; round++) {
     if (signal?.aborted) throw new Error('Aborted');
+
+    await page
+      .evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+        const dlg = document.querySelector('[role="dialog"]');
+        if (!dlg) return;
+        for (const el of [dlg, ...dlg.querySelectorAll('*')]) {
+          if (el.scrollHeight > el.clientHeight + 50) {
+            el.scrollTop += el.clientHeight * 0.8;
+            return;
+          }
+        }
+      })
+      .catch(() => {});
+    await randomDelay(1000, 1800, signal);
+
+    const added = merge(await harvestCards(page));
+    if (declared && seen.size >= declared) break;
+
     const dialog = page.locator('[role="dialog"]').first();
     const inDialog = (await dialog.count()) > 0;
     // Outside the dialog only the explicit "Show more listings" label is safe
@@ -56,125 +161,64 @@ async function scrapeHostProfile(page, profileUrl, signal) {
           : /show more listings|mostrar mais an[uú]ncios/i,
       })
       .first();
-    if (!(await more.count())) break;
-    try {
-      await more.scrollIntoViewIfNeeded();
-      await more.click({ timeout: 5000 });
-    } catch (err) {
-      logger.warn('show-more-listings click failed:', err.message);
-      break;
+    const hasMore = (await more.count()) > 0;
+
+    if (hasMore) {
+      stale = 0;
+      try {
+        await more.scrollIntoViewIfNeeded();
+        await more.click({ timeout: 5000 });
+        await randomDelay(1500, 2500, signal);
+      } catch (err) {
+        logger.warn('show-more-listings click failed:', err.message);
+        stale += 1;
+      }
+    } else if (added === 0) {
+      stale += 1;
+      if (stale >= 3) break;
+    } else {
+      stale = 0;
     }
-    await randomDelay(1500, 2500, signal);
+  }
+  merge(await harvestCards(page));
+
+  if (declared && seen.size < declared) {
+    logger.warn(`host profile: found ${seen.size} of ${declared} declared listings`);
   }
 
-  // Scroll to force lazy card loading until the anchor count plateaus
-  // (covers the non-modal layout; inside the modal the button loop above
-  // already materialized every card).
-  let prevCount = -1;
-  for (let round = 0; round < MAX_SCROLL_ROUNDS; round++) {
-    if (signal?.aborted) throw new Error('Aborted');
-    const count = await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight);
-      const dlg = document.querySelector('[role="dialog"]');
-      if (dlg) dlg.scrollTop = dlg.scrollHeight;
-      return document.querySelectorAll('a[href*="/rooms/"]').length;
-    });
-    await randomDelay(900, 1600, signal);
-    if (count === prevCount) break;
-    prevCount = count;
-  }
-
-  const data = await page.evaluate(() => {
-    const out = { hostName: null, listingsCount: null, listings: [] };
-
-    // Host name: "About X" heading (current layout), "Hi, I'm X" (older),
-    // then the page title as a fallback.
-    const headings = Array.from(document.querySelectorAll('h1, h2')).map((h) =>
-      (h.innerText || '').trim()
-    );
-    for (const t of headings) {
-      const m =
-        t.match(/^(?:about|acerca de|sobre)\s+(.{1,60})$/i) ||
-        t.match(/(?:hi,?\s+i['’]m|olá,?\s+sou\s+o?a?)\s+(.{1,60})/i);
-      if (m) {
-        out.hostName = m[1].trim();
-        break;
-      }
-    }
-    if (!out.hostName) {
-      // Page title tends to be "<Name> - Airbnb" (but "Host profile · Airbnb"
-      // in some variants, which is useless).
-      const t = (document.title || '').split(/\s[-–|·]\s/)[0].trim();
-      if (t && !/airbnb|host profile/i.test(t)) out.hostName = t;
-    }
-
-    // Declared listing count: "14 listings" / "Listings (14)" / "14 anúncios".
-    const body = document.body?.innerText || '';
-    const cm =
-      body.match(/(\d+)\s+listings?\b/i) ||
-      body.match(/listings?\s*\((\d+)\)/i) ||
-      body.match(/(\d+)\s+an[uú]ncios?\b/i);
-    if (cm) out.listingsCount = parseInt(cm[1], 10);
-
-    // Listing cards: dedupe anchors by room id, keep the card's text lines.
-    const seen = new Map();
-    for (const a of document.querySelectorAll('a[href*="/rooms/"]')) {
-      const m = (a.getAttribute('href') || '').match(/\/rooms\/(?:plus\/)?(\d+)/);
-      if (!m) continue;
-      const roomId = m[1];
-      if (seen.has(roomId)) continue;
-
-      const card = a.closest('[data-testid], article, li, div') || a;
-      const lines = (card.innerText || '')
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      let title = null;
-      let locationText = null;
-      let reviewsScore = null;
-      let reviewsCount = null;
-
-      for (const line of lines) {
-        // "4.85 (23)" / "4,85 · 23 reviews" rating fragments.
-        const rm = line.match(/^([0-5][.,]\d{1,2})\s*[·(]?\s*(\d+)?/);
-        if (rm && reviewsScore === null && parseFloat(rm[1].replace(',', '.')) <= 5) {
-          reviewsScore = parseFloat(rm[1].replace(',', '.'));
-          if (rm[2]) reviewsCount = parseInt(rm[2], 10);
-          continue;
-        }
-        // "Apartment in Albufeira" style card subtitle.
-        if (!locationText && /\b(in|em)\s+[A-ZÀ-Ú]/.test(line) && line.length < 80) {
-          locationText = line;
-          continue;
-        }
-        if (!title && line.length > 3 && !/^€|\bnight\b|\bnoite\b/i.test(line)) {
-          title = line;
+  // Host identity, read from whatever is on screen now.
+  const identity = await page
+    .evaluate(() => {
+      const out = { hostName: null };
+      const headings = Array.from(document.querySelectorAll('h1, h2')).map((h) =>
+        (h.innerText || '').trim()
+      );
+      for (const t of headings) {
+        const m =
+          t.match(/^(?:about|acerca de|sobre)\s+(.{1,60})$/i) ||
+          t.match(/^(.{1,60})['’]s listings$/i) ||
+          t.match(/(?:hi,?\s+i['’]m|olá,?\s+sou\s+o?a?)\s+(.{1,60})/i);
+        if (m) {
+          out.hostName = m[1].trim();
+          break;
         }
       }
+      if (!out.hostName) {
+        const t = (document.title || '').split(/\s[-–|·]\s/)[0].trim();
+        if (t && !/airbnb|host profile/i.test(t)) out.hostName = t;
+      }
+      return out;
+    })
+    .catch(() => ({ hostName: null }));
 
-      const label = (a.getAttribute('aria-label') || '').trim();
-      if (label && (!title || title.length < 4)) title = label;
-
-      seen.set(roomId, {
-        url: `https://www.airbnb.com/rooms/${roomId}`,
-        title: title || null,
-        locationText: locationText || null,
-        reviewsScore,
-        reviewsCount,
-      });
-    }
-    out.listings = Array.from(seen.values());
-    return out;
-  });
-
+  const listings = Array.from(seen.values()).map(({ roomId: _roomId, ...rest }) => rest);
   const idMatch = profileUrl.match(/\/users\/(?:profile|show)\/(\d+)/i);
   return {
     hostId: idMatch ? idMatch[1] : null,
     hostUrl: profileUrl,
-    hostName: data.hostName,
-    listingsCount: data.listingsCount ?? data.listings.length,
-    listings: data.listings,
+    hostName: identity.hostName,
+    listingsCount: declared ?? listings.length,
+    listings,
   };
 }
 
