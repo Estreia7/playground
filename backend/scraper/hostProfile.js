@@ -110,18 +110,44 @@ async function scrapeHostProfile(page, profileUrl, signal, onProgress) {
     })
     .catch(() => null);
 
-  // Expand the listings modal when present ("View all N listings").
+  // Expand the listings modal when present. The text MUST mention listings:
+  // a looser "show all N" once matched "Show all 90 reviews" and opened the
+  // reviews modal instead, capping discovery at the ~10 carousel cards.
   const viewAll = page
     .locator('a, button')
-    .filter({ hasText: /view all \d+|show all \d+|ver todos/i })
+    .filter({ hasText: /(view|show) all \d+ listings?|ver todos os \d+ an[uú]ncios/i })
     .first();
+  let modalOpened = false;
   try {
     await viewAll.waitFor({ timeout: 8000 });
     await viewAll.click({ timeout: 5000 });
     await page.waitForSelector('[role="dialog"]', { timeout: 10_000 }).catch(() => {});
     await randomDelay(2000, 3500, signal);
+    modalOpened = true;
   } catch {
-    // Small hosts have no view-all affordance; the carousel is everything.
+    // No view-all affordance; fall through to carousel paging.
+  }
+
+  // Carousel variant: page through with the "Next listings" arrow, harvesting
+  // as cards rotate through the DOM.
+  if (!modalOpened) {
+    const nextArrow = page.getByRole('button', {
+      name: /next listings|pr[óo]ximos an[uú]ncios/i,
+    });
+    for (let i = 0; i < 60; i++) {
+      if (signal?.aborted) throw new Error('Aborted');
+      const visible = await nextArrow
+        .first()
+        .isVisible({ timeout: 1500 })
+        .catch(() => false);
+      if (!visible) break;
+      if (await nextArrow.first().isDisabled().catch(() => true)) break;
+      await nextArrow.first().click({ timeout: 3000 }).catch(() => {});
+      await randomDelay(900, 1500, signal);
+      merge(await harvestCards(page));
+      if (onProgress) onProgress(seen.size);
+      if (declared && seen.size >= declared) break;
+    }
   }
 
   // Harvest / scroll / "Show more listings" loop. The modal grid loads ~12
