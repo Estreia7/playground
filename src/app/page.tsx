@@ -19,6 +19,14 @@ const experiments = [
     image: "/airbnb-scrapper-cover.svg",
   },
   {
+    title: "Host Analyzer",
+    description:
+      "Airbnb host intelligence: listings, AL licenses, RNT owners & insurance, operating-area map, ADR by segment, acquisition funnel, PDF dossiers.",
+    href: "/host-analyzer",
+    status: "live" as const,
+    image: "/host-analyzer-cover.svg",
+  },
+  {
     title: "Monte Scan",
     description:
       "Scan documents & ID cards with your camera, auto-detect the type, crop & enhance, export to PDF, store, and share on WhatsApp.",

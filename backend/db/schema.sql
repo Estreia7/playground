@@ -48,6 +48,42 @@ CREATE TABLE IF NOT EXISTS excluded_cells (
 );
 CREATE INDEX IF NOT EXISTS idx_excluded_cells_job ON excluded_cells(job_id);
 
+-- Host-analyzer: one row per listing discovered on a host profile.
+-- result_json: { url, title, locationText, reviewsCount, reviewsScore,
+--               alNumber, photos: [relPath], error }
+CREATE TABLE IF NOT EXISTS host_results (
+  job_id      TEXT NOT NULL,
+  listing_url TEXT NOT NULL,
+  status      TEXT NOT NULL,
+  result_json TEXT NOT NULL,
+  finished_at INTEGER NOT NULL,
+  PRIMARY KEY (job_id, listing_url)
+);
+
+-- Host-analyzer: job-level snapshot of the scraped host profile plus links
+-- to any ADR jobs spawned from this host job.
+CREATE TABLE IF NOT EXISTS host_meta (
+  job_id           TEXT PRIMARY KEY,
+  host_url         TEXT NOT NULL,
+  host_id          TEXT,
+  host_name        TEXT,
+  listings_count   INTEGER,
+  adr_job_ids_json TEXT NOT NULL DEFAULT '[]',
+  updated_at       INTEGER NOT NULL
+);
+
+-- RNT (Turismo de Portugal) registry cache, keyed by the bare AL number.
+-- rnt_json holds the parsed registration (address, modalidade, capacity,
+-- dates, owner, insurance) or { status: 'not-found' }.
+CREATE TABLE IF NOT EXISTS al_licenses (
+  al_number      TEXT PRIMARY KEY,
+  fetched_at     INTEGER NOT NULL,
+  rnt_json       TEXT NOT NULL,
+  lat            REAL,
+  lng            REAL,
+  geocode_status TEXT NOT NULL DEFAULT 'pending'
+);
+
 CREATE TABLE IF NOT EXISTS scrape_attempts (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   job_id        TEXT NOT NULL,

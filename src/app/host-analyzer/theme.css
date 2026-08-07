@@ -1,0 +1,187 @@
+/* Host Analyzer — standalone "marine instrument" identity.
+   Scoped under .ha so nothing leaks into the rest of the playground.
+
+   Palette (locked):
+     Deep Water #0B1D21  ground        Harbor #11272C  panels
+     Tide Line  #1E3A40  borders       Foam   #E6F1EE  text
+     Mist       #8AA6A3  secondary     Verdigris #3ECFB2 accent (actions)
+     Signal Amber #F2A93B caution      Flare Coral #FF6A55 alert
+   Warm colors are reserved for intelligence signals (risk); cool for UI. */
+
+.ha {
+  --ink: #0b1d21;
+  --ink-deep: #071417;
+  --harbor: #11272c;
+  --harbor-raised: #153036;
+  --tide: #1e3a40;
+  --foam: #e6f1ee;
+  --mist: #8aa6a3;
+  --verdi: #3ecfb2;
+  --verdi-dim: rgba(62, 207, 178, 0.14);
+  --amber: #f2a93b;
+  --amber-dim: rgba(242, 169, 59, 0.14);
+  --coral: #ff6a55;
+  --coral-dim: rgba(255, 106, 85, 0.14);
+
+  background:
+    radial-gradient(1200px 700px at 85% -10%, rgba(62, 207, 178, 0.07), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(30, 58, 64, 0.55), transparent 55%),
+    var(--ink);
+  color: var(--foam);
+  font-family: var(--font-ha-body), system-ui, sans-serif;
+  min-height: 100dvh;
+}
+
+.ha ::selection {
+  background: rgba(62, 207, 178, 0.3);
+}
+
+.ha-display {
+  font-family: var(--font-ha-display), system-ui, sans-serif;
+}
+.ha-mono {
+  font-family: var(--font-ha-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Panels */
+.ha-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%), var(--harbor);
+  border: 1px solid var(--tide);
+  border-radius: 14px;
+}
+.ha-panel-raised {
+  background: var(--harbor-raised);
+  border: 1px solid var(--tide);
+  border-radius: 14px;
+}
+
+/* Interactive affordances */
+.ha-focus:focus-visible {
+  outline: 2px solid var(--verdi);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.ha-press {
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ha-press:active {
+  transform: scale(0.97);
+}
+
+/* Inputs */
+.ha-input {
+  background: var(--ink-deep);
+  border: 1px solid var(--tide);
+  border-radius: 10px;
+  color: var(--foam);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.ha-input::placeholder {
+  color: rgba(138, 166, 163, 0.55);
+}
+.ha-input:focus {
+  outline: none;
+  border-color: var(--verdi);
+  box-shadow: 0 0 0 3px rgba(62, 207, 178, 0.18);
+}
+
+/* Slim scrollbars on panels */
+.ha-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tide) transparent;
+}
+.ha-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.ha-scroll::-webkit-scrollbar-thumb {
+  background: var(--tide);
+  border-radius: 999px;
+}
+.ha-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Signature: target-lock ring (drawn by TargetRing component). */
+@keyframes ha-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.ha-ring-ticks {
+  animation: ha-ring-spin 24s linear infinite;
+  transform-origin: center;
+}
+
+/* Sonar pulse for flagged map markers + live indicators. */
+@keyframes ha-sonar {
+  0% { transform: scale(0.4); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.ha-sonar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  animation: ha-sonar 1.8s ease-out infinite;
+}
+
+/* Skeleton shimmer while data streams in. */
+@keyframes ha-shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.ha-skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--harbor) 40%,
+    var(--harbor-raised) 50%,
+    var(--harbor) 60%
+  );
+  background-size: 200% 100%;
+  animation: ha-shimmer 1.6s linear infinite;
+  border-radius: 8px;
+}
+
+/* Leaflet dark chrome: keep the map inside the instrument's world. */
+.ha .leaflet-container {
+  background: var(--ink-deep);
+  font-family: var(--font-ha-body), system-ui, sans-serif;
+  border-radius: 12px;
+}
+.ha .leaflet-tile {
+  filter: grayscale(0.35) brightness(0.82) contrast(1.05) hue-rotate(140deg) saturate(0.6);
+}
+.ha .leaflet-control-zoom a {
+  background: var(--harbor);
+  color: var(--foam);
+  border-color: var(--tide);
+}
+.ha .leaflet-control-attribution {
+  background: rgba(11, 29, 33, 0.8);
+  color: var(--mist);
+  font-size: 10px;
+}
+.ha .leaflet-control-attribution a {
+  color: var(--mist);
+}
+.ha-marker {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 2px solid var(--ink-deep);
+  box-shadow: 0 0 0 1px rgba(230, 241, 238, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ha-ring-ticks,
+  .ha-skeleton {
+    animation: none;
+  }
+  .ha-sonar::after {
+    animation: none;
+    opacity: 0;
+  }
+}

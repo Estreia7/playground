@@ -49,7 +49,8 @@ router.post('/jobs', (req, res) => {
 
 router.get('/jobs', (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 30, 200);
-  const jobs = store.listJobs(limit);
+  // Only ADR jobs — host-analyzer jobs have their own /host-jobs listing.
+  const jobs = store.listJobs(limit, 'adr');
   return res.json({ jobs });
 });
 

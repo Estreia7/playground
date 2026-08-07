@@ -31,12 +31,12 @@ function nowSec() {
   return Math.floor(Date.now() / 1000);
 }
 
-function createJob({ id, urls, name = '', location = '' }) {
+function createJob({ id, urls, name = '', location = '', type = 'adr' }) {
   const db = getDb();
   db.prepare(
-    `INSERT INTO jobs (id, created_at, status, urls_json, name, location)
-     VALUES (?, ?, 'queued', ?, ?, ?)`
-  ).run(id, nowSec(), JSON.stringify(urls), name, location);
+    `INSERT INTO jobs (id, created_at, status, urls_json, name, location, type)
+     VALUES (?, ?, 'queued', ?, ?, ?, ?)`
+  ).run(id, nowSec(), JSON.stringify(urls), name, location, type);
 }
 
 function getJob(id) {
@@ -46,9 +46,13 @@ function getJob(id) {
   return hydrateJob(row);
 }
 
-function listJobs(limit = 30) {
+function listJobs(limit = 30, type = null) {
   const db = getDb();
-  const rows = db.prepare(`SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?`).all(limit);
+  const rows = type
+    ? db
+        .prepare(`SELECT * FROM jobs WHERE type = ? ORDER BY created_at DESC LIMIT ?`)
+        .all(type, limit)
+    : db.prepare(`SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?`).all(limit);
   return rows.map(hydrateJob);
 }
 
@@ -62,6 +66,7 @@ function hydrateJob(row) {
     urls: JSON.parse(row.urls_json),
     name: row.name || '',
     location: row.location || '',
+    type: row.type || 'adr',
   };
 }
 
@@ -113,6 +118,8 @@ function deleteJob(id) {
     db.prepare(`DELETE FROM job_events WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM listing_results WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM excluded_cells WHERE job_id = ?`).run(jobId);
+    db.prepare(`DELETE FROM host_results WHERE job_id = ?`).run(jobId);
+    db.prepare(`DELETE FROM host_meta WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM jobs WHERE id = ?`).run(jobId);
   });
   tx(id);
@@ -268,6 +275,125 @@ function eventsForJob(jobId) {
     .map((r) => ({ ...r, payload: JSON.parse(r.payload) }));
 }
 
+// --- Host-analyzer -----------------------------------------------------------
+
+function upsertHostMeta({ jobId, hostUrl, hostId = null, hostName = null, listingsCount = null }) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO host_meta (job_id, host_url, host_id, host_name, listings_count, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(job_id) DO UPDATE SET
+       host_url = excluded.host_url,
+       host_id = COALESCE(excluded.host_id, host_meta.host_id),
+       host_name = COALESCE(excluded.host_name, host_meta.host_name),
+       listings_count = COALESCE(excluded.listings_count, host_meta.listings_count),
+       updated_at = excluded.updated_at`
+  ).run(jobId, hostUrl, hostId, hostName, listingsCount, nowSec());
+}
+
+function getHostMeta(jobId) {
+  const db = getDb();
+  const row = db.prepare(`SELECT * FROM host_meta WHERE job_id = ?`).get(jobId);
+  if (!row) return null;
+  return {
+    jobId: row.job_id,
+    hostUrl: row.host_url,
+    hostId: row.host_id,
+    hostName: row.host_name,
+    listingsCount: row.listings_count,
+    adrJobIds: JSON.parse(row.adr_job_ids_json || '[]'),
+    updatedAt: row.updated_at,
+  };
+}
+
+function addAdrJobIds(jobId, adrJobIds) {
+  const db = getDb();
+  const meta = getHostMeta(jobId);
+  const merged = Array.from(new Set([...(meta?.adrJobIds || []), ...adrJobIds]));
+  db.prepare(`UPDATE host_meta SET adr_job_ids_json = ?, updated_at = ? WHERE job_id = ?`).run(
+    JSON.stringify(merged),
+    nowSec(),
+    jobId
+  );
+  return merged;
+}
+
+function saveHostListingResult({ jobId, listingUrl, status, result }) {
+  const db = getDb();
+  db.prepare(
+    `INSERT OR REPLACE INTO host_results (job_id, listing_url, status, result_json, finished_at)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(jobId, listingUrl, status, JSON.stringify(result), nowSec());
+}
+
+function hostListingResults(jobId) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT listing_url AS url, status, result_json AS result, finished_at AS finishedAt
+       FROM host_results WHERE job_id = ? ORDER BY finished_at ASC`
+    )
+    .all(jobId)
+    .map((r) => ({ url: r.url, status: r.status, finishedAt: r.finishedAt, ...JSON.parse(r.result) }));
+}
+
+function alLicenseLookup(alNumber, ttlDays = 30) {
+  const db = getDb();
+  const cutoff = nowSec() - ttlDays * 86400;
+  const row = db
+    .prepare(`SELECT * FROM al_licenses WHERE al_number = ? AND fetched_at >= ?`)
+    .get(String(alNumber), cutoff);
+  if (!row) return null;
+  return {
+    alNumber: row.al_number,
+    fetchedAt: row.fetched_at,
+    rnt: JSON.parse(row.rnt_json),
+    lat: row.lat,
+    lng: row.lng,
+    geocodeStatus: row.geocode_status,
+  };
+}
+
+function alLicenseUpsert({ alNumber, rnt, lat = null, lng = null, geocodeStatus = 'pending' }) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO al_licenses (al_number, fetched_at, rnt_json, lat, lng, geocode_status)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(al_number) DO UPDATE SET
+       fetched_at = excluded.fetched_at,
+       rnt_json = excluded.rnt_json,
+       lat = COALESCE(excluded.lat, al_licenses.lat),
+       lng = COALESCE(excluded.lng, al_licenses.lng),
+       geocode_status = excluded.geocode_status`
+  ).run(String(alNumber), nowSec(), JSON.stringify(rnt), lat, lng, geocodeStatus);
+}
+
+function alLicenseSetGeocode(alNumber, { lat, lng, geocodeStatus }) {
+  const db = getDb();
+  db.prepare(`UPDATE al_licenses SET lat = ?, lng = ?, geocode_status = ? WHERE al_number = ?`).run(
+    lat,
+    lng,
+    geocodeStatus,
+    String(alNumber)
+  );
+}
+
+// All completed host jobs with their listings + host meta — the funnel input.
+function allHostJobs() {
+  const db = getDb();
+  const rows = db
+    .prepare(`SELECT * FROM jobs WHERE type = 'host' ORDER BY created_at DESC`)
+    .all();
+  return rows.map((row) => {
+    const job = hydrateJob(row);
+    return {
+      job,
+      host: getHostMeta(job.id),
+      listings: hostListingResults(job.id),
+    };
+  });
+}
+
 function globalMetrics({ windowSeconds = 7 * 86400 } = {}) {
   const db = getDb();
   const cutoff = nowSec() - windowSeconds;
@@ -322,6 +448,15 @@ module.exports = {
   lastEventSeq,
   saveListingResult,
   listingResults,
+  upsertHostMeta,
+  getHostMeta,
+  addAdrJobIds,
+  saveHostListingResult,
+  hostListingResults,
+  alLicenseLookup,
+  alLicenseUpsert,
+  alLicenseSetGeocode,
+  allHostJobs,
   excludedCells,
   setCellExcluded,
   cacheLookup,

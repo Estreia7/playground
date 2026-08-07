@@ -1,0 +1,182 @@
+"use client";
+
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { PROFILE_URL_RE, fmtTime, statusTone } from "./helpers";
+import type { HostJobState } from "./types";
+
+export function NewTargetForm({
+  onSubmit,
+}: {
+  onSubmit: (input: { profileUrl: string; name: string }) => Promise<string>;
+}) {
+  const [profileUrl, setProfileUrl] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!PROFILE_URL_RE.test(profileUrl.trim())) {
+      setError("Paste an Airbnb host profile URL, like airbnb.com/users/profile/123…");
+      return;
+    }
+    if (!name.trim()) {
+      setError("Give this dossier a name so you can find it later.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSubmit({ profileUrl: profileUrl.trim(), name: name.trim() });
+      setProfileUrl("");
+      setName("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the job.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="ha-panel p-4">
+      <h2 className="ha-display text-sm font-semibold">New target</h2>
+      <div className="mt-3 flex flex-col gap-2">
+        <label className="text-xs text-[var(--mist)]" htmlFor="ha-profile-url">
+          Host profile URL
+        </label>
+        <input
+          id="ha-profile-url"
+          className="ha-input px-3 py-2 text-sm"
+          placeholder="https://www.airbnb.com/users/profile/…"
+          value={profileUrl}
+          onChange={(e) => setProfileUrl(e.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+        />
+        <label className="mt-1 text-xs text-[var(--mist)]" htmlFor="ha-job-name">
+          Dossier name
+        </label>
+        <input
+          id="ha-job-name"
+          className="ha-input px-3 py-2 text-sm"
+          placeholder="e.g. Albufeira multi-host"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={120}
+        />
+      </div>
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2 text-xs text-[var(--coral)]"
+            role="alert"
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <motion.button
+        type="submit"
+        disabled={busy}
+        whileTap={{ scale: 0.97 }}
+        className="ha-focus mt-4 w-full rounded-[10px] bg-[var(--verdi)] px-4 py-2.5 text-sm font-semibold text-[var(--ink-deep)] transition-colors hover:bg-[#5adcc4] disabled:opacity-50"
+      >
+        {busy ? "Locking on…" : "Analyze host"}
+      </motion.button>
+    </form>
+  );
+}
+
+function jobProgress(job: HostJobState): string | null {
+  if (job.status !== "running") return null;
+  if (job.phase === "profile") return "Reading profile";
+  if (job.phase === "listings") {
+    const total = job.listingOrder.length;
+    const done = job.listingOrder.filter((u) => {
+      const s = job.listings[u]?.status;
+      return s === "done" || s === "error";
+    }).length;
+    return total ? `Listings ${done}/${total}` : "Listings";
+  }
+  if (job.phase === "licenses") {
+    const withAl = job.listingOrder.filter((u) => job.listings[u]?.alNumber).length;
+    const got = Object.keys(job.licenses).length;
+    return withAl ? `Registry ${got}/${withAl}` : "Registry";
+  }
+  return "Queued";
+}
+
+export function TasksList({
+  jobs,
+  selected,
+  onSelect,
+}: {
+  jobs: HostJobState[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
+  if (jobs.length === 0) {
+    return (
+      <div className="ha-panel p-4 text-sm text-[var(--mist)]">
+        No dossiers yet. Paste a host profile URL above to build the first one.
+      </div>
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-2" aria-label="Host dossiers">
+      <AnimatePresence initial={false}>
+        {jobs.map((job) => {
+          const active = selected === job.id;
+          const progress = jobProgress(job);
+          return (
+            <motion.li
+              key={job.id}
+              layout
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <button
+                onClick={() => onSelect(job.id)}
+                aria-current={active ? "true" : undefined}
+                className={`ha-focus ha-press w-full rounded-[12px] border p-3 text-left transition-colors ${
+                  active
+                    ? "border-[var(--verdi)]/50 bg-[var(--harbor-raised)]"
+                    : "border-[var(--tide)] bg-[var(--harbor)] hover:border-[var(--verdi)]/30"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-semibold">
+                    {job.host?.hostName || job.name}
+                  </span>
+                  <span
+                    className={`relative shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusTone(job.status)}`}
+                  >
+                    {job.status === "running" && (
+                      <span className="ha-sonar absolute -left-1 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[var(--verdi)] text-[var(--verdi)]" />
+                    )}
+                    <span className={job.status === "running" ? "pl-1.5" : undefined}>
+                      {job.status}
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-[var(--mist)]">
+                  <span className="truncate">
+                    {progress ||
+                      `${job.listingOrder.length || job.host?.listingsCount || "…"} listings`}
+                  </span>
+                  <span className="ha-mono shrink-0">{fmtTime(job.createdAt)}</span>
+                </div>
+              </button>
+            </motion.li>
+          );
+        })}
+      </AnimatePresence>
+    </ul>
+  );
+}

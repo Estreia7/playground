@@ -30,6 +30,7 @@ function runMigrations(db) {
     `ALTER TABLE listings ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE jobs ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE jobs ADD COLUMN location TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE jobs ADD COLUMN type TEXT NOT NULL DEFAULT 'adr'`,
   ];
   for (const stmt of adds) {
     try {
