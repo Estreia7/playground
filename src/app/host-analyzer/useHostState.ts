@@ -468,6 +468,10 @@ export function useHostState() {
     await fetch(`${API_BASE}/host-jobs/${id}`, { method: "DELETE" });
   }, []);
 
+  const retryJob = useCallback(async (id: string) => {
+    await fetch(`${API_BASE}/host-jobs/${id}/retry`, { method: "POST" });
+  }, []);
+
   const runAdr = useCallback(
     async (id: string) => {
       const res = await fetch(`${API_BASE}/host-jobs/${id}/adr`, { method: "POST" });
@@ -496,6 +500,7 @@ export function useHostState() {
     submitJob,
     cancelJob,
     deleteJob,
+    retryJob,
     runAdr,
   };
 }

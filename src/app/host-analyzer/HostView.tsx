@@ -67,12 +67,14 @@ export function HostView({
   onRunAdr,
   onCancel,
   onDelete,
+  onRetry,
 }: {
   job: HostJobState;
   funnel: FunnelHost[] | null;
   onRunAdr: () => Promise<unknown>;
   onCancel: () => void;
   onDelete: () => void;
+  onRetry: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -172,6 +174,16 @@ export function HostView({
           <div className="flex items-center gap-4">
             <TargetRing score={vuln?.score ?? null} label="approach" size={96} />
             <div className="flex flex-col gap-2">
+              {(job.status === "interrupted" ||
+                job.status === "error" ||
+                job.status === "cancelled") && (
+                <button
+                  onClick={onRetry}
+                  className="ha-focus ha-press rounded-[10px] border border-[var(--amber)]/50 bg-[var(--amber-dim)] px-4 py-2 text-sm font-semibold text-[var(--amber)] transition-colors hover:bg-[var(--amber)]/25"
+                >
+                  Resume analysis
+                </button>
+              )}
               <a
                 href={`${API_BASE}/host-jobs/${job.id}/pdf`}
                 className="ha-focus ha-press rounded-[10px] bg-[var(--verdi)] px-4 py-2 text-center text-sm font-semibold text-[var(--ink-deep)] transition-colors hover:bg-[#5adcc4]"

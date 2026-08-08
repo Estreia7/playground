@@ -99,7 +99,18 @@ async function runHostJob(job, { signal }) {
   emit(jobId, 'host-phase', { jobId, phase: 'listings' });
 
   const poolSize = Math.max(1, parseInt(process.env.WORKER_POOL_SIZE || '3', 10));
-  const queue = [...listings];
+  // Resume support: listings already scraped for this job (before a restart,
+  // deploy or crash) are kept as-is — only the remainder is visited.
+  const alreadyDone = new Set(
+    store
+      .hostListingResults(jobId)
+      .filter((r) => r.status === 'done')
+      .map((r) => r.url)
+  );
+  if (alreadyDone.size > 0) {
+    logger.info(`host job ${jobId}: resuming, ${alreadyDone.size} listings already done`);
+  }
+  const queue = listings.filter((c) => !alreadyDone.has(c.url));
   let cursor = 0;
 
   function dequeue() {

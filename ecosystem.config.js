@@ -28,8 +28,11 @@ module.exports = {
       max_restarts: 10,
       min_uptime: '60s',
       kill_timeout: 30000,
-      max_memory_restart: '800M',
-      node_args: '--max-old-space-size=1024',
+      // Mega-host jobs (300 listings) need headroom; the old 800M cap
+      // SIGINT'd the process mid-job. Chromium runs as separate processes,
+      // so this only measures the node heap.
+      max_memory_restart: '1600M',
+      node_args: '--max-old-space-size=1536',
       env: {
         NODE_ENV: 'production',
       },

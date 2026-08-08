@@ -206,6 +206,21 @@ router.get('/host-funnel', (_req, res) => {
   return res.json({ hosts });
 });
 
+// Re-queue an interrupted/errored/cancelled host job. The worker resumes:
+// listings already scraped are kept, only the remainder plus the registry
+// phase run again (registry hits the al_licenses cache for known numbers).
+router.post('/host-jobs/:id/retry', (req, res) => {
+  const job = store.getJob(req.params.id);
+  if (!job || job.type !== 'host') return res.status(404).json({ error: 'not-found' });
+  if (job.status === 'running' || job.status === 'queued') {
+    return res.status(409).json({ error: 'job-active' });
+  }
+  store.setStatus(req.params.id, 'queued', { finishedAt: null });
+  emit(req.params.id, 'job-status', { jobId: req.params.id, status: 'queued' });
+  scheduler.kick();
+  return res.json({ ok: true });
+});
+
 router.post('/host-jobs/:id/cancel', (req, res) => {
   const result = scheduler.cancel(req.params.id);
   if (!result.ok) return res.status(409).json({ error: result.reason });

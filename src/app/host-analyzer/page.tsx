@@ -21,6 +21,7 @@ export default function HostAnalyzerPage() {
     submitJob,
     cancelJob,
     deleteJob,
+    retryJob,
     runAdr,
   } = useHostState();
   const [tab, setTab] = useState<Tab>("dossiers");
@@ -109,6 +110,7 @@ export default function HostAnalyzerPage() {
                     onRunAdr={() => runAdr(currentJob.id)}
                     onCancel={() => cancelJob(currentJob.id)}
                     onDelete={() => deleteJob(currentJob.id)}
+                    onRetry={() => retryJob(currentJob.id)}
                   />
                 ) : (
                   <motion.div
