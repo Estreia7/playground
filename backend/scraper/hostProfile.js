@@ -11,7 +11,10 @@
 const logger = require('../lib/logger');
 const { randomDelay } = require('../lib/delay');
 
-const MAX_SCROLL_ROUNDS = 25;
+// Sized for mega-hosts: a 300-listing modal takes ~25 Show-more clicks, each
+// consuming one round; the loop still exits early via declared-count or the
+// stale counter for small hosts.
+const MAX_SCROLL_ROUNDS = 90;
 
 // Collect whatever listing cards are in the DOM right now.
 // Called repeatedly while scrolling/clicking, so a virtualized grid (cards
@@ -134,7 +137,7 @@ async function scrapeHostProfile(page, profileUrl, signal, onProgress) {
     const nextArrow = page.getByRole('button', {
       name: /next listings|pr[óo]ximos an[uú]ncios/i,
     });
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 400; i++) {
       if (signal?.aborted) throw new Error('Aborted');
       const visible = await nextArrow
         .first()

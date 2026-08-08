@@ -19,7 +19,9 @@ const { emit } = require('../jobs/jobManager');
 const logger = require('../lib/logger');
 
 const PER_LISTING_TIMEOUT_MS = 4 * 60 * 1000;
-const PROFILE_PHASE_TIMEOUT_MS = 8 * 60 * 1000;
+// Generous: discovering a 300-listing portfolio needs ~25 Show-more clicks
+// plus scroll rounds before the per-listing phase even starts.
+const PROFILE_PHASE_TIMEOUT_MS = 20 * 60 * 1000;
 
 function withTimeout(promise, ms, label) {
   let timer;
@@ -32,7 +34,7 @@ function withTimeout(promise, ms, label) {
 async function runHostJob(job, { signal }) {
   const jobId = job.id;
   const profileUrl = job.urls[0];
-  const maxListings = parseInt(process.env.HOST_MAX_LISTINGS || '80', 10);
+  const maxListings = parseInt(process.env.HOST_MAX_LISTINGS || '300', 10);
   let errored = false;
 
   // --- Phase 1: host profile ------------------------------------------------
