@@ -84,6 +84,29 @@ CREATE TABLE IF NOT EXISTS al_licenses (
   geocode_status TEXT NOT NULL DEFAULT 'pending'
 );
 
+-- Host-analyzer: time-series of declared listing counts per host
+-- ("View all N listings" on the profile page). Append-only.
+CREATE TABLE IF NOT EXISTS host_snapshots (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  host_id        TEXT NOT NULL,
+  ts             INTEGER NOT NULL,
+  listings_count INTEGER NOT NULL,
+  source         TEXT NOT NULL DEFAULT 'job',  -- 'job' | 'tracker' | 'backfill'
+  job_id         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_host_snapshots_host_ts ON host_snapshots(host_id, ts);
+
+-- Hosts the tracker bot follows. Auto-enrolled when a host job completes
+-- its profile phase; the tracker re-reads the declared count periodically.
+CREATE TABLE IF NOT EXISTS tracked_hosts (
+  host_id         TEXT PRIMARY KEY,
+  host_url        TEXT NOT NULL,
+  host_name       TEXT,
+  enabled         INTEGER NOT NULL DEFAULT 1,
+  created_at      INTEGER NOT NULL,
+  last_checked_at INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS scrape_attempts (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   job_id        TEXT NOT NULL,

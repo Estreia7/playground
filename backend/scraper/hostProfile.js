@@ -10,6 +10,7 @@
 
 const logger = require('../lib/logger');
 const { randomDelay } = require('../lib/delay');
+const { readDeclaredCount } = require('./declaredCount');
 
 // Sized for mega-hosts: a 300-listing modal takes ~25 Show-more clicks, each
 // consuming one round; the loop still exits early via declared-count or the
@@ -101,17 +102,7 @@ async function scrapeHostProfile(page, profileUrl, signal, onProgress) {
   merge(await harvestCards(page));
 
   // Declared listing count, read early: "View all 48 listings" / "N listings".
-  const declared = await page
-    .evaluate(() => {
-      const body = document.body?.innerText || '';
-      const cm =
-        body.match(/(?:view|show) all (\d+) listings?/i) ||
-        body.match(/(\d+)\s+listings?\b/i) ||
-        body.match(/listings?\s*\((\d+)\)/i) ||
-        body.match(/(\d+)\s+an[uú]ncios?\b/i);
-      return cm ? parseInt(cm[1], 10) : null;
-    })
-    .catch(() => null);
+  const declared = await readDeclaredCount(page);
 
   // Expand the listings modal when present. The text MUST mention listings:
   // a looser "show all N" once matched "Show all 90 reviews" and opened the
@@ -290,4 +281,4 @@ function stubHostProfile(profileUrl) {
   };
 }
 
-module.exports = { scrapeHostProfile };
+module.exports = { scrapeHostProfile, dismissCookieBanner };

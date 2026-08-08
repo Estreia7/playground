@@ -8,9 +8,12 @@ import type {
   HostJobState,
   HostListing,
   HostMeta,
+  InsightsPayload,
   JobStatus,
   License,
   MonthResult,
+  Snapshot,
+  TrackedHost,
 } from "./types";
 
 type JobsMap = Record<string, HostJobState>;
@@ -102,6 +105,10 @@ export function useHostState() {
   const [order, setOrder] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [funnel, setFunnel] = useState<FunnelHost[] | null>(null);
+  const [insights, setInsights] = useState<InsightsPayload | null>(null);
+  const [trackedHosts, setTrackedHosts] = useState<TrackedHost[] | null>(null);
+  // host id -> snapshot series, lazily fetched per dossier + live via SSE.
+  const [snapshotsByHost, setSnapshotsByHost] = useState<Record<string, Snapshot[]>>({});
   // adr job id -> parent host job id, so ADR SSE events route to the host.
   const adrParentRef = useRef<Record<string, string>>({});
 
@@ -113,6 +120,33 @@ export function useHostState() {
       setFunnel(hosts);
     } catch {
       // transient; next refresh will retry
+    }
+  }, []);
+
+  const refreshInsights = useCallback(async () => {
+    try {
+      const [insRes, thRes] = await Promise.all([
+        fetch(`${API_BASE}/insights`),
+        fetch(`${API_BASE}/tracked-hosts`),
+      ]);
+      if (insRes.ok) setInsights((await insRes.json()) as InsightsPayload);
+      if (thRes.ok) {
+        const { hosts } = (await thRes.json()) as { hosts: TrackedHost[] };
+        setTrackedHosts(hosts);
+      }
+    } catch {
+      // transient; next refresh will retry
+    }
+  }, []);
+
+  const loadSnapshots = useCallback(async (hostId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/host-snapshots?hostId=${encodeURIComponent(hostId)}`);
+      if (!res.ok) return;
+      const { snapshots } = (await res.json()) as { snapshots: Snapshot[] };
+      setSnapshotsByHost((prev) => ({ ...prev, [hostId]: snapshots }));
+    } catch {
+      // transient
     }
   }, []);
 
@@ -165,6 +199,23 @@ export function useHostState() {
     (type: string, payload: Record<string, unknown>) => {
       const jobId = payload.jobId as string;
       if (!jobId) return;
+
+      // Tracker count-check landed: append to the live series and refresh
+      // the insights aggregates shortly after.
+      if (type === "host-snapshot") {
+        const hostId = payload.hostId as string;
+        const snap: Snapshot = {
+          ts: payload.ts as number,
+          listingsCount: payload.listingsCount as number,
+          source: "tracker",
+        };
+        setSnapshotsByHost((prev) =>
+          prev[hostId] ? { ...prev, [hostId]: [...prev[hostId], snap] } : prev
+        );
+        setTimeout(() => refreshInsights(), 400);
+        return;
+      }
+
       const parentId = adrParentRef.current[jobId];
 
       // --- Events on a linked ADR job route into the parent host job. -------
@@ -410,8 +461,14 @@ export function useHostState() {
         return prev;
       });
     },
-    [refreshFunnel]
+    [refreshFunnel, refreshInsights]
   );
+
+  // Lazily fetch the snapshot series for the selected dossier's host.
+  useEffect(() => {
+    const hostId = selected ? jobs[selected]?.host?.hostId : null;
+    if (hostId && !snapshotsByHost[hostId]) loadSnapshots(hostId);
+  }, [selected, jobs, snapshotsByHost, loadSnapshots]);
 
   useEffect(() => {
     const es = new EventSource(`${API_BASE}/jobs/stream`);
@@ -424,6 +481,7 @@ export function useHostState() {
       "host-listing-done",
       "host-license-done",
       "host-adr-linked",
+      "host-snapshot",
       "listing-started",
       "listing-meta",
       "progress",
@@ -487,6 +545,24 @@ export function useHostState() {
     [loadDetail]
   );
 
+  const runTrackerNow = useCallback(async () => {
+    const res = await fetch(`${API_BASE}/tracker/run-now`, { method: "POST" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { enqueued } = (await res.json()) as { enqueued: Array<{ jobId: string }> };
+    return enqueued.length;
+  }, []);
+
+  const setHostTracking = useCallback(async (hostId: string, enabled: boolean) => {
+    await fetch(`${API_BASE}/tracked-hosts/${encodeURIComponent(hostId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    setTrackedHosts((prev) =>
+      prev ? prev.map((h) => (h.hostId === hostId ? { ...h, enabled } : h)) : prev
+    );
+  }, []);
+
   const currentJob = selected ? jobs[selected] ?? null : null;
 
   return {
@@ -497,6 +573,12 @@ export function useHostState() {
     currentJob,
     funnel,
     refreshFunnel,
+    insights,
+    trackedHosts,
+    refreshInsights,
+    snapshotsByHost,
+    runTrackerNow,
+    setHostTracking,
     submitJob,
     cancelJob,
     deleteJob,

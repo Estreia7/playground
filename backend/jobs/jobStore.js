@@ -394,6 +394,112 @@ function allHostJobs() {
   });
 }
 
+// --- Host tracker ------------------------------------------------------------
+
+function insertHostSnapshot({ hostId, listingsCount, source = 'job', jobId = null, ts = nowSec() }) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO host_snapshots (host_id, ts, listings_count, source, job_id)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(String(hostId), ts, listingsCount, source, jobId);
+}
+
+function hostSnapshots(hostId) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT ts, listings_count AS listingsCount, source, job_id AS jobId
+         FROM host_snapshots WHERE host_id = ? ORDER BY ts ASC`
+    )
+    .all(String(hostId));
+}
+
+function allHostSnapshots() {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT host_id AS hostId, ts, listings_count AS listingsCount, source
+         FROM host_snapshots ORDER BY host_id, ts ASC`
+    )
+    .all();
+}
+
+function upsertTrackedHost({ hostId, hostUrl, hostName = null }) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO tracked_hosts (host_id, host_url, host_name, enabled, created_at)
+     VALUES (?, ?, ?, 1, ?)
+     ON CONFLICT(host_id) DO UPDATE SET
+       host_url = excluded.host_url,
+       host_name = COALESCE(excluded.host_name, tracked_hosts.host_name)`
+  ).run(String(hostId), hostUrl, hostName, nowSec());
+}
+
+function listTrackedHosts() {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT th.host_id AS hostId, th.host_url AS hostUrl, th.host_name AS hostName,
+              th.enabled, th.created_at AS createdAt, th.last_checked_at AS lastCheckedAt,
+              (SELECT ts FROM host_snapshots s WHERE s.host_id = th.host_id
+                ORDER BY ts DESC LIMIT 1) AS latestTs,
+              (SELECT listings_count FROM host_snapshots s WHERE s.host_id = th.host_id
+                ORDER BY ts DESC LIMIT 1) AS latestCount,
+              (SELECT listings_count FROM host_snapshots s WHERE s.host_id = th.host_id
+                ORDER BY ts DESC LIMIT 1 OFFSET 1) AS previousCount
+         FROM tracked_hosts th
+        ORDER BY th.created_at ASC`
+    )
+    .all()
+    .map((r) => ({ ...r, enabled: !!r.enabled }));
+}
+
+function setTrackedHostEnabled(hostId, enabled) {
+  const db = getDb();
+  db.prepare(`UPDATE tracked_hosts SET enabled = ? WHERE host_id = ?`).run(
+    enabled ? 1 : 0,
+    String(hostId)
+  );
+}
+
+function touchTrackedHost(hostId) {
+  const db = getDb();
+  db.prepare(`UPDATE tracked_hosts SET last_checked_at = ? WHERE host_id = ?`).run(
+    nowSec(),
+    String(hostId)
+  );
+}
+
+function hasActiveJobForUrl(url, type) {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT id FROM jobs
+        WHERE type = ? AND status IN ('queued','running') AND urls_json LIKE ?
+        LIMIT 1`
+    )
+    .get(type, `%${url}%`);
+  return !!row;
+}
+
+// Every cached AL license in one query — Map keyed by al_number. Avoids the
+// per-listing lookup fan-out when aggregating across all hosts.
+function allAlLicenses() {
+  const db = getDb();
+  const map = new Map();
+  for (const row of db.prepare(`SELECT * FROM al_licenses`).all()) {
+    map.set(row.al_number, {
+      alNumber: row.al_number,
+      fetchedAt: row.fetched_at,
+      rnt: JSON.parse(row.rnt_json),
+      lat: row.lat,
+      lng: row.lng,
+      geocodeStatus: row.geocode_status,
+    });
+  }
+  return map;
+}
+
 function globalMetrics({ windowSeconds = 7 * 86400 } = {}) {
   const db = getDb();
   const cutoff = nowSec() - windowSeconds;
@@ -457,6 +563,15 @@ module.exports = {
   alLicenseUpsert,
   alLicenseSetGeocode,
   allHostJobs,
+  insertHostSnapshot,
+  hostSnapshots,
+  allHostSnapshots,
+  upsertTrackedHost,
+  listTrackedHosts,
+  setTrackedHostEnabled,
+  touchTrackedHost,
+  hasActiveJobForUrl,
+  allAlLicenses,
   excludedCells,
   setCellExcluded,
   cacheLookup,

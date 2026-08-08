@@ -16,6 +16,16 @@ import type { HostJobState, HostListing, License } from "./types";
 import { Lightbox } from "./Lightbox";
 
 type SortKey = "title" | "area" | "reviews" | "score" | "adr";
+type RiskFilter = "unlicensed" | "uninsured" | "lowRated" | "errors";
+
+const PAGE_SIZE = 50;
+
+const RISK_FILTERS: Array<{ key: RiskFilter; label: string }> = [
+  { key: "unlicensed", label: "Unlicensed" },
+  { key: "uninsured", label: "Uninsured" },
+  { key: "lowRated", label: "Low-rated" },
+  { key: "errors", label: "Errors" },
+];
 
 function WarnIcon({ className }: { className?: string }) {
   return (
@@ -92,12 +102,32 @@ export function ListingsTable({ job }: { job: HostJobState }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "score", dir: 1 });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ photos: string[]; title: string } | null>(null);
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<Set<RiskFilter>>(new Set());
+  const [page, setPage] = useState(0);
 
   const adrByUrl = useMemo(() => adrPerListing(job), [job]);
   const hasAdr = Object.keys(adrByUrl).length > 0;
 
   const rows = useMemo(() => {
-    const list = job.listingOrder.map((u) => job.listings[u]).filter(Boolean);
+    const q = query.trim().toLowerCase();
+    const list = job.listingOrder
+      .map((u) => job.listings[u])
+      .filter(Boolean)
+      .filter((l) => {
+        if (q) {
+          const hay = `${l.title || ""} ${l.alNumber || ""} ${l.locationText || ""}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        if (filters.size === 0) return true;
+        const ins = insuranceOf(l, job.licenses);
+        // Chips compose as OR: a row shows when it matches any active filter.
+        if (filters.has("unlicensed") && !l.alNumber && l.status === "done") return true;
+        if (filters.has("uninsured") && (ins === "none" || ins === "expired")) return true;
+        if (filters.has("lowRated") && l.reviewsScore != null && l.reviewsScore < 4.5) return true;
+        if (filters.has("errors") && (l.status === "error" || l.error)) return true;
+        return false;
+      });
     const val = (l: HostListing): string | number => {
       const lic = l.alNumber ? job.licenses[l.alNumber] : undefined;
       switch (sort.key) {
@@ -120,19 +150,60 @@ export function ListingsTable({ job }: { job: HostJobState }) {
       if (va > vb) return sort.dir;
       return 0;
     });
-  }, [job, sort, adrByUrl]);
+  }, [job, sort, adrByUrl, query, filters]);
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = rows.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   function onSort(k: SortKey) {
     setSort((s) => (s.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 }));
+    setPage(0);
+  }
+
+  function toggleFilter(k: RiskFilter) {
+    setFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+    setPage(0);
   }
 
   return (
     <div className="ha-panel overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <h3 className="ha-display text-sm font-semibold">Listings</h3>
-        <span className="text-xs text-[var(--mist)]">
-          Click a row for the full registry record
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1" role="group" aria-label="Risk filters">
+            {RISK_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => toggleFilter(f.key)}
+                aria-pressed={filters.has(f.key)}
+                className={`ha-focus ha-press rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                  filters.has(f.key)
+                    ? "border-[var(--coral)]/50 bg-[var(--coral-dim)] text-[var(--coral)]"
+                    : "border-[var(--tide)] text-[var(--mist)] hover:border-[var(--coral)]/30"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <input
+            className="ha-input w-44 px-3 py-1.5 text-xs"
+            placeholder="Search title / AL / area…"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
+            aria-label="Search listings"
+            spellCheck={false}
+          />
+        </div>
       </div>
       <div className="ha-scroll overflow-x-auto">
         <table className="w-full min-w-[860px] border-collapse text-sm">
@@ -159,7 +230,7 @@ export function ListingsTable({ job }: { job: HostJobState }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((l) => {
+            {pageRows.map((l) => {
               const lic = l.alNumber ? job.licenses[l.alNumber] : undefined;
               const rnt = lic?.rnt.status === "found" ? lic.rnt : null;
               const ins = insuranceOf(l, job.licenses);
@@ -266,7 +337,36 @@ export function ListingsTable({ job }: { job: HostJobState }) {
             })}
           </tbody>
         </table>
+        {rows.length === 0 && (
+          <div className="px-4 py-6 text-center text-sm text-[var(--mist)]">
+            No listings match the current search or filters.
+          </div>
+        )}
       </div>
+      {rows.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between border-t border-[var(--tide)] px-4 py-2.5">
+          <span className="ha-mono text-xs text-[var(--mist)]">
+            {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, rows.length)} of{" "}
+            {rows.length}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+              className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-3 py-1 text-xs text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={safePage >= pageCount - 1}
+              className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-3 py-1 text-xs text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
       <AnimatePresence>
         {lightbox && (
           <Lightbox

@@ -5,6 +5,7 @@ const { nanoid } = require('nanoid');
 const store = require('../jobs/jobStore');
 const scheduler = require('../jobs/scheduler');
 const { emit } = require('../jobs/jobManager');
+const { expectedRegion, coordsRegion } = require('../lib/geocode');
 const logger = require('../lib/logger');
 
 const router = express.Router();
@@ -132,78 +133,271 @@ router.post('/host-jobs/:id/adr', (req, res) => {
   return res.status(201).json({ adrJobIds });
 });
 
+// Per-host aggregation shared by the funnel and insights endpoints.
+// licenseMap: Map<alNumber, license entry> from store.allAlLicenses() — one
+// query instead of a per-listing lookup fan-out.
+function aggregateHost({ job, host, listings }, licenseMap) {
+  const scores = listings.map((l) => l.reviewsScore).filter((v) => v != null);
+  const reviews = listings.map((l) => l.reviewsCount).filter((v) => v != null);
+
+  const insurance = { valid: 0, expired: 0, none: 0, unknown: 0 };
+  const ownerNifs = new Map();
+  const concelhos = new Set();
+  let licensed = 0;
+  let companyListings = 0;
+
+  for (const l of listings) {
+    if (!l.alNumber) {
+      insurance.unknown++;
+      continue;
+    }
+    licensed++;
+    const entry = licenseMap.get(String(l.alNumber));
+    const rnt = entry?.rnt;
+    if (!rnt || rnt.status !== 'found') {
+      insurance.unknown++;
+      continue;
+    }
+    insurance[rnt.insurance?.status || 'none']++;
+    if (rnt.address?.concelho) concelhos.add(rnt.address.concelho);
+    const owner = rnt.owners?.[0];
+    if (owner?.nif) {
+      ownerNifs.set(owner.nif, owner);
+      if (String(owner.nif).startsWith('5')) companyListings++;
+    }
+  }
+
+  // Avg ADR from linked ADR jobs, when any have run.
+  let adrValues = [];
+  for (const adrId of host?.adrJobIds || []) {
+    for (const lr of store.listingResults(adrId)) {
+      for (const m of lr.result || []) {
+        if (m.adr != null) adrValues.push(m.adr);
+      }
+    }
+  }
+
+  return {
+    jobId: job.id,
+    status: job.status,
+    createdAt: job.createdAt,
+    name: job.name,
+    hostName: host?.hostName || null,
+    hostUrl: host?.hostUrl || null,
+    listingsTotal: listings.length,
+    licensed,
+    unlicensed: listings.length - licensed,
+    avgScore: scores.length
+      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
+      : null,
+    lowRatedShare: scores.length
+      ? Math.round((scores.filter((s) => s < 4.5).length / scores.length) * 100) / 100
+      : null,
+    totalReviews: reviews.length ? reviews.reduce((a, b) => a + b, 0) : null,
+    insurance,
+    owners: Array.from(ownerNifs.values()).map((o) => ({ nif: o.nif, name: o.name })),
+    companyListings,
+    concelhos: Array.from(concelhos),
+    avgAdr: adrValues.length
+      ? Math.round((adrValues.reduce((a, b) => a + b, 0) / adrValues.length) * 100) / 100
+      : null,
+  };
+}
+
 // Cross-host aggregates for the acquisition funnel. Raw components only —
 // the frontend owns the score weights so they stay tunable in one place.
 router.get('/host-funnel', (_req, res) => {
-  const hosts = store.allHostJobs().map(({ job, host, listings }) => {
-    const scores = listings.map((l) => l.reviewsScore).filter((v) => v != null);
-    const reviews = listings.map((l) => l.reviewsCount).filter((v) => v != null);
+  const licenseMap = store.allAlLicenses();
+  const hosts = store.allHostJobs().map((entry) => aggregateHost(entry, licenseMap));
+  return res.json({ hosts });
+});
 
-    const insurance = { valid: 0, expired: 0, none: 0, unknown: 0 };
-    const ownerNifs = new Map();
-    const concelhos = new Set();
-    let licensed = 0;
-    let companyListings = 0;
+// Cross-host insights: KPIs, evolution series, concelho/owner breakdowns and
+// data anomalies. Hosts are deduped by host id (newest job wins) so a
+// re-analyzed host never double-counts.
+router.get('/insights', (_req, res) => {
+  const licenseMap = store.allAlLicenses();
+  const allJobs = store.allHostJobs(); // ordered created_at DESC
 
-    for (const l of listings) {
-      if (!l.alNumber) {
-        insurance.unknown++;
-        continue;
-      }
-      licensed++;
-      const entry = store.alLicenseLookup(l.alNumber, 365 * 10);
-      const rnt = entry?.rnt;
-      if (!rnt || rnt.status !== 'found') {
-        insurance.unknown++;
-        continue;
-      }
-      insurance[rnt.insurance?.status || 'none']++;
-      if (rnt.address?.concelho) concelhos.add(rnt.address.concelho);
-      const owner = rnt.owners?.[0];
-      if (owner?.nif) {
-        ownerNifs.set(owner.nif, owner);
-        if (String(owner.nif).startsWith('5')) companyListings++;
-      }
-    }
+  // Group snapshots by host id once.
+  const snapshotsByHost = new Map();
+  for (const s of store.allHostSnapshots()) {
+    if (!snapshotsByHost.has(s.hostId)) snapshotsByHost.set(s.hostId, []);
+    snapshotsByHost.get(s.hostId).push({ ts: s.ts, listingsCount: s.listingsCount, source: s.source });
+  }
 
-    // Avg ADR from linked ADR jobs, when any have run.
-    let adrValues = [];
-    for (const adrId of host?.adrJobIds || []) {
-      for (const lr of store.listingResults(adrId)) {
-        for (const m of lr.result || []) {
-          if (m.adr != null) adrValues.push(m.adr);
-        }
-      }
-    }
+  const hostIdOf = ({ host, job }) => {
+    if (host?.hostId) return String(host.hostId);
+    const url = host?.hostUrl || job.urls?.[0] || '';
+    const m = url.match(/\/users\/(?:profile|show)\/(\d+)/i);
+    return m ? m[1] : `job:${job.id}`;
+  };
 
+  const seen = new Set();
+  const deduped = [];
+  for (const entry of allJobs) {
+    const hostId = hostIdOf(entry);
+    if (seen.has(hostId)) continue;
+    seen.add(hostId);
+    deduped.push({ entry, hostId });
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const hosts = deduped.map(({ entry, hostId }) => {
+    const agg = aggregateHost(entry, licenseMap);
+    const snapshots = snapshotsByHost.get(hostId) || [];
+    const latest = snapshots[snapshots.length - 1] || null;
+    const previous = snapshots[snapshots.length - 2] || null;
+    // Latest count vs the newest snapshot at least 30 days old.
+    const monthAgo = [...snapshots].reverse().find((s) => now - s.ts >= 30 * 86400) || null;
     return {
-      jobId: job.id,
-      status: job.status,
-      createdAt: job.createdAt,
-      name: job.name,
-      hostName: host?.hostName || null,
-      hostUrl: host?.hostUrl || null,
-      listingsTotal: listings.length,
-      licensed,
-      unlicensed: listings.length - licensed,
-      avgScore: scores.length
-        ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
-        : null,
-      lowRatedShare: scores.length
-        ? Math.round((scores.filter((s) => s < 4.5).length / scores.length) * 100) / 100
-        : null,
-      totalReviews: reviews.length ? reviews.reduce((a, b) => a + b, 0) : null,
-      insurance,
-      owners: Array.from(ownerNifs.values()).map((o) => ({ nif: o.nif, name: o.name })),
-      companyListings,
-      concelhos: Array.from(concelhos),
-      avgAdr: adrValues.length
-        ? Math.round((adrValues.reduce((a, b) => a + b, 0) / adrValues.length) * 100) / 100
-        : null,
+      ...agg,
+      hostId,
+      declaredCount: entry.host?.listingsCount ?? null,
+      snapshots,
+      deltaSinceLast:
+        latest && previous ? latest.listingsCount - previous.listingsCount : null,
+      delta30d: latest && monthAgo ? latest.listingsCount - monthAgo.listingsCount : null,
     };
   });
 
-  return res.json({ hosts });
+  // --- KPIs ------------------------------------------------------------------
+  const totalListings = hosts.reduce((a, h) => a + h.listingsTotal, 0);
+  const totalLicensed = hosts.reduce((a, h) => a + h.licensed, 0);
+  const uninsured = hosts.reduce((a, h) => a + h.insurance.expired + h.insurance.none, 0);
+  const adrVals = hosts.map((h) => h.avgAdr).filter((v) => v != null);
+  const tracked = store.listTrackedHosts();
+  const kpis = {
+    hosts: hosts.length,
+    listings: totalListings,
+    licensedPct: totalListings ? Math.round((totalLicensed / totalListings) * 100) / 100 : null,
+    uninsured,
+    trackedHosts: tracked.filter((t) => t.enabled).length,
+    avgAdr: adrVals.length
+      ? Math.round((adrVals.reduce((a, b) => a + b, 0) / adrVals.length) * 100) / 100
+      : null,
+  };
+
+  // --- Concelho breakdown ----------------------------------------------------
+  const concelhoMap = new Map();
+  for (const { entry, hostId } of deduped) {
+    for (const l of entry.listings) {
+      const rnt = l.alNumber ? licenseMap.get(String(l.alNumber))?.rnt : null;
+      const concelho = rnt?.status === 'found' ? rnt.address?.concelho : null;
+      if (!concelho) continue;
+      if (!concelhoMap.has(concelho)) concelhoMap.set(concelho, { listings: 0, hosts: new Set() });
+      const c = concelhoMap.get(concelho);
+      c.listings++;
+      c.hosts.add(hostId);
+    }
+  }
+  const concelhos = Array.from(concelhoMap.entries())
+    .map(([name, c]) => ({ name, listings: c.listings, hosts: c.hosts.size }))
+    .sort((a, b) => b.listings - a.listings);
+
+  // --- Owner / NIF cross-host table -----------------------------------------
+  const ownerMap = new Map();
+  for (const { entry, hostId } of deduped) {
+    const hostLabel = entry.host?.hostName || entry.job.name || hostId;
+    for (const l of entry.listings) {
+      const rnt = l.alNumber ? licenseMap.get(String(l.alNumber))?.rnt : null;
+      const owner = rnt?.status === 'found' ? rnt.owners?.[0] : null;
+      if (!owner?.nif) continue;
+      const nif = String(owner.nif);
+      if (!ownerMap.has(nif)) {
+        ownerMap.set(nif, {
+          nif,
+          name: owner.name || null,
+          isCompany: nif.startsWith('5'),
+          hosts: new Set(),
+          listings: 0,
+        });
+      }
+      const o = ownerMap.get(nif);
+      o.hosts.add(hostLabel);
+      o.listings++;
+    }
+  }
+  const owners = Array.from(ownerMap.values())
+    .map((o) => ({ ...o, hosts: Array.from(o.hosts) }))
+    .sort((a, b) => b.hosts.length - a.hosts.length || b.listings - a.listings);
+
+  // --- Anomalies -------------------------------------------------------------
+  // Same AL number on several listings — reused licenses are the strongest
+  // "weird data" signal, especially when they span different host profiles.
+  const alMap = new Map();
+  for (const { entry, hostId } of deduped) {
+    const hostLabel = entry.host?.hostName || entry.job.name || hostId;
+    for (const l of entry.listings) {
+      if (!l.alNumber) continue;
+      const al = String(l.alNumber);
+      if (!alMap.has(al)) alMap.set(al, []);
+      alMap.get(al).push({
+        url: l.url,
+        title: l.title || null,
+        hostId,
+        hostName: hostLabel,
+        jobId: entry.job.id,
+      });
+    }
+  }
+  const duplicateAl = Array.from(alMap.entries())
+    .filter(([, listings]) => listings.length >= 2)
+    .map(([alNumber, listings]) => ({
+      alNumber,
+      listings,
+      crossHost: new Set(listings.map((l) => l.hostId)).size > 1,
+    }))
+    .sort((a, b) => Number(b.crossHost) - Number(a.crossHost) || b.listings.length - a.listings.length);
+
+  // AL numbers shown on Airbnb but missing from the RNT registry.
+  const alNotFound = Array.from(alMap.entries())
+    .filter(([al]) => {
+      const rnt = licenseMap.get(al)?.rnt;
+      return rnt && rnt.status !== 'found';
+    })
+    .map(([alNumber, listings]) => ({ alNumber, listings }));
+
+  // Declared "View all N" vs actually-scraped count diverging.
+  const countGaps = hosts
+    .filter((h) => {
+      const declared = h.declaredCount;
+      if (declared == null || declared <= 0) return false;
+      const gap = declared - h.listingsTotal;
+      return gap >= 5 || gap / declared > 0.1;
+    })
+    .map((h) => ({
+      hostId: h.hostId,
+      hostName: h.hostName || h.name,
+      declared: h.declaredCount,
+      scraped: h.listingsTotal,
+    }));
+
+  // Licenses whose stored coordinates disagree with the RNT address region
+  // (or that never geocoded at all).
+  const geocodeIssues = [];
+  for (const [al, entry] of licenseMap) {
+    if (entry.rnt?.status !== 'found') continue;
+    if (entry.geocodeStatus === 'failed') {
+      geocodeIssues.push({ alNumber: al, status: 'failed' });
+      continue;
+    }
+    if (entry.lat != null && entry.lng != null) {
+      const expected = expectedRegion(entry.rnt.address);
+      const actual = coordsRegion(entry.lat, entry.lng);
+      if (expected && actual !== expected) {
+        geocodeIssues.push({ alNumber: al, status: `region-mismatch (${actual} vs ${expected})` });
+      }
+    }
+  }
+
+  return res.json({
+    kpis,
+    hosts,
+    concelhos,
+    owners,
+    anomalies: { duplicateAl, alNotFound, countGaps, geocodeIssues },
+  });
 });
 
 // Re-queue an interrupted/errored/cancelled host job. The worker resumes:

@@ -3,13 +3,15 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { API_BASE, computeVulnerability, insuranceOf, operatingArea, statusTone } from "./helpers";
-import type { FunnelHost, HostJobState } from "./types";
+import type { FunnelHost, HostJobState, Snapshot } from "./types";
 import type { MapPoint } from "./MapInner";
 import { ListingsTable } from "./ListingsTable";
 import { AnalysisSection } from "./AnalysisSection";
 import { AdrSection } from "./AdrSection";
 import { MapPanel } from "./MapPanel";
 import { TargetRing } from "./TargetRing";
+import { Sparkline } from "./TrendChart";
+import { DeltaBadge } from "./InsightsView";
 
 const PHASES: Array<{ key: string; label: string }> = [
   { key: "profile", label: "Profile" },
@@ -64,6 +66,7 @@ function Stat({ label, children, tone }: { label: string; children: React.ReactN
 export function HostView({
   job,
   funnel,
+  snapshots,
   onRunAdr,
   onCancel,
   onDelete,
@@ -71,6 +74,7 @@ export function HostView({
 }: {
   job: HostJobState;
   funnel: FunnelHost[] | null;
+  snapshots: Snapshot[] | undefined;
   onRunAdr: () => Promise<unknown>;
   onCancel: () => void;
   onDelete: () => void;
@@ -129,6 +133,18 @@ export function HostView({
   }, [job.licenses]);
 
   const active = job.status === "running" || job.status === "queued";
+
+  // Tracker evolution: latest declared count vs the previous snapshot.
+  const trend = useMemo(() => {
+    if (!snapshots || snapshots.length === 0) return null;
+    const latest = snapshots[snapshots.length - 1];
+    const previous = snapshots.length > 1 ? snapshots[snapshots.length - 2] : null;
+    return {
+      points: snapshots.map((s) => ({ ts: s.ts, value: s.listingsCount })),
+      delta: previous ? latest.listingsCount - previous.listingsCount : null,
+      lastTs: latest.ts,
+    };
+  }, [snapshots]);
 
   return (
     <motion.div
@@ -219,7 +235,24 @@ export function HostView({
 
         {/* Stats strip */}
         <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3 border-t border-[var(--tide)] pt-4">
-          <Stat label="Listings">{listings.length || (active ? "…" : 0)}</Stat>
+          <Stat label="Listings">
+            <span className="inline-flex items-center gap-2">
+              {listings.length || (active ? "…" : 0)}
+              {trend && trend.delta != null && <DeltaBadge delta={trend.delta} />}
+              {trend && trend.points.length > 1 && (
+                <span
+                  title={`Declared count over time · last checked ${new Date(trend.lastTs * 1000).toLocaleDateString()}`}
+                >
+                  <Sparkline
+                    points={trend.points}
+                    width={88}
+                    height={26}
+                    stroke={trend.delta != null && trend.delta < 0 ? "var(--coral)" : "var(--verdi)"}
+                  />
+                </span>
+              )}
+            </span>
+          </Stat>
           <Stat label="Licensed">{licensed}</Stat>
           <Stat label="Unlicensed" tone={listings.length - licensed > 0 ? "text-[var(--coral)]" : ""}>
             {listings.length - licensed}

@@ -1,9 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PROFILE_URL_RE, fmtTime, statusTone } from "./helpers";
 import type { HostJobState } from "./types";
+
+type StatusFilter = "all" | "running" | "done" | "error";
+type TaskSort = "newest" | "name" | "listings";
+
+const STATUS_FILTERS: Array<{ key: StatusFilter; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "running", label: "Active" },
+  { key: "done", label: "Done" },
+  { key: "error", label: "Issues" },
+];
+
+function matchesStatus(job: HostJobState, filter: StatusFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "running") return job.status === "running" || job.status === "queued";
+  if (filter === "error")
+    return job.status === "error" || job.status === "interrupted" || job.status === "cancelled";
+  return job.status === filter;
+}
+
+function listingCountOf(job: HostJobState): number {
+  return job.host?.listingsCount ?? job.listingOrder.length;
+}
 
 export function NewTargetForm({
   onSubmit,
@@ -120,6 +142,31 @@ export function TasksList({
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sort, setSort] = useState<TaskSort>("newest");
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = jobs.filter((job) => {
+      if (!matchesStatus(job, statusFilter)) return false;
+      if (!q) return true;
+      return (
+        job.name.toLowerCase().includes(q) ||
+        (job.host?.hostName || "").toLowerCase().includes(q)
+      );
+    });
+    if (sort === "name") {
+      return [...filtered].sort((a, b) =>
+        (a.host?.hostName || a.name).localeCompare(b.host?.hostName || b.name)
+      );
+    }
+    if (sort === "listings") {
+      return [...filtered].sort((a, b) => listingCountOf(b) - listingCountOf(a));
+    }
+    return filtered; // backend order is newest first
+  }, [jobs, query, statusFilter, sort]);
+
   if (jobs.length === 0) {
     return (
       <div className="ha-panel p-4 text-sm text-[var(--mist)]">
@@ -128,9 +175,53 @@ export function TasksList({
     );
   }
   return (
-    <ul className="flex flex-col gap-2" aria-label="Host dossiers">
-      <AnimatePresence initial={false}>
-        {jobs.map((job) => {
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
+        <input
+          className="ha-input px-3 py-2 text-sm"
+          placeholder="Search dossiers…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search dossiers"
+          spellCheck={false}
+        />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-1" role="group" aria-label="Filter by status">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setStatusFilter(f.key)}
+                aria-pressed={statusFilter === f.key}
+                className={`ha-focus ha-press rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                  statusFilter === f.key
+                    ? "border-[var(--verdi)]/50 bg-[var(--verdi-dim)] text-[var(--verdi)]"
+                    : "border-[var(--tide)] text-[var(--mist)] hover:border-[var(--verdi)]/30"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <select
+            className="ha-input px-2 py-1 text-[11px]"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as TaskSort)}
+            aria-label="Sort dossiers"
+          >
+            <option value="newest">Newest</option>
+            <option value="name">Name</option>
+            <option value="listings">Listings</option>
+          </select>
+        </div>
+      </div>
+      {visible.length === 0 && (
+        <div className="ha-panel p-4 text-sm text-[var(--mist)]">
+          No dossiers match this search.
+        </div>
+      )}
+      <ul className="flex flex-col gap-2" aria-label="Host dossiers">
+        <AnimatePresence initial={false}>
+          {visible.map((job) => {
           const active = selected === job.id;
           const progress = jobProgress(job);
           return (
@@ -177,7 +268,8 @@ export function TasksList({
             </motion.li>
           );
         })}
-      </AnimatePresence>
-    </ul>
+        </AnimatePresence>
+      </ul>
+    </div>
   );
 }

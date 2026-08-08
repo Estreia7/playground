@@ -144,6 +144,83 @@ export type FunnelHost = {
   avgAdr: number | null;
 };
 
+// --- Tracker & insights ------------------------------------------------------
+
+export type Snapshot = {
+  ts: number;
+  listingsCount: number;
+  source: "job" | "tracker" | "backfill";
+};
+
+export type TrackedHost = {
+  hostId: string;
+  hostUrl: string;
+  hostName: string | null;
+  enabled: boolean;
+  createdAt: number;
+  lastCheckedAt: number | null;
+  latest: { ts: number; count: number } | null;
+  delta: number | null;
+};
+
+export type InsightsHost = FunnelHost & {
+  hostId: string;
+  declaredCount: number | null;
+  snapshots: Snapshot[];
+  deltaSinceLast: number | null;
+  delta30d: number | null;
+};
+
+export type InsightsPayload = {
+  kpis: {
+    hosts: number;
+    listings: number;
+    licensedPct: number | null;
+    uninsured: number;
+    trackedHosts: number;
+    avgAdr: number | null;
+  };
+  hosts: InsightsHost[];
+  concelhos: Array<{ name: string; listings: number; hosts: number }>;
+  owners: Array<{
+    nif: string;
+    name: string | null;
+    isCompany: boolean;
+    hosts: string[];
+    listings: number;
+  }>;
+  anomalies: {
+    duplicateAl: Array<{
+      alNumber: string;
+      crossHost: boolean;
+      listings: Array<{
+        url: string;
+        title: string | null;
+        hostId: string;
+        hostName: string;
+        jobId: string;
+      }>;
+    }>;
+    alNotFound: Array<{
+      alNumber: string;
+      listings: Array<{
+        url: string;
+        title: string | null;
+        hostId: string;
+        hostName: string;
+        jobId: string;
+      }>;
+    }>;
+    countGaps: Array<{
+      hostId: string;
+      hostName: string | null;
+      declared: number;
+      scraped: number;
+    }>;
+    geocodeIssues: Array<{ alNumber: string; status: string }>;
+  };
+};
+
 export type VulnerabilityComponent = {
   key: string;
   label: string;

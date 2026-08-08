@@ -39,6 +39,65 @@ function runMigrations(db) {
       if (!/duplicate column name/i.test(err.message)) throw err;
     }
   }
+
+  backfillHostSnapshots(db);
+}
+
+const PROFILE_ID_RE = /\/users\/(?:profile|show)\/(\d+)/i;
+
+// One-shot seed of host_snapshots + tracked_hosts from pre-existing host jobs,
+// so evolution charts have a starting point. Guarded by table emptiness so it
+// never duplicates rows on later boots.
+function backfillHostSnapshots(db) {
+  const empty = db.prepare(`SELECT COUNT(*) AS c FROM host_snapshots`).get().c === 0;
+  if (!empty) return;
+
+  const rows = db
+    .prepare(
+      `SELECT hm.job_id, hm.host_id, hm.host_url, hm.host_name, hm.listings_count,
+              hm.updated_at, j.finished_at, j.urls_json
+         FROM host_meta hm
+         JOIN jobs j ON j.id = hm.job_id
+        WHERE hm.listings_count IS NOT NULL
+        ORDER BY hm.updated_at ASC`
+    )
+    .all();
+
+  const insertSnap = db.prepare(
+    `INSERT INTO host_snapshots (host_id, ts, listings_count, source, job_id)
+     VALUES (?, ?, ?, 'backfill', ?)`
+  );
+  const insertTracked = db.prepare(
+    `INSERT INTO tracked_hosts (host_id, host_url, host_name, enabled, created_at)
+     VALUES (?, ?, ?, 1, ?)
+     ON CONFLICT(host_id) DO UPDATE SET
+       host_url = excluded.host_url,
+       host_name = COALESCE(excluded.host_name, tracked_hosts.host_name)`
+  );
+
+  const run = db.transaction(() => {
+    for (const row of rows) {
+      let hostId = row.host_id;
+      let hostUrl = row.host_url;
+      if (!hostId || !hostUrl) {
+        try {
+          const url = JSON.parse(row.urls_json || '[]')[0] || row.host_url;
+          const m = url && url.match(PROFILE_ID_RE);
+          if (m) {
+            hostId = hostId || m[1];
+            hostUrl = hostUrl || url;
+          }
+        } catch {
+          /* unparseable urls_json — skip below */
+        }
+      }
+      if (!hostId || !hostUrl) continue;
+      const ts = row.finished_at || row.updated_at;
+      insertSnap.run(hostId, ts, row.listings_count, row.job_id);
+      insertTracked.run(hostId, hostUrl, row.host_name, ts);
+    }
+  });
+  run();
 }
 
 function getDb() {

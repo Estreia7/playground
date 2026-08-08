@@ -78,6 +78,24 @@ async function runHostJob(job, { signal }) {
     hostName: profile.hostName,
     listingsCount: profile.listingsCount,
   });
+
+  // Auto-enroll the host in the tracker and record a corrective snapshot —
+  // full analyses are the most trustworthy count source.
+  const trackedHostId =
+    profile.hostId || (profileUrl.match(/\/users\/(?:profile|show)\/(\d+)/i) || [])[1] || null;
+  if (trackedHostId && profile.listingsCount != null) {
+    store.upsertTrackedHost({
+      hostId: trackedHostId,
+      hostUrl: profile.hostUrl || profileUrl,
+      hostName: profile.hostName,
+    });
+    store.insertHostSnapshot({
+      hostId: trackedHostId,
+      listingsCount: profile.listingsCount,
+      source: 'job',
+      jobId,
+    });
+  }
   emit(jobId, 'host-profile-done', {
     jobId,
     host: {

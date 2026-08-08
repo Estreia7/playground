@@ -9,12 +9,15 @@ const scheduler = require('./jobs/scheduler');
 const { emit } = require('./jobs/jobManager');
 const { runJob } = require('./workers/pool');
 const { runHostJob } = require('./workers/hostWorker');
+const { runHostCountJob } = require('./workers/hostCountWorker');
+const tracker = require('./jobs/tracker');
 const { MEDIA_ROOT } = require('./scraper/extractPhotos');
 const logger = require('./lib/logger');
 
 const jobsRouter = require('./routes/jobs');
 const hostJobsRouter = require('./routes/hostJobs');
 const streamRouter = require('./routes/stream');
+const trackerRouter = require('./routes/tracker');
 
 openDb();
 
@@ -23,7 +26,11 @@ if (recovered > 0) {
   logger.warn(`Recovered ${recovered} interrupted job(s) on boot`);
 }
 
-scheduler.setRunner((job, opts) => (job.type === 'host' ? runHostJob(job, opts) : runJob(job, opts)));
+scheduler.setRunner((job, opts) => {
+  if (job.type === 'host') return runHostJob(job, opts);
+  if (job.type === 'host-count') return runHostCountJob(job, opts);
+  return runJob(job, opts);
+});
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
@@ -40,12 +47,14 @@ app.get('/api/health', (_req, res) => {
 app.use('/api', streamRouter);
 app.use('/api', jobsRouter);
 app.use('/api', hostJobsRouter);
+app.use('/api', trackerRouter);
 app.use('/api/media', express.static(MEDIA_ROOT, { fallthrough: false, maxAge: '30d' }));
 
 const PORT = parseInt(process.env.PORT || '4001', 10);
 const server = app.listen(PORT, '127.0.0.1', () => {
   logger.info(`airbnb-str-scrapper backend listening on http://127.0.0.1:${PORT}`);
   setImmediate(() => scheduler.kick());
+  tracker.start();
 });
 
 function shutdown(reason) {

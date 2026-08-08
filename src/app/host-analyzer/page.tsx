@@ -7,8 +7,9 @@ import { useHostState } from "./useHostState";
 import { NewTargetForm, TasksList } from "./TasksView";
 import { HostView } from "./HostView";
 import { FunnelView } from "./FunnelView";
+import { InsightsView } from "./InsightsView";
 
-type Tab = "dossiers" | "funnel";
+type Tab = "dossiers" | "funnel" | "insights";
 
 export default function HostAnalyzerPage() {
   const {
@@ -18,6 +19,12 @@ export default function HostAnalyzerPage() {
     currentJob,
     funnel,
     refreshFunnel,
+    insights,
+    trackedHosts,
+    refreshInsights,
+    snapshotsByHost,
+    runTrackerNow,
+    setHostTracking,
     submitJob,
     cancelJob,
     deleteJob,
@@ -59,6 +66,7 @@ export default function HostAnalyzerPage() {
             [
               ["dossiers", "Dossiers"],
               ["funnel", "Funnel"],
+              ["insights", "Insights"],
             ] as Array<[Tab, string]>
           ).map(([key, label]) => (
             <button
@@ -66,6 +74,7 @@ export default function HostAnalyzerPage() {
               onClick={() => {
                 setTab(key);
                 if (key === "funnel") refreshFunnel();
+                if (key === "insights") refreshInsights();
               }}
               aria-current={tab === key ? "page" : undefined}
               className={`ha-focus relative rounded-[9px] px-4 py-1.5 text-sm font-medium transition-colors ${
@@ -107,6 +116,11 @@ export default function HostAnalyzerPage() {
                   <HostView
                     job={currentJob}
                     funnel={funnel}
+                    snapshots={
+                      currentJob.host?.hostId
+                        ? snapshotsByHost[currentJob.host.hostId]
+                        : undefined
+                    }
                     onRunAdr={() => runAdr(currentJob.id)}
                     onCancel={() => cancelJob(currentJob.id)}
                     onDelete={() => deleteJob(currentJob.id)}
@@ -128,7 +142,7 @@ export default function HostAnalyzerPage() {
                 )}
               </section>
             </motion.div>
-          ) : (
+          ) : tab === "funnel" ? (
             <motion.div
               key="funnel"
               initial={{ opacity: 0, x: 16 }}
@@ -142,6 +156,21 @@ export default function HostAnalyzerPage() {
                   setSelected(id);
                   setTab("dossiers");
                 }}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="insights"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <InsightsView
+                insights={insights}
+                trackedHosts={trackedHosts}
+                onToggleTracking={setHostTracking}
+                onRunNow={runTrackerNow}
               />
             </motion.div>
           )}
