@@ -109,7 +109,7 @@ export default function HostAnalyzerPage() {
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="grid gap-5 lg:grid-cols-[320px_1fr]"
             >
-              <aside className="flex flex-col gap-4 lg:sticky lg:top-5 lg:self-start">
+              <aside className="flex flex-col gap-4 lg:sticky lg:top-5 lg:max-h-[calc(100dvh-2.5rem)] lg:self-start">
                 <NewTargetForm onSubmit={handleSubmit} />
                 <TasksList jobs={visibleJobs} selected={selected} onSelect={setSelected} />
               </aside>
