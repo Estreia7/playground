@@ -11,6 +11,7 @@ import type {
   InsightsPayload,
   JobStatus,
   License,
+  ListingEvent,
   MonthResult,
   Snapshot,
   TrackedHost,
@@ -29,6 +30,7 @@ type HostJobDetail = {
     job: { id: string; status: JobStatus; name: string; urls: string[] };
     listings: Array<{ url: string; status: string; result: MonthResult[] }>;
   }>;
+  listingEvents?: ListingEvent[];
 };
 
 function emptyHostJob(j: {
@@ -73,11 +75,15 @@ function hydrateDetail(d: HostJobDetail): HostJobState {
       reviewsCount: l.reviewsCount ?? null,
       reviewsScore: l.reviewsScore ?? null,
       alNumber: l.alNumber ?? null,
+      alSource: l.alSource,
       photos: l.photos ?? [],
       error: l.error,
+      removed: l.removed,
+      removedAt: l.removedAt,
     };
     base.listingOrder.push(l.url);
   }
+  base.listingEvents = d.listingEvents ?? [];
   base.licenses = d.licenses || {};
   for (const a of d.adrJobs || []) {
     const info: AdrJobInfo = {
@@ -399,8 +405,11 @@ export function useHostState() {
                   reviewsCount: (payload.reviewsCount as number) ?? existed?.reviewsCount ?? null,
                   reviewsScore: (payload.reviewsScore as number) ?? existed?.reviewsScore ?? null,
                   alNumber: (payload.alNumber as string) ?? null,
+                  alSource: (payload.alSource as HostListing["alSource"]) ?? existed?.alSource,
                   photos: (payload.photos as string[]) ?? existed?.photos ?? [],
                   error: payload.error as string | undefined,
+                  removed: (payload.removed as boolean) ?? existed?.removed,
+                  removedAt: (payload.removedAt as number) ?? existed?.removedAt,
                 },
               },
             },
@@ -545,6 +554,38 @@ export function useHostState() {
     [loadDetail]
   );
 
+  // Re-scrape only the RNT registry for a dossier (fix emails/insurance
+  // without a full re-analysis). Returns the job id, or null when one is
+  // already queued/running.
+  const refreshRegistry = useCallback(async (id: string) => {
+    const res = await fetch(`${API_BASE}/host-jobs/${id}/registry`, { method: "POST" });
+    if (res.status === 409) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return ((await res.json()) as { jobId: string }).jobId;
+  }, []);
+
+  // Manually set a listing's AL — the backend patches the row and kicks off
+  // the registry scrape; updates arrive via SSE.
+  const setListingAl = useCallback(async (id: string, listingUrl: string, alNumber: string | null) => {
+    const res = await fetch(`${API_BASE}/host-jobs/${id}/listings/al`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingUrl, alNumber }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  }, []);
+
+  const setHostNifManual = useCallback(async (hostId: string, nif: string | null) => {
+    await fetch(`${API_BASE}/tracked-hosts/${encodeURIComponent(hostId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ manualNif: nif }),
+    });
+    setTrackedHosts((prev) =>
+      prev ? prev.map((h) => (h.hostId === hostId ? { ...h, manualNif: nif } : h)) : prev
+    );
+  }, []);
+
   const runTrackerNow = useCallback(async () => {
     const res = await fetch(`${API_BASE}/tracker/run-now`, { method: "POST" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -579,6 +620,9 @@ export function useHostState() {
     snapshotsByHost,
     runTrackerNow,
     setHostTracking,
+    refreshRegistry,
+    setListingAl,
+    setHostNifManual,
     submitJob,
     cancelJob,
     deleteJob,

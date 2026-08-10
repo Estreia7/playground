@@ -13,6 +13,7 @@ router.get('/tracked-hosts', (_req, res) => {
     hostUrl: h.hostUrl,
     hostName: h.hostName,
     enabled: h.enabled,
+    manualNif: h.manualNif || null,
     createdAt: h.createdAt,
     lastCheckedAt: h.lastCheckedAt,
     latest: h.latestTs != null ? { ts: h.latestTs, count: h.latestCount } : null,
@@ -28,14 +29,26 @@ router.get('/host-snapshots', (req, res) => {
   return res.json({ snapshots: store.hostSnapshots(hostId) });
 });
 
-const EnableBody = z.object({ enabled: z.boolean() });
+const UpdateBody = z
+  .object({
+    enabled: z.boolean().optional(),
+    manualNif: z.string().regex(/^\d{9}$/).nullable().optional(),
+  })
+  .refine((b) => b.enabled !== undefined || b.manualNif !== undefined, {
+    message: 'nothing to update',
+  });
 
 router.post('/tracked-hosts/:hostId', (req, res) => {
-  const parsed = EnableBody.safeParse(req.body);
+  const parsed = UpdateBody.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'invalid-body', issues: parsed.error.issues });
   }
-  store.setTrackedHostEnabled(req.params.hostId, parsed.data.enabled);
+  if (parsed.data.enabled !== undefined) {
+    store.setTrackedHostEnabled(req.params.hostId, parsed.data.enabled);
+  }
+  if (parsed.data.manualNif !== undefined) {
+    store.setTrackedHostNif(req.params.hostId, parsed.data.manualNif);
+  }
   return res.json({ ok: true });
 });
 

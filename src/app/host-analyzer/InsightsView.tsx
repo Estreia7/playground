@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import type { InsightsHost, InsightsPayload, TrackedHost } from "./types";
 import { Sparkline, TrendChart } from "./TrendChart";
+import { AlUsageModal } from "./AlUsageModal";
+import { exportInsightsToExcel } from "./exportInsights";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -238,6 +240,8 @@ export function InsightsView({
 }) {
   const [runMsg, setRunMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [emailFilter, setEmailFilter] = useState<"all" | "personal" | "company">("all");
+  const [modalAls, setModalAls] = useState<string[] | null>(null);
 
   const trackedById = useMemo(() => {
     const m = new Map<string, TrackedHost>();
@@ -287,10 +291,14 @@ export function InsightsView({
     anomalies.countGaps.length +
     anomalies.geocodeIssues.length;
 
+  const emails = insights.emails.filter((e) => emailFilter === "all" || e.kind === emailFilter);
+  const personalCount = insights.emails.filter((e) => e.kind === "personal").length;
+  const companyCount = insights.emails.filter((e) => e.kind === "company").length;
+
   return (
     <div className="flex flex-col gap-4">
       {/* KPI row */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-stretch gap-3">
         <Kpi label="Hosts analyzed" value={kpis.hosts} />
         <Kpi label="Listings" value={kpis.listings} />
         <Kpi
@@ -301,6 +309,14 @@ export function InsightsView({
         <Kpi label="Uninsured" value={kpis.uninsured} tone="warn" />
         <Kpi label="Tracked hosts" value={kpis.trackedHosts} />
         <Kpi label="Avg ADR" value={kpis.avgAdr} suffix=" €" />
+        <div className="ha-panel flex flex-1 basis-36 items-center justify-center p-4">
+          <button
+            onClick={() => exportInsightsToExcel(insights)}
+            className="ha-focus ha-press rounded-[10px] border border-[var(--verdi)]/50 bg-[var(--verdi-dim)] px-4 py-2 text-sm font-semibold text-[var(--verdi)] hover:bg-[var(--verdi)]/25"
+          >
+            Download .xlsx
+          </button>
+        </div>
       </div>
 
       {/* Portfolio evolution */}
@@ -349,7 +365,13 @@ export function InsightsView({
             {anomalies.duplicateAl.map((d) => (
               <div key={d.alNumber} className="rounded-[8px] bg-[var(--ink)]/40 p-2">
                 <div className="ha-mono font-semibold text-[var(--foam)]">
-                  {d.alNumber}/AL · {d.listings.length} listings
+                  <button
+                    onClick={() => setModalAls([d.alNumber])}
+                    className="ha-focus underline decoration-[var(--tide)] decoration-dotted underline-offset-2 hover:text-[var(--verdi)]"
+                  >
+                    {d.alNumber}/AL
+                  </button>{" "}
+                  · {d.listings.length} listings
                   {d.crossHost && (
                     <span className="ml-2 rounded-full border border-[var(--coral)]/50 px-1.5 py-0.5 text-[10px] text-[var(--coral)]">
                       across hosts
@@ -475,10 +497,119 @@ export function InsightsView({
         )}
       </Section>
 
+      {/* Host NIF table */}
+      {insights.hostNifs.length > 0 && (
+        <Section title="Host NIFs" hint="Manually identified — properties under each host's NIF">
+          <div className="ha-scroll overflow-x-auto">
+            <table className="w-full min-w-[560px] border-collapse text-sm">
+              <thead>
+                <tr className="border-y border-[var(--tide)] bg-[var(--ink-deep)]/40">
+                  {["Host", "NIF", "Owner", "Under NIF", "Portfolio"].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)]"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {insights.hostNifs.map((h) => (
+                  <tr key={h.hostId} className="border-b border-[var(--tide)]/60">
+                    <td className="px-4 py-2">{h.hostName || h.hostId}</td>
+                    <td className="ha-mono px-4 py-2 text-[var(--mist)]">{h.manualNif}</td>
+                    <td className="px-4 py-2 text-[var(--mist)]">{h.ownerName || "—"}</td>
+                    <td className="ha-mono px-4 py-2 font-semibold">{h.propertiesUnderNif}</td>
+                    <td className="ha-mono px-4 py-2 text-[var(--mist)]">
+                      {h.portfolioListings ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+
+      {/* Emails database */}
+      <Section
+        title="Emails"
+        hint={`${personalCount} personal · ${companyCount} company`}
+      >
+        <div className="flex gap-1 px-4 pb-2">
+          {(["all", "personal", "company"] as const).map((k) => (
+            <button
+              key={k}
+              onClick={() => setEmailFilter(k)}
+              aria-pressed={emailFilter === k}
+              className={`ha-focus ha-press rounded-full border px-2.5 py-1 text-[11px] capitalize transition-colors ${
+                emailFilter === k
+                  ? "border-[var(--verdi)]/50 bg-[var(--verdi-dim)] text-[var(--verdi)]"
+                  : "border-[var(--tide)] text-[var(--mist)] hover:border-[var(--verdi)]/30"
+              }`}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
+        {emails.length > 0 ? (
+          <div className="ha-scroll max-h-[420px] overflow-auto">
+            <table className="w-full min-w-[620px] border-collapse text-sm">
+              <thead className="sticky top-0">
+                <tr className="border-y border-[var(--tide)] bg-[var(--ink-deep)]">
+                  {["Email", "Owner", "NIF", "Hosts", "Listings"].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)]"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {emails.map((e) => (
+                  <tr key={e.email} className="border-b border-[var(--tide)]/60">
+                    <td className="px-4 py-2">
+                      <a
+                        href={`mailto:${e.email}`}
+                        className="ha-mono ha-focus hover:text-[var(--verdi)]"
+                      >
+                        {e.email}
+                      </a>
+                      {e.kind === "company" && (
+                        <span className="ml-2 rounded-full border border-[var(--amber)]/40 bg-[var(--amber-dim)] px-1.5 py-0.5 text-[10px] text-[var(--amber)]">
+                          company
+                        </span>
+                      )}
+                    </td>
+                    <td className="max-w-[180px] truncate px-4 py-2 text-[var(--mist)]">
+                      {e.names.join(", ") || "—"}
+                    </td>
+                    <td className="ha-mono px-4 py-2 text-[var(--mist)]">{e.nifs.join(", ")}</td>
+                    <td className="max-w-[160px] truncate px-4 py-2 text-[var(--mist)]">
+                      {e.hosts.join(", ")}
+                    </td>
+                    <td className="ha-mono px-4 py-2">{e.listings}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="px-4 pb-4 text-sm text-[var(--mist)]">No emails in this group.</p>
+        )}
+      </Section>
+
       {/* Concelho breakdown */}
       <Section title="Listings by concelho" hint="From the RNT registry">
         <ConcelhoBars concelhos={insights.concelhos} />
       </Section>
+
+      <AnimatePresence>
+        {modalAls && <AlUsageModal als={modalAls} onClose={() => setModalAls(null)} />}
+      </AnimatePresence>
     </div>
   );
 }

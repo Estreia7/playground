@@ -67,7 +67,8 @@ export const INSURANCE_LABEL: Record<string, string> = {
   expired: "Insurance expired",
   none: "No insurance",
   unknown: "Registry pending",
-  unlicensed: "No AL license",
+  // Listings without an AL are usually legally exempt — neutral info, not risk.
+  unlicensed: "No AL — likely exempt",
 };
 
 // NIF first digit → entity kind (Portuguese fiscal numbers).
@@ -173,7 +174,7 @@ export const VULN_WEIGHTS = {
   smallPortfolio: 20,
   lowRatings: 20,
   insuranceNeglect: 20,
-  unlicensed: 15,
+  shrinkingPortfolio: 15,
   underperformance: 15,
   companyNif: 10,
 };
@@ -225,14 +226,28 @@ export function computeVulnerability(
         : "no registry data",
   });
 
-  // Unlicensed listings → compliance leverage.
-  const unlicensed = h.listingsTotal > 0 ? h.unlicensed / h.listingsTotal : null;
+  // Shrinking portfolio → a host losing listings is receptive to a
+  // management offer. Relative loss over 30 days, saturating at 50% of the
+  // portfolio: losing 3 of 5 → 1.0; 1 of 10 → 0.2; 3 of 300 → 0.02.
+  let shrinking: number | null = null;
+  let shrinkDetail = "no 30-day history";
+  if (h.delta30d != null && h.count30dAgo != null) {
+    const lost = Math.max(0, -h.delta30d);
+    const base = Math.max(1, h.count30dAgo);
+    shrinking = Math.min(1, lost / base / 0.5);
+    shrinkDetail =
+      lost > 0
+        ? `lost ${lost} of ${h.count30dAgo} (30d)`
+        : h.delta30d > 0
+          ? `+${h.delta30d} listings (30d)`
+          : "stable (30d)";
+  }
   components.push({
-    key: "unlicensed",
-    label: "Unlicensed listings",
-    value: unlicensed,
-    weight: VULN_WEIGHTS.unlicensed,
-    detail: `${h.unlicensed} of ${h.listingsTotal}`,
+    key: "shrinkingPortfolio",
+    label: "Shrinking portfolio",
+    value: shrinking,
+    weight: VULN_WEIGHTS.shrinkingPortfolio,
+    detail: shrinkDetail,
   });
 
   // Underperformance in a valuable area: host has ADR above the pool median

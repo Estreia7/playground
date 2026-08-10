@@ -3,6 +3,8 @@
 // Goes through the same serial queue as full jobs, so a check never runs
 // Playwright concurrently with a host analysis.
 
+const { nanoid } = require('nanoid');
+
 const { launchContext } = require('../scraper/browser');
 const { scrapeHostCount } = require('../scraper/hostCount');
 const store = require('../jobs/jobStore');
@@ -71,7 +73,27 @@ async function runHostCountJob(job, { signal }) {
     ts,
   });
   logger.info(`host-count: ${hostId} → ${result.listingsCount} listings`);
+
+  // Count changed vs the dossier? Enqueue a full sync so the dossier gains
+  // the new listings and marks the vanished ones — dossiers stay current.
+  maybeEnqueueSync(hostId, profileUrl, result.listingsCount);
+
   return { cancelled: false, errored: false };
+}
+
+function maybeEnqueueSync(hostId, profileUrl, declaredCount) {
+  const dossier = store.latestHostJobForHost(hostId);
+  if (!dossier) return;
+  const active = store.hostListingResults(dossier.id).filter((r) => !r.removed).length;
+  if (active === declaredCount) return;
+  if (store.hasActiveJobForUrl(profileUrl, 'host-sync')) return;
+  const id = nanoid(10);
+  const name = `Sync — ${dossier.name || hostId}`;
+  store.createJob({ id, urls: [profileUrl], name, type: 'host-sync' });
+  emit(id, 'job-created', { jobId: id, type: 'host-sync' });
+  logger.info(
+    `host-count: ${hostId} declared ${declaredCount} vs dossier ${active} — sync enqueued (${id})`
+  );
 }
 
 module.exports = { runHostCountJob };

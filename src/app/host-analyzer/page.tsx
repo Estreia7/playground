@@ -25,6 +25,9 @@ export default function HostAnalyzerPage() {
     snapshotsByHost,
     runTrackerNow,
     setHostTracking,
+    refreshRegistry,
+    setListingAl,
+    setHostNifManual,
     submitJob,
     cancelJob,
     deleteJob,
@@ -121,10 +124,14 @@ export default function HostAnalyzerPage() {
                         ? snapshotsByHost[currentJob.host.hostId]
                         : undefined
                     }
+                    trackedHosts={trackedHosts}
                     onRunAdr={() => runAdr(currentJob.id)}
                     onCancel={() => cancelJob(currentJob.id)}
                     onDelete={() => deleteJob(currentJob.id)}
                     onRetry={() => retryJob(currentJob.id)}
+                    onRefreshRegistry={() => refreshRegistry(currentJob.id)}
+                    onSetAl={(url, al) => setListingAl(currentJob.id, url, al)}
+                    onSetHostNif={setHostNifManual}
                   />
                 ) : (
                   <motion.div

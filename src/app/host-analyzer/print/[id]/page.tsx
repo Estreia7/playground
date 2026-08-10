@@ -236,7 +236,7 @@ export default async function PrintHostPage({
               const lic = l.alNumber ? licenses[l.alNumber] : undefined;
               const rnt = lic?.rnt.status === "found" ? lic.rnt : null;
               const ins = insuranceOf(l, licenses);
-              const risky = ins === "none" || ins === "expired" || ins === "unlicensed";
+              const risky = ins === "none" || ins === "expired";
               return (
                 <tr key={l.url} className="border-b border-neutral-200 align-top">
                   <td className="max-w-[150px] truncate py-1.5 pr-2 font-medium">

@@ -107,6 +107,19 @@ CREATE TABLE IF NOT EXISTS tracked_hosts (
   last_checked_at INTEGER
 );
 
+-- Host-analyzer: per-host log of listings appearing/disappearing, written by
+-- the tracker's sync jobs. Powers the dossier "portfolio changes" timeline.
+CREATE TABLE IF NOT EXISTS host_listing_events (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  host_id     TEXT NOT NULL,
+  job_id      TEXT NOT NULL,
+  listing_url TEXT NOT NULL,
+  event       TEXT NOT NULL,  -- 'added' | 'removed'
+  title       TEXT,
+  ts          INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_host_listing_events_host ON host_listing_events(host_id, ts);
+
 CREATE TABLE IF NOT EXISTS scrape_attempts (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   job_id        TEXT NOT NULL,

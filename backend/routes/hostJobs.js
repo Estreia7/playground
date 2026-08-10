@@ -95,7 +95,9 @@ function assembleHostJob(job) {
     })
     .filter(Boolean);
 
-  return { job, host, listings, licenses, adrJobs };
+  const listingEvents = host?.hostId ? store.hostListingEvents(host.hostId) : [];
+
+  return { job, host, listings, licenses, adrJobs, listingEvents };
 }
 
 // Spawn ADR job(s) from this host's listings (chunked to the ADR URL cap).
@@ -133,10 +135,41 @@ router.post('/host-jobs/:id/adr', (req, res) => {
   return res.status(201).json({ adrJobIds });
 });
 
+// Snapshot helpers shared by the funnel and insights endpoints -----------------
+
+function buildSnapshotIndex() {
+  const index = new Map();
+  for (const s of store.allHostSnapshots()) {
+    if (!index.has(s.hostId)) index.set(s.hostId, []);
+    index.get(s.hostId).push({ ts: s.ts, listingsCount: s.listingsCount, source: s.source });
+  }
+  return index;
+}
+
+function hostIdOf({ host, job }) {
+  if (host?.hostId) return String(host.hostId);
+  const url = host?.hostUrl || job.urls?.[0] || '';
+  const m = url.match(/\/users\/(?:profile|show)\/(\d+)/i);
+  return m ? m[1] : `job:${job.id}`;
+}
+
+function snapshotDeltas(snapshots, now) {
+  const latest = snapshots[snapshots.length - 1] || null;
+  const previous = snapshots[snapshots.length - 2] || null;
+  const monthAgo = [...snapshots].reverse().find((s) => now - s.ts >= 30 * 86400) || null;
+  return {
+    deltaSinceLast: latest && previous ? latest.listingsCount - previous.listingsCount : null,
+    delta30d: latest && monthAgo ? latest.listingsCount - monthAgo.listingsCount : null,
+    count30dAgo: monthAgo ? monthAgo.listingsCount : null,
+  };
+}
+
 // Per-host aggregation shared by the funnel and insights endpoints.
 // licenseMap: Map<alNumber, license entry> from store.allAlLicenses() — one
-// query instead of a per-listing lookup fan-out.
-function aggregateHost({ job, host, listings }, licenseMap) {
+// query instead of a per-listing lookup fan-out. Listings the tracker marked
+// as removed are excluded from every aggregate.
+function aggregateHost({ job, host, listings: allListings }, licenseMap) {
+  const listings = allListings.filter((l) => !l.removed);
   const scores = listings.map((l) => l.reviewsScore).filter((v) => v != null);
   const reviews = listings.map((l) => l.reviewsCount).filter((v) => v != null);
 
@@ -208,7 +241,40 @@ function aggregateHost({ job, host, listings }, licenseMap) {
 // the frontend owns the score weights so they stay tunable in one place.
 router.get('/host-funnel', (_req, res) => {
   const licenseMap = store.allAlLicenses();
-  const hosts = store.allHostJobs().map((entry) => aggregateHost(entry, licenseMap));
+  const entries = store.allHostJobs();
+  const snapshotIndex = buildSnapshotIndex();
+  const now = Math.floor(Date.now() / 1000);
+
+  // AL number → usage count across every dossier (reused AL = flag).
+  const alUse = new Map();
+  for (const e of entries) {
+    for (const l of e.listings) {
+      if (!l.alNumber || l.removed) continue;
+      const al = String(l.alNumber);
+      alUse.set(al, (alUse.get(al) || 0) + 1);
+    }
+  }
+
+  const hosts = entries.map((entry) => {
+    const agg = aggregateHost(entry, licenseMap);
+    const hostId = hostIdOf(entry);
+    const d = snapshotDeltas(snapshotIndex.get(hostId) || [], now);
+    const duplicateAls = [
+      ...new Set(
+        entry.listings
+          .filter((l) => l.alNumber && !l.removed && alUse.get(String(l.alNumber)) >= 2)
+          .map((l) => String(l.alNumber))
+      ),
+    ];
+    return {
+      ...agg,
+      hostId,
+      delta30d: d.delta30d,
+      count30dAgo: d.count30dAgo,
+      duplicateAls,
+      duplicateAlCount: duplicateAls.length,
+    };
+  });
   return res.json({ hosts });
 });
 
@@ -218,20 +284,7 @@ router.get('/host-funnel', (_req, res) => {
 router.get('/insights', (_req, res) => {
   const licenseMap = store.allAlLicenses();
   const allJobs = store.allHostJobs(); // ordered created_at DESC
-
-  // Group snapshots by host id once.
-  const snapshotsByHost = new Map();
-  for (const s of store.allHostSnapshots()) {
-    if (!snapshotsByHost.has(s.hostId)) snapshotsByHost.set(s.hostId, []);
-    snapshotsByHost.get(s.hostId).push({ ts: s.ts, listingsCount: s.listingsCount, source: s.source });
-  }
-
-  const hostIdOf = ({ host, job }) => {
-    if (host?.hostId) return String(host.hostId);
-    const url = host?.hostUrl || job.urls?.[0] || '';
-    const m = url.match(/\/users\/(?:profile|show)\/(\d+)/i);
-    return m ? m[1] : `job:${job.id}`;
-  };
+  const snapshotIndex = buildSnapshotIndex();
 
   const seen = new Set();
   const deduped = [];
@@ -245,19 +298,16 @@ router.get('/insights', (_req, res) => {
   const now = Math.floor(Date.now() / 1000);
   const hosts = deduped.map(({ entry, hostId }) => {
     const agg = aggregateHost(entry, licenseMap);
-    const snapshots = snapshotsByHost.get(hostId) || [];
-    const latest = snapshots[snapshots.length - 1] || null;
-    const previous = snapshots[snapshots.length - 2] || null;
-    // Latest count vs the newest snapshot at least 30 days old.
-    const monthAgo = [...snapshots].reverse().find((s) => now - s.ts >= 30 * 86400) || null;
+    const snapshots = snapshotIndex.get(hostId) || [];
+    const d = snapshotDeltas(snapshots, now);
     return {
       ...agg,
       hostId,
       declaredCount: entry.host?.listingsCount ?? null,
       snapshots,
-      deltaSinceLast:
-        latest && previous ? latest.listingsCount - previous.listingsCount : null,
-      delta30d: latest && monthAgo ? latest.listingsCount - monthAgo.listingsCount : null,
+      deltaSinceLast: d.deltaSinceLast,
+      delta30d: d.delta30d,
+      count30dAgo: d.count30dAgo,
     };
   });
 
@@ -282,6 +332,7 @@ router.get('/insights', (_req, res) => {
   const concelhoMap = new Map();
   for (const { entry, hostId } of deduped) {
     for (const l of entry.listings) {
+      if (l.removed) continue;
       const rnt = l.alNumber ? licenseMap.get(String(l.alNumber))?.rnt : null;
       const concelho = rnt?.status === 'found' ? rnt.address?.concelho : null;
       if (!concelho) continue;
@@ -300,6 +351,7 @@ router.get('/insights', (_req, res) => {
   for (const { entry, hostId } of deduped) {
     const hostLabel = entry.host?.hostName || entry.job.name || hostId;
     for (const l of entry.listings) {
+      if (l.removed) continue;
       const rnt = l.alNumber ? licenseMap.get(String(l.alNumber))?.rnt : null;
       const owner = rnt?.status === 'found' ? rnt.owners?.[0] : null;
       if (!owner?.nif) continue;
@@ -329,7 +381,7 @@ router.get('/insights', (_req, res) => {
   for (const { entry, hostId } of deduped) {
     const hostLabel = entry.host?.hostName || entry.job.name || hostId;
     for (const l of entry.listings) {
-      if (!l.alNumber) continue;
+      if (!l.alNumber || l.removed) continue;
       const al = String(l.alNumber);
       if (!alMap.has(al)) alMap.set(al, []);
       alMap.get(al).push({
@@ -391,13 +443,176 @@ router.get('/insights', (_req, res) => {
     }
   }
 
+  // --- Emails database -------------------------------------------------------
+  // Deduped by (sanitized) owner email; kind splits personal inboxes from
+  // company domains for outreach segmentation.
+  const PERSONAL_DOMAINS = new Set([
+    'gmail', 'googlemail', 'hotmail', 'outlook', 'live', 'yahoo',
+    'icloud', 'sapo', 'msn', 'proton', 'protonmail', 'aol', 'mail',
+  ]);
+  const emailMap = new Map();
+  for (const { entry, hostId } of deduped) {
+    const hostLabel = entry.host?.hostName || entry.job.name || hostId;
+    for (const l of entry.listings) {
+      if (l.removed || !l.alNumber) continue;
+      const rnt = licenseMap.get(String(l.alNumber))?.rnt;
+      if (rnt?.status !== 'found') continue;
+      for (const owner of rnt.owners || []) {
+        if (!owner.email) continue;
+        const email = owner.email;
+        if (!emailMap.has(email)) {
+          const domain = email.split('@')[1] || '';
+          const root = domain.split('.')[0];
+          emailMap.set(email, {
+            email,
+            domain,
+            kind: PERSONAL_DOMAINS.has(root) ? 'personal' : 'company',
+            names: new Set(),
+            nifs: new Set(),
+            hosts: new Set(),
+            listings: 0,
+          });
+        }
+        const e = emailMap.get(email);
+        if (owner.name) e.names.add(owner.name);
+        if (owner.nif) e.nifs.add(String(owner.nif));
+        e.hosts.add(hostLabel);
+        e.listings++;
+      }
+    }
+  }
+  const emails = Array.from(emailMap.values())
+    .map((e) => ({
+      ...e,
+      names: Array.from(e.names),
+      nifs: Array.from(e.nifs),
+      hosts: Array.from(e.hosts),
+    }))
+    .sort((a, b) => b.listings - a.listings);
+
+  // --- Manually identified host NIFs ----------------------------------------
+  // For each tracked host with a manual NIF: how many properties (across ALL
+  // dossiers) sit under that NIF, per the RNT ownership records.
+  const trackedWithNif = tracked.filter((t) => t.manualNif);
+  const hostNifs = trackedWithNif.map((t) => {
+    let propertiesUnderNif = 0;
+    let ownerName = null;
+    for (const { entry } of deduped) {
+      for (const l of entry.listings) {
+        if (l.removed || !l.alNumber) continue;
+        const rnt = licenseMap.get(String(l.alNumber))?.rnt;
+        if (rnt?.status !== 'found') continue;
+        const owner = rnt.owners?.[0];
+        if (owner?.nif && String(owner.nif) === t.manualNif) {
+          propertiesUnderNif++;
+          if (!ownerName && owner.name) ownerName = owner.name;
+        }
+      }
+    }
+    const own = hosts.find((h) => h.hostId === t.hostId);
+    return {
+      hostId: t.hostId,
+      hostName: t.hostName,
+      manualNif: t.manualNif,
+      ownerName,
+      propertiesUnderNif,
+      portfolioListings: own ? own.listingsTotal : null,
+    };
+  });
+
   return res.json({
     kpis,
     hosts,
     concelhos,
     owners,
+    emails,
+    hostNifs,
     anomalies: { duplicateAl, alNotFound, countGaps, geocodeIssues },
   });
+});
+
+// Everything known about one AL number: the registry record plus every
+// listing (across all dossiers) displaying it — the duplicate-AL drill-down.
+router.get('/al-usage', (req, res) => {
+  const al = String(req.query.al || '').trim();
+  if (!/^\d{1,10}$/.test(al)) return res.status(400).json({ error: 'invalid-al' });
+
+  const entry = store.alLicenseLookup(al, 36500);
+  const rnt = entry?.rnt?.status === 'found' ? entry.rnt : null;
+  const license = rnt
+    ? {
+        name: rnt.name || null,
+        concelho: rnt.address?.concelho || null,
+        owner: rnt.owners?.[0] || null,
+        insuranceStatus: rnt.insurance?.status || 'none',
+        registeredAt: rnt.registeredAt || null,
+      }
+    : null;
+
+  return res.json({ al, license, listings: store.listingsByAlNumber(al) });
+});
+
+// Re-scrape only the RNT registry (emails, insurance, owners) for every AL in
+// this dossier — no Playwright, minutes instead of hours.
+router.post('/host-jobs/:id/registry', (req, res) => {
+  const job = store.getJob(req.params.id);
+  if (!job || job.type !== 'host') return res.status(404).json({ error: 'not-found' });
+  if (store.hasActiveJobForUrl(req.params.id, 'registry')) {
+    return res.status(409).json({ error: 'registry-active' });
+  }
+  const hostName = store.getHostMeta(req.params.id)?.hostName || job.name;
+  const id = nanoid(10);
+  store.createJob({ id, urls: [req.params.id], name: `Registry — ${hostName}`, type: 'registry' });
+  emit(id, 'job-created', { jobId: id, type: 'registry' });
+  scheduler.kick();
+  return res.status(201).json({ jobId: id });
+});
+
+// Manually set (or clear) a listing's AL number — for listings where the
+// scraper found none. Setting one immediately triggers the registry scrape
+// for that AL so the rest of the record fills in.
+const SetAlBody = z.object({
+  listingUrl: z.string().min(1),
+  alNumber: z.string().regex(/^\d{1,10}$/).nullable(),
+});
+
+router.post('/host-jobs/:id/listings/al', (req, res) => {
+  const job = store.getJob(req.params.id);
+  if (!job || job.type !== 'host') return res.status(404).json({ error: 'not-found' });
+  const parsed = SetAlBody.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'invalid-body', issues: parsed.error.issues });
+  }
+  const { listingUrl, alNumber } = parsed.data;
+
+  const result = store.patchHostListingResult(req.params.id, listingUrl, {
+    alNumber,
+    alSource: alNumber ? 'manual' : undefined,
+  });
+  if (!result) return res.status(404).json({ error: 'listing-not-found' });
+
+  emit(req.params.id, 'host-listing-done', {
+    jobId: req.params.id,
+    ...result,
+    status: 'done',
+  });
+
+  if (alNumber) {
+    const { refreshOneAl } = require('../workers/registryWorker');
+    setImmediate(async () => {
+      try {
+        await refreshOneAl(alNumber, req.params.id);
+      } catch (err) {
+        logger.warn(`manual-AL registry fetch failed for ${alNumber}:`, err.message);
+        emit(req.params.id, 'host-license-done', {
+          jobId: req.params.id,
+          alNumber,
+          error: err.message,
+        });
+      }
+    });
+  }
+  return res.json({ ok: true, listing: result });
 });
 
 // Re-queue an interrupted/errored/cancelled host job. The worker resumes:

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { computeVulnerability } from "./helpers";
 import type { FunnelHost, VulnerabilityResult } from "./types";
 import { TargetRing, scoreColor } from "./TargetRing";
+import { AlUsageModal } from "./AlUsageModal";
 
 type Ranked = { host: FunnelHost; vuln: VulnerabilityResult };
 
@@ -40,6 +41,7 @@ export function FunnelView({
   onOpenHost: (jobId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [modalAls, setModalAls] = useState<string[] | null>(null);
 
   const ranked = useMemo<Ranked[]>(() => {
     if (!funnel) return [];
@@ -64,9 +66,9 @@ export function FunnelView({
       <div className="ha-panel p-8 text-center">
         <h3 className="ha-display text-lg font-semibold">The funnel is empty</h3>
         <p className="mx-auto mt-2 max-w-md text-sm text-[var(--mist)]">
-          Analyze a few hosts and they will be ranked here by how approachable they are: small
-          portfolios, weak ratings in valuable areas, missing insurance, unlicensed listings and
-          company-NIF pressure.
+          Analyze a few hosts and they will be ranked here by how approachable they are: small or
+          shrinking portfolios, weak ratings in valuable areas, missing insurance and company-NIF
+          pressure.
         </p>
       </div>
     );
@@ -129,9 +131,25 @@ export function FunnelView({
                         insurance
                       </span>
                     )}
-                    {host.unlicensed > 0 && (
-                      <span className="rounded-full border border-[var(--coral)]/40 bg-[var(--coral-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--coral)]">
-                        unlicensed
+                    {host.duplicateAlCount > 0 && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalAls(host.duplicateAls);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setModalAls(host.duplicateAls);
+                          }
+                        }}
+                        className="ha-focus ha-press cursor-pointer rounded-full border border-[var(--coral)]/40 bg-[var(--coral-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--coral)] hover:bg-[var(--coral)]/25"
+                        title="AL license used on several listings — click to inspect"
+                      >
+                        reused AL{host.duplicateAlCount > 1 ? ` ×${host.duplicateAlCount}` : ""}
                       </span>
                     )}
                     {host.companyListings >= 2 && (
@@ -196,6 +214,9 @@ export function FunnelView({
           })}
         </AnimatePresence>
       </ul>
+      <AnimatePresence>
+        {modalAls && <AlUsageModal als={modalAls} onClose={() => setModalAls(null)} />}
+      </AnimatePresence>
     </div>
   );
 }

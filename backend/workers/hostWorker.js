@@ -279,4 +279,4 @@ async function processHostListing({ jobId, card, ctx, signal }) {
   }
 }
 
-module.exports = { runHostJob };
+module.exports = { runHostJob, processHostListing };

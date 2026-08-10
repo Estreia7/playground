@@ -57,8 +57,9 @@ export function AnalysisSection({ job }: { job: HostJobState }) {
     return { groups, insurance, newToMarket, companyListings, hostIsManager };
   }, [job]);
 
-  const flaggedInsurance =
-    analysis.insurance.none + analysis.insurance.expired + analysis.insurance.unlicensed;
+  // No-AL listings are usually legally exempt — only genuine insurance gaps
+  // count as a compliance signal.
+  const flaggedInsurance = analysis.insurance.none + analysis.insurance.expired;
 
   return (
     <section className="flex flex-col gap-4">
@@ -172,9 +173,9 @@ export function AnalysisSection({ job }: { job: HostJobState }) {
           </div>
           {flaggedInsurance > 0 && (
             <p className="mt-3 border-t border-[var(--tide)] pt-3 text-xs leading-relaxed text-[var(--mist)]">
-              {flaggedInsurance} listing{flaggedInsurance === 1 ? "" : "s"} with missing cover or no
-              license. A host who neglects mandatory liability insurance is usually not maximizing
-              the asset, which is an opening line for an approach.
+              {flaggedInsurance} listing{flaggedInsurance === 1 ? "" : "s"} with missing or expired
+              cover. A host who neglects mandatory liability insurance is usually not maximizing the
+              asset, which is an opening line for an approach.
             </p>
           )}
           {analysis.newToMarket > 0 && (

@@ -10,6 +10,8 @@ const { emit } = require('./jobs/jobManager');
 const { runJob } = require('./workers/pool');
 const { runHostJob } = require('./workers/hostWorker');
 const { runHostCountJob } = require('./workers/hostCountWorker');
+const { runHostSyncJob } = require('./workers/hostSyncWorker');
+const { runRegistryJob } = require('./workers/registryWorker');
 const tracker = require('./jobs/tracker');
 const { MEDIA_ROOT } = require('./scraper/extractPhotos');
 const logger = require('./lib/logger');
@@ -29,6 +31,8 @@ if (recovered > 0) {
 scheduler.setRunner((job, opts) => {
   if (job.type === 'host') return runHostJob(job, opts);
   if (job.type === 'host-count') return runHostCountJob(job, opts);
+  if (job.type === 'host-sync') return runHostSyncJob(job, opts);
+  if (job.type === 'registry') return runRegistryJob(job, opts);
   return runJob(job, opts);
 });
 

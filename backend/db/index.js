@@ -31,6 +31,7 @@ function runMigrations(db) {
     `ALTER TABLE jobs ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE jobs ADD COLUMN location TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE jobs ADD COLUMN type TEXT NOT NULL DEFAULT 'adr'`,
+    `ALTER TABLE tracked_hosts ADD COLUMN manual_nif TEXT`,
   ];
   for (const stmt of adds) {
     try {

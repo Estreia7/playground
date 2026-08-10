@@ -72,8 +72,20 @@ export type HostListing = {
   reviewsCount: number | null;
   reviewsScore: number | null;
   alNumber: string | null;
+  alSource?: "manual";
   photos: string[];
   error?: string;
+  // Set by the tracker's sync jobs when the listing vanished from the host
+  // profile — kept in the dossier, excluded from stats.
+  removed?: boolean;
+  removedAt?: number | null;
+};
+
+export type ListingEvent = {
+  listingUrl: string;
+  event: "added" | "removed";
+  title: string | null;
+  ts: number;
 };
 
 export type MonthResult = {
@@ -121,6 +133,7 @@ export type HostJobState = {
   licenses: Record<string, License>;
   adrJobs: Record<string, AdrJobInfo>;
   truncated?: boolean;
+  listingEvents?: ListingEvent[];
 };
 
 // Shape returned by GET /host-funnel.
@@ -142,6 +155,31 @@ export type FunnelHost = {
   companyListings: number;
   concelhos: string[];
   avgAdr: number | null;
+  hostId: string;
+  delta30d: number | null;
+  count30dAgo: number | null;
+  duplicateAls: string[];
+  duplicateAlCount: number;
+};
+
+// Shape returned by GET /al-usage.
+export type AlUsage = {
+  al: string;
+  license: {
+    name: string | null;
+    concelho: string | null;
+    owner: RntOwner | null;
+    insuranceStatus: string;
+    registeredAt: string | null;
+  } | null;
+  listings: Array<{
+    jobId: string;
+    hostId: string | null;
+    hostName: string | null;
+    listingUrl: string;
+    title: string | null;
+    removed: boolean;
+  }>;
 };
 
 // --- Tracker & insights ------------------------------------------------------
@@ -157,6 +195,7 @@ export type TrackedHost = {
   hostUrl: string;
   hostName: string | null;
   enabled: boolean;
+  manualNif: string | null;
   createdAt: number;
   lastCheckedAt: number | null;
   latest: { ts: number; count: number } | null;
@@ -188,6 +227,23 @@ export type InsightsPayload = {
     isCompany: boolean;
     hosts: string[];
     listings: number;
+  }>;
+  emails: Array<{
+    email: string;
+    domain: string;
+    kind: "personal" | "company";
+    names: string[];
+    nifs: string[];
+    hosts: string[];
+    listings: number;
+  }>;
+  hostNifs: Array<{
+    hostId: string;
+    hostName: string | null;
+    manualNif: string;
+    ownerName: string | null;
+    propertiesUnderNif: number;
+    portfolioListings: number | null;
   }>;
   anomalies: {
     duplicateAl: Array<{

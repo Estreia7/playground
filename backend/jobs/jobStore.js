@@ -1,4 +1,14 @@
 const { getDb } = require('../db');
+const { sanitizeEmail } = require('../lib/rnt');
+
+// Read-path normalization for cached RNT records: old rows may hold emails
+// polluted with adjacent phone digits. Cleans on read, never rewrites the DB.
+function sanitizeRnt(rnt) {
+  if (rnt?.owners) {
+    for (const o of rnt.owners) o.email = sanitizeEmail(o.email);
+  }
+  return rnt;
+}
 
 // Bump whenever the scraper produces meaningfully different output for the
 // same URL — adds a column, changes price-extraction logic, etc. Cached
@@ -347,7 +357,7 @@ function alLicenseLookup(alNumber, ttlDays = 30) {
   return {
     alNumber: row.al_number,
     fetchedAt: row.fetched_at,
-    rnt: JSON.parse(row.rnt_json),
+    rnt: sanitizeRnt(JSON.parse(row.rnt_json)),
     lat: row.lat,
     lng: row.lng,
     geocodeStatus: row.geocode_status,
@@ -440,7 +450,8 @@ function listTrackedHosts() {
   return db
     .prepare(
       `SELECT th.host_id AS hostId, th.host_url AS hostUrl, th.host_name AS hostName,
-              th.enabled, th.created_at AS createdAt, th.last_checked_at AS lastCheckedAt,
+              th.enabled, th.manual_nif AS manualNif,
+              th.created_at AS createdAt, th.last_checked_at AS lastCheckedAt,
               (SELECT ts FROM host_snapshots s WHERE s.host_id = th.host_id
                 ORDER BY ts DESC LIMIT 1) AS latestTs,
               (SELECT listings_count FROM host_snapshots s WHERE s.host_id = th.host_id
@@ -482,6 +493,88 @@ function hasActiveJobForUrl(url, type) {
   return !!row;
 }
 
+function setTrackedHostNif(hostId, nif) {
+  const db = getDb();
+  db.prepare(`UPDATE tracked_hosts SET manual_nif = ? WHERE host_id = ?`).run(
+    nif || null,
+    String(hostId)
+  );
+}
+
+// Newest completed host job for a host — the dossier the tracker syncs into.
+function latestHostJobForHost(hostId) {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT j.* FROM jobs j
+         JOIN host_meta hm ON hm.job_id = j.id
+        WHERE j.type = 'host' AND j.status = 'done' AND hm.host_id = ?
+        ORDER BY j.created_at DESC LIMIT 1`
+    )
+    .get(String(hostId));
+  return row ? hydrateJob(row) : null;
+}
+
+// Patch one host_results row's result_json in place (manual AL, removed flag).
+function patchHostListingResult(jobId, listingUrl, patch) {
+  const db = getDb();
+  const row = db
+    .prepare(`SELECT * FROM host_results WHERE job_id = ? AND listing_url = ?`)
+    .get(jobId, listingUrl);
+  if (!row) return null;
+  const result = { ...JSON.parse(row.result_json), ...patch };
+  db.prepare(`UPDATE host_results SET result_json = ? WHERE job_id = ? AND listing_url = ?`).run(
+    JSON.stringify(result),
+    jobId,
+    listingUrl
+  );
+  return result;
+}
+
+function insertHostListingEvent({ hostId, jobId, listingUrl, event, title = null, ts = nowSec() }) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO host_listing_events (host_id, job_id, listing_url, event, title, ts)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(String(hostId), jobId, listingUrl, event, title, ts);
+}
+
+function hostListingEvents(hostId, limit = 50) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT listing_url AS listingUrl, event, title, ts
+         FROM host_listing_events WHERE host_id = ?
+        ORDER BY ts DESC, id DESC LIMIT ?`
+    )
+    .all(String(hostId), limit);
+}
+
+// All listings (across every dossier) that display a given AL number.
+function listingsByAlNumber(alNumber) {
+  const db = getDb();
+  const al = String(alNumber);
+  return db
+    .prepare(
+      `SELECT hr.job_id AS jobId, hr.listing_url AS listingUrl, hr.result_json AS result,
+              hm.host_id AS hostId, hm.host_name AS hostName
+         FROM host_results hr
+         LEFT JOIN host_meta hm ON hm.job_id = hr.job_id
+        WHERE hr.result_json LIKE ?`
+    )
+    .all(`%${al}%`)
+    .map((r) => ({ ...r, result: JSON.parse(r.result) }))
+    .filter((r) => String(r.result.alNumber) === al)
+    .map((r) => ({
+      jobId: r.jobId,
+      hostId: r.hostId,
+      hostName: r.hostName,
+      listingUrl: r.listingUrl,
+      title: r.result.title || null,
+      removed: !!r.result.removed,
+    }));
+}
+
 // Every cached AL license in one query — Map keyed by al_number. Avoids the
 // per-listing lookup fan-out when aggregating across all hosts.
 function allAlLicenses() {
@@ -491,7 +584,7 @@ function allAlLicenses() {
     map.set(row.al_number, {
       alNumber: row.al_number,
       fetchedAt: row.fetched_at,
-      rnt: JSON.parse(row.rnt_json),
+      rnt: sanitizeRnt(JSON.parse(row.rnt_json)),
       lat: row.lat,
       lng: row.lng,
       geocodeStatus: row.geocode_status,
@@ -569,9 +662,15 @@ module.exports = {
   upsertTrackedHost,
   listTrackedHosts,
   setTrackedHostEnabled,
+  setTrackedHostNif,
   touchTrackedHost,
   hasActiveJobForUrl,
   allAlLicenses,
+  latestHostJobForHost,
+  patchHostListingResult,
+  insertHostListingEvent,
+  hostListingEvents,
+  listingsByAlNumber,
   excludedCells,
   setCellExcluded,
   cacheLookup,

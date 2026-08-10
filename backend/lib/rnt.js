@@ -139,14 +139,22 @@ function parseRnt(html, alNumber) {
   $('table[id*="wtTableRecords_Titular"] tbody tr').each((_, tr) => {
     const cells = $(tr).find('td');
     if (cells.length < 3) return;
-    const contactsText = clean(cells.eq(3).text());
-    const email = contactsText.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    // The contacts cell holds phone + email on separate <br> lines; a plain
+    // .text() glues them together and the email regex then swallows the phone
+    // digits ("912345678joao@gmail.com"). Preserve separators, take the phone
+    // out FIRST, and only then look for the email.
+    const rawHtml = cells.eq(3).html() || '';
+    const contactsText = clean(
+      cheerio.load(`<div>${rawHtml.replace(/<br\s*\/?>/gi, '\n')}</div>`)('div').text()
+    );
     const phone = contactsText.match(/(?:\+?\d[\d\s]{7,})/);
+    const withoutPhone = phone ? contactsText.replace(phone[0], ' ') : contactsText;
+    const email = withoutPhone.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
     out.owners.push({
       quality: clean(cells.eq(0).text()) || null,
       nif: clean(cells.eq(1).text()) || null,
       name: clean(cells.eq(2).text()) || null,
-      email: email ? email[0] : null,
+      email: email ? sanitizeEmail(email[0]) : null,
       phone: phone ? clean(phone[0]) : null,
     });
   });
@@ -207,6 +215,21 @@ function clean(s) {
     .trim();
 }
 
+// Repair emails polluted by adjacent phone digits in old cached records
+// ("912345678joao@gmail.com") and validate shape. Strips a leading +351
+// and/or a run of ≥6 digits ONLY when the remainder is still a valid email,
+// so legitimate short digit prefixes ("20anos@gmail.com") survive.
+const EMAIL_SHAPE = /^[\w.+-]+@[\w-]+(\.[a-z]{2,})+$/i;
+
+function sanitizeEmail(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().toLowerCase().replace(/\.+$/, '');
+  if (EMAIL_SHAPE.test(s) && !/^(\+?351)?\d{6,}/.test(s)) return s;
+  const stripped = s.replace(/^\+?351/, '').replace(/^\d{6,}/, '');
+  if (stripped !== s && EMAIL_SHAPE.test(stripped)) return stripped;
+  return EMAIL_SHAPE.test(s) ? s : null;
+}
+
 // --- Stub -------------------------------------------------------------------
 
 function stubRnt(alNumber) {
@@ -254,4 +277,4 @@ function stubRnt(alNumber) {
   };
 }
 
-module.exports = { fetchRnt, parseRnt };
+module.exports = { fetchRnt, parseRnt, sanitizeEmail };

@@ -14,17 +14,19 @@ import {
 } from "./helpers";
 import type { HostJobState, HostListing, License } from "./types";
 import { Lightbox } from "./Lightbox";
+import { AlUsageModal } from "./AlUsageModal";
 
 type SortKey = "title" | "area" | "reviews" | "score" | "adr";
-type RiskFilter = "unlicensed" | "uninsured" | "lowRated" | "errors";
+type RiskFilter = "unlicensed" | "uninsured" | "lowRated" | "errors" | "removed";
 
 const PAGE_SIZE = 50;
 
 const RISK_FILTERS: Array<{ key: RiskFilter; label: string }> = [
-  { key: "unlicensed", label: "Unlicensed" },
+  { key: "unlicensed", label: "No AL" },
   { key: "uninsured", label: "Uninsured" },
   { key: "lowRated", label: "Low-rated" },
   { key: "errors", label: "Errors" },
+  { key: "removed", label: "Removed" },
 ];
 
 function WarnIcon({ className }: { className?: string }) {
@@ -43,12 +45,13 @@ function WarnIcon({ className }: { className?: string }) {
 }
 
 export function InsuranceBadge({ status }: { status: string }) {
+  // "unlicensed" is deliberately neutral: no AL usually means legally exempt.
   const cfg =
     status === "valid"
       ? { cls: "text-[var(--verdi)] border-[var(--verdi)]/35 bg-[var(--verdi-dim)]", warn: false }
       : status === "expired"
         ? { cls: "text-[var(--amber)] border-[var(--amber)]/40 bg-[var(--amber-dim)]", warn: true }
-        : status === "none" || status === "unlicensed"
+        : status === "none"
           ? { cls: "text-[var(--coral)] border-[var(--coral)]/40 bg-[var(--coral-dim)]", warn: true }
           : { cls: "text-[var(--mist)] border-[var(--tide)] bg-transparent", warn: false };
   return (
@@ -98,22 +101,37 @@ function SortHeader({
   );
 }
 
-export function ListingsTable({ job }: { job: HostJobState }) {
+export function ListingsTable({
+  job,
+  onSetAl,
+}: {
+  job: HostJobState;
+  onSetAl?: (listingUrl: string, alNumber: string | null) => Promise<void>;
+}) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "score", dir: 1 });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ photos: string[]; title: string } | null>(null);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Set<RiskFilter>>(new Set());
   const [page, setPage] = useState(0);
+  const [modalAls, setModalAls] = useState<string[] | null>(null);
 
   const adrByUrl = useMemo(() => adrPerListing(job), [job]);
   const hasAdr = Object.keys(adrByUrl).length > 0;
 
+  const removedCount = useMemo(
+    () => job.listingOrder.filter((u) => job.listings[u]?.removed).length,
+    [job]
+  );
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const showRemoved = filters.has("removed");
     const list = job.listingOrder
       .map((u) => job.listings[u])
       .filter(Boolean)
+      // Removed listings stay in the dossier but hide unless asked for.
+      .filter((l) => (showRemoved ? true : !l.removed))
       .filter((l) => {
         if (q) {
           const hay = `${l.title || ""} ${l.alNumber || ""} ${l.locationText || ""}`.toLowerCase();
@@ -122,6 +140,7 @@ export function ListingsTable({ job }: { job: HostJobState }) {
         if (filters.size === 0) return true;
         const ins = insuranceOf(l, job.licenses);
         // Chips compose as OR: a row shows when it matches any active filter.
+        if (filters.has("removed") && l.removed) return true;
         if (filters.has("unlicensed") && !l.alNumber && l.status === "done") return true;
         if (filters.has("uninsured") && (ins === "none" || ins === "expired")) return true;
         if (filters.has("lowRated") && l.reviewsScore != null && l.reviewsScore < 4.5) return true;
@@ -236,7 +255,7 @@ export function ListingsTable({ job }: { job: HostJobState }) {
               const ins = insuranceOf(l, job.licenses);
               const owner = rnt?.owners?.[0];
               const isOpen = expanded === l.url;
-              const flagged = ins === "none" || ins === "expired" || ins === "unlicensed";
+              const flagged = !l.removed && (ins === "none" || ins === "expired");
               const adr = adrByUrl[l.url];
               return (
                 <FragmentRow
@@ -272,7 +291,17 @@ export function ListingsTable({ job }: { job: HostJobState }) {
                         )}
                       </td>
                       <td className="max-w-[220px] px-3 py-2">
-                        <div className="truncate font-medium">{l.title || shortRoomUrl(l.url)}</div>
+                        <div
+                          className={`truncate font-medium ${l.removed ? "text-[var(--mist)] line-through" : ""}`}
+                        >
+                          {l.title || shortRoomUrl(l.url)}
+                        </div>
+                        {l.removed && (
+                          <span className="mr-2 rounded-full border border-[var(--tide)] px-1.5 py-0.5 text-[10px] text-[var(--mist)]">
+                            removed{" "}
+                            {l.removedAt ? new Date(l.removedAt * 1000).toLocaleDateString() : ""}
+                          </span>
+                        )}
                         <a
                           href={l.url}
                           target="_blank"
@@ -302,11 +331,27 @@ export function ListingsTable({ job }: { job: HostJobState }) {
                       </td>
                       <td className="ha-mono whitespace-nowrap px-3 py-2">
                         {l.alNumber ? (
-                          `${l.alNumber}/AL`
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModalAls([l.alNumber as string]);
+                            }}
+                            className="ha-focus ha-press inline-flex items-center gap-1.5 underline decoration-[var(--tide)] decoration-dotted underline-offset-2 hover:text-[var(--verdi)]"
+                            title="See every listing using this AL"
+                          >
+                            {l.alNumber}/AL
+                            {l.alSource === "manual" && (
+                              <span className="rounded-full border border-[var(--verdi)]/40 px-1 py-0.5 text-[9px] uppercase text-[var(--verdi)]">
+                                manual
+                              </span>
+                            )}
+                          </button>
                         ) : l.status === "done" ? (
-                          <span className="inline-flex items-center gap-1 text-[var(--coral)]">
-                            <WarnIcon /> none
-                          </span>
+                          <SetAlCell
+                            onSave={
+                              onSetAl ? (al) => onSetAl(l.url, al) : undefined
+                            }
+                          />
                         ) : (
                           "…"
                         )}
@@ -377,7 +422,76 @@ export function ListingsTable({ job }: { job: HostJobState }) {
           />
         )}
       </AnimatePresence>
+      <AnimatePresence>
+        {modalAls && <AlUsageModal als={modalAls} onClose={() => setModalAls(null)} />}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// Neutral "no AL" cell (no-AL usually means legally exempt) with a manual
+// override: typing a number stores it and kicks off the registry scrape.
+function SetAlCell({ onSave }: { onSave?: (al: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    const al = value.trim();
+    if (!/^\d{1,10}$/.test(al) || !onSave) {
+      setEditing(false);
+      setValue("");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSave(al);
+    } finally {
+      setBusy(false);
+      setEditing(false);
+      setValue("");
+    }
+  }
+
+  if (editing) {
+    return (
+      <span onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1">
+        <input
+          autoFocus
+          className="ha-input w-24 px-2 py-1 text-xs"
+          placeholder="AL number"
+          value={value}
+          disabled={busy}
+          onChange={(e) => setValue(e.target.value.replace(/\D/g, ""))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") {
+              setEditing(false);
+              setValue("");
+            }
+          }}
+          onBlur={save}
+          aria-label="Manual AL number"
+        />
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-2 text-[var(--mist)]">
+      exempt
+      {onSave && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          className="ha-focus ha-press rounded-full border border-[var(--tide)] px-1.5 py-0.5 text-[10px] hover:border-[var(--verdi)]/40 hover:text-[var(--verdi)]"
+          title="Manually set the AL number — the registry scrape runs right after"
+        >
+          set AL
+        </button>
+      )}
+    </span>
   );
 }
 
