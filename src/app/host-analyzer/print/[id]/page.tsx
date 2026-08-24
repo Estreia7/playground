@@ -10,6 +10,7 @@
 import {
   INSURANCE_LABEL,
   NIF_KIND_LABEL,
+  cityFromLocationText,
   computeVulnerability,
   insuranceOf,
   licenseAgeYears,
@@ -478,7 +479,7 @@ export default async function PrintHostPage({
                     )}
                   </td>
                   <td style={{ padding: "5px 6px 5px 0", verticalAlign: "top", color: C.sub }}>
-                    {rnt?.address?.concelho || l.locationText || "-"}
+                    {rnt?.address?.concelho || cityFromLocationText(l.locationText)}
                   </td>
                   <td
                     style={{

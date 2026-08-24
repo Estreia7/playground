@@ -71,6 +71,28 @@ export const INSURANCE_LABEL: Record<string, string> = {
   unlicensed: "No AL — likely exempt",
 };
 
+// City name for the Area column. The registry concelho wins when we have it;
+// otherwise Airbnb's blurb ("Entire rental unit in São Bartolomeu de Messines,
+// Portugal") gets trimmed down to the city so the column stays narrow.
+export function cityOf(listing: HostListing, lic: License | undefined): string {
+  if (lic?.rnt.status === "found" && lic.rnt.address?.concelho) return lic.rnt.address.concelho;
+  return cityFromLocationText(listing.locationText);
+}
+
+export function cityFromLocationText(text: string | null | undefined): string {
+  if (!text) return "-";
+  // Drop the property-type prefix: "… in <place>" / "… em <place>".
+  const afterIn = text.match(/\b(?:in|em)\s+(.+)$/i);
+  let place = (afterIn ? afterIn[1] : text).trim();
+  // "City, Region, Portugal" → "City". Trailing country/region parts are noise.
+  const parts = place
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length > 0) place = parts[0];
+  return place || "-";
+}
+
 // NIF first digit → entity kind (Portuguese fiscal numbers).
 export function nifKind(nif: string | null): "individual" | "company" | "public" | "other" {
   if (!nif) return "other";
