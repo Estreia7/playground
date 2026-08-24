@@ -64,7 +64,10 @@ export default function HostAnalyzerPage() {
           </div>
         </div>
 
-        <nav className="flex rounded-[12px] border border-[var(--tide)] bg-[var(--harbor)] p-1" aria-label="Views">
+        <nav
+          className="flex w-full rounded-[12px] border border-[var(--tide)] bg-[var(--harbor)] p-1 sm:w-auto"
+          aria-label="Views"
+        >
           {(
             [
               ["dossiers", "Dossiers"],
@@ -80,7 +83,7 @@ export default function HostAnalyzerPage() {
                 if (key === "insights") refreshInsights();
               }}
               aria-current={tab === key ? "page" : undefined}
-              className={`ha-focus relative rounded-[9px] px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`ha-focus relative flex-1 rounded-[9px] px-4 py-2 text-sm font-medium transition-colors sm:flex-none sm:py-1.5 ${
                 tab === key ? "text-[var(--ink-deep)]" : "text-[var(--mist)] hover:text-[var(--foam)]"
               }`}
             >

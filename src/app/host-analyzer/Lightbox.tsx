@@ -100,7 +100,7 @@ export function Lightbox({
         <button
           onClick={onClose}
           aria-label="Close photos"
-          className="ha-focus ha-press absolute -right-2 -top-2 rounded-full border border-[var(--tide)] bg-[var(--harbor)] p-2 text-[var(--foam)] hover:border-[var(--coral)]/60"
+          className="ha-focus ha-press absolute right-1 top-1 rounded-full border border-[var(--tide)] bg-[var(--harbor)] p-2 text-[var(--foam)] hover:border-[var(--coral)]/60 sm:-right-2 sm:-top-2"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
             <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

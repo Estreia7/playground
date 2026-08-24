@@ -192,7 +192,7 @@ export function TasksList({
                 key={f.key}
                 onClick={() => setStatusFilter(f.key)}
                 aria-pressed={statusFilter === f.key}
-                className={`ha-focus ha-press rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                className={`ha-focus ha-press rounded-full border px-3 py-1.5 text-[11px] transition-colors sm:px-2.5 sm:py-1 ${
                   statusFilter === f.key
                     ? "border-[var(--verdi)]/50 bg-[var(--verdi-dim)] text-[var(--verdi)]"
                     : "border-[var(--tide)] text-[var(--mist)] hover:border-[var(--verdi)]/30"
@@ -214,7 +214,7 @@ export function TasksList({
           </select>
         </div>
       </div>
-      <div className="ha-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="ha-scroll max-h-[55vh] min-h-0 flex-1 overflow-y-auto pr-1 lg:max-h-none">
         {visible.length === 0 && (
           <div className="ha-panel p-4 text-sm text-[var(--mist)]">
             No dossiers match this search.

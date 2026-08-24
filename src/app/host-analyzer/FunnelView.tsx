@@ -12,10 +12,13 @@ type Ranked = { host: FunnelHost; vuln: VulnerabilityResult };
 function ComponentBar({ c }: { c: VulnerabilityResult["components"][number] }) {
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="w-44 shrink-0 truncate text-[var(--mist)]" title={c.label}>
+      <span
+        className="w-28 shrink-0 truncate text-[var(--mist)] sm:w-44"
+        title={c.label}
+      >
         {c.label}
       </span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--ink-deep)]">
+      <div className="h-1.5 min-w-[40px] flex-1 overflow-hidden rounded-full bg-[var(--ink-deep)]">
         {c.value !== null && (
           <motion.div
             className="h-full rounded-full"
@@ -26,7 +29,7 @@ function ComponentBar({ c }: { c: VulnerabilityResult["components"][number] }) {
           />
         )}
       </div>
-      <span className="ha-mono w-24 shrink-0 text-right text-[var(--mist)]">
+      <span className="ha-mono w-16 shrink-0 truncate text-right text-[var(--mist)] sm:w-24">
         {c.value === null ? "n/a" : c.detail}
       </span>
     </div>
@@ -124,8 +127,41 @@ export function FunnelView({
                         <span className="ha-mono">ADR €{host.avgAdr.toFixed(0)}</span>
                       )}
                     </div>
+                    {/* Mobile risk chips (the desktop cluster is hidden < sm). */}
+                    <div className="mt-1.5 flex flex-wrap gap-1.5 sm:hidden">
+                      {(host.insurance.none > 0 || host.insurance.expired > 0) && (
+                        <span className="rounded-full border border-[var(--coral)]/40 bg-[var(--coral-dim)] px-2 py-1 text-[10px] font-medium text-[var(--coral)]">
+                          insurance
+                        </span>
+                      )}
+                      {host.duplicateAlCount > 0 && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalAls(host.duplicateAls);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setModalAls(host.duplicateAls);
+                            }
+                          }}
+                          className="ha-focus ha-press cursor-pointer rounded-full border border-[var(--coral)]/40 bg-[var(--coral-dim)] px-2 py-1 text-[10px] font-medium text-[var(--coral)]"
+                        >
+                          reused AL{host.duplicateAlCount > 1 ? ` ×${host.duplicateAlCount}` : ""}
+                        </span>
+                      )}
+                      {host.companyListings >= 2 && (
+                        <span className="rounded-full border border-[var(--amber)]/40 bg-[var(--amber-dim)] px-2 py-1 text-[10px] font-medium text-[var(--amber)]">
+                          VAT risk
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="hidden shrink-0 items-center gap-1.5 md:flex">
+                  <div className="hidden shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex">
                     {(host.insurance.none > 0 || host.insurance.expired > 0) && (
                       <span className="rounded-full border border-[var(--coral)]/40 bg-[var(--coral-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--coral)]">
                         insurance

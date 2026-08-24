@@ -200,7 +200,7 @@ function ConcelhoBars({ concelhos }: { concelhos: InsightsPayload["concelhos"] }
   return (
     <div className="flex flex-col gap-2 p-4 pt-1">
       {top.map((c) => (
-        <div key={c.name} className="grid grid-cols-[110px_1fr_auto] items-center gap-2 text-xs">
+        <div key={c.name} className="grid grid-cols-[80px_1fr_auto] items-center gap-2 text-xs sm:grid-cols-[110px_1fr_auto]">
           <span className="truncate text-[var(--mist)]" title={c.name}>
             {c.name}
           </span>
@@ -537,13 +537,13 @@ export function InsightsView({
         title="Emails"
         hint={`${personalCount} personal · ${companyCount} company`}
       >
-        <div className="flex gap-1 px-4 pb-2">
+        <div className="flex gap-1.5 px-4 pb-2">
           {(["all", "personal", "company"] as const).map((k) => (
             <button
               key={k}
               onClick={() => setEmailFilter(k)}
               aria-pressed={emailFilter === k}
-              className={`ha-focus ha-press rounded-full border px-2.5 py-1 text-[11px] capitalize transition-colors ${
+              className={`ha-focus ha-press rounded-full border px-3 py-1.5 text-[11px] capitalize transition-colors sm:px-2.5 sm:py-1 ${
                 emailFilter === k
                   ? "border-[var(--verdi)]/50 bg-[var(--verdi-dim)] text-[var(--verdi)]"
                   : "border-[var(--tide)] text-[var(--mist)] hover:border-[var(--verdi)]/30"
@@ -554,9 +554,9 @@ export function InsightsView({
           ))}
         </div>
         {emails.length > 0 ? (
-          <div className="ha-scroll max-h-[420px] overflow-auto">
+          <div className="ha-scroll overflow-x-auto sm:max-h-[420px] sm:overflow-auto">
             <table className="w-full min-w-[620px] border-collapse text-sm">
-              <thead className="sticky top-0">
+              <thead className="sm:sticky sm:top-0">
                 <tr className="border-y border-[var(--tide)] bg-[var(--ink-deep)]">
                   {["Email", "Owner", "NIF", "Hosts", "Listings"].map((h) => (
                     <th

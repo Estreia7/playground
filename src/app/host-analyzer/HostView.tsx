@@ -249,7 +249,7 @@ export function HostView({
     >
       {/* Header */}
       <div className="ha-panel p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <h2 className="ha-display truncate text-xl font-bold md:text-2xl">
@@ -270,7 +270,9 @@ export function HostView({
               >
                 Airbnb profile ↗
               </a>
-              {concelhos.length > 0 && <span>{concelhos.join(" · ")}</span>}
+              {concelhos.length > 0 && (
+                <span className="max-w-full truncate sm:max-w-[280px]">{concelhos.join(" · ")}</span>
+              )}
               {job.truncated && (
                 <span className="text-[var(--amber)]">listing cap reached, subset analyzed</span>
               )}
@@ -289,20 +291,20 @@ export function HostView({
 
           <div className="flex items-center gap-4">
             <TargetRing score={vuln?.score ?? null} label="approach" size={96} />
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-1 flex-wrap gap-2 md:flex-1 md:flex-col md:flex-nowrap">
               {(job.status === "interrupted" ||
                 job.status === "error" ||
                 job.status === "cancelled") && (
                 <button
                   onClick={onRetry}
-                  className="ha-focus ha-press rounded-[10px] border border-[var(--amber)]/50 bg-[var(--amber-dim)] px-4 py-2 text-sm font-semibold text-[var(--amber)] transition-colors hover:bg-[var(--amber)]/25"
+                  className="ha-focus ha-press flex-1 whitespace-nowrap rounded-[10px] border border-[var(--amber)]/50 bg-[var(--amber-dim)] px-4 py-2 text-sm font-semibold text-[var(--amber)] transition-colors hover:bg-[var(--amber)]/25 md:flex-none"
                 >
                   Resume analysis
                 </button>
               )}
               <a
                 href={`${API_BASE}/host-jobs/${job.id}/pdf`}
-                className="ha-focus ha-press rounded-[10px] bg-[var(--verdi)] px-4 py-2 text-center text-sm font-semibold text-[var(--ink-deep)] transition-colors hover:bg-[#5adcc4]"
+                className="ha-focus ha-press flex-1 whitespace-nowrap rounded-[10px] bg-[var(--verdi)] px-4 py-2 text-center text-sm font-semibold text-[var(--ink-deep)] transition-colors hover:bg-[#5adcc4] md:flex-none"
               >
                 Download PDF
               </a>
@@ -310,7 +312,7 @@ export function HostView({
                 <button
                   onClick={handleRefreshRegistry}
                   disabled={registryBusy}
-                  className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-4 py-2 text-sm text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-50"
+                  className="ha-focus ha-press flex-1 whitespace-nowrap rounded-[10px] border border-[var(--tide)] px-4 py-2 text-sm text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-50 md:flex-none"
                   title="Re-scrape the RNT registry (emails, insurance) without re-running the whole host"
                 >
                   {registryBusy ? "Refreshing…" : "Refresh registry"}
@@ -319,14 +321,14 @@ export function HostView({
               {active ? (
                 <button
                   onClick={onCancel}
-                  className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-4 py-2 text-sm text-[var(--mist)] hover:border-[var(--coral)]/50 hover:text-[var(--coral)]"
+                  className="ha-focus ha-press flex-1 whitespace-nowrap rounded-[10px] border border-[var(--tide)] px-4 py-2 text-sm text-[var(--mist)] hover:border-[var(--coral)]/50 hover:text-[var(--coral)] md:flex-none"
                 >
                   Cancel job
                 </button>
               ) : confirmDelete ? (
                 <button
                   onClick={onDelete}
-                  className="ha-focus ha-press rounded-[10px] border border-[var(--coral)]/60 bg-[var(--coral-dim)] px-4 py-2 text-sm font-semibold text-[var(--coral)]"
+                  className="ha-focus ha-press flex-1 whitespace-nowrap rounded-[10px] border border-[var(--coral)]/60 bg-[var(--coral-dim)] px-4 py-2 text-sm font-semibold text-[var(--coral)] md:flex-none"
                 >
                   Confirm delete
                 </button>
@@ -334,7 +336,7 @@ export function HostView({
                 <button
                   onClick={() => setConfirmDelete(true)}
                   onBlur={() => setConfirmDelete(false)}
-                  className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-4 py-2 text-sm text-[var(--mist)] hover:border-[var(--coral)]/50 hover:text-[var(--coral)]"
+                  className="ha-focus ha-press flex-1 whitespace-nowrap rounded-[10px] border border-[var(--tide)] px-4 py-2 text-sm text-[var(--mist)] hover:border-[var(--coral)]/50 hover:text-[var(--coral)] md:flex-none"
                 >
                   Delete dossier
                 </button>
@@ -344,7 +346,7 @@ export function HostView({
         </div>
 
         {/* Stats strip */}
-        <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3 border-t border-[var(--tide)] pt-4">
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 border-t border-[var(--tide)] pt-4 sm:gap-x-8">
           <Stat label="Listings">
             <span className="inline-flex items-center gap-2">
               {listings.length || (active ? "…" : 0)}

@@ -6,6 +6,7 @@ import {
   INSURANCE_LABEL,
   NIF_KIND_LABEL,
   adrPerListing,
+  cityOf,
   insuranceOf,
   licenseAgeYears,
   mediaUrl,
@@ -62,11 +63,6 @@ export function InsuranceBadge({ status }: { status: string }) {
       {INSURANCE_LABEL[status] ?? status}
     </span>
   );
-}
-
-function areaOf(l: HostListing, lic: License | undefined): string {
-  if (lic?.rnt.status === "found" && lic.rnt.address?.concelho) return lic.rnt.address.concelho;
-  return l.locationText || "-";
 }
 
 function SortHeader({
@@ -153,7 +149,7 @@ export function ListingsTable({
         case "title":
           return (l.title || "").toLowerCase();
         case "area":
-          return areaOf(l, lic).toLowerCase();
+          return cityOf(l, lic).toLowerCase();
         case "reviews":
           return l.reviewsCount ?? -1;
         case "score":
@@ -192,16 +188,20 @@ export function ListingsTable({
 
   return (
     <div className="ha-panel overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-4">
         <h3 className="ha-display text-sm font-semibold">Listings</h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1" role="group" aria-label="Risk filters">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div
+            className="ha-scroll -mx-3 flex gap-1.5 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0"
+            role="group"
+            aria-label="Risk filters"
+          >
             {RISK_FILTERS.map((f) => (
               <button
                 key={f.key}
                 onClick={() => toggleFilter(f.key)}
                 aria-pressed={filters.has(f.key)}
-                className={`ha-focus ha-press rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                className={`ha-focus ha-press shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors sm:px-2.5 sm:py-1 sm:text-[11px] ${
                   filters.has(f.key)
                     ? "border-[var(--coral)]/50 bg-[var(--coral-dim)] text-[var(--coral)]"
                     : "border-[var(--tide)] text-[var(--mist)] hover:border-[var(--coral)]/30"
@@ -212,7 +212,7 @@ export function ListingsTable({
             ))}
           </div>
           <input
-            className="ha-input w-44 px-3 py-1.5 text-xs"
+            className="ha-input w-full px-3 py-2 text-sm sm:w-44 sm:py-1.5 sm:text-xs"
             placeholder="Search title / AL / area…"
             value={query}
             onChange={(e) => {
@@ -224,28 +224,28 @@ export function ListingsTable({
           />
         </div>
       </div>
-      <div className="ha-scroll overflow-x-auto">
-        <table className="w-full min-w-[860px] border-collapse text-sm">
+      <div className="ha-scroll overflow-x-auto lg:overflow-x-visible">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-y border-[var(--tide)] bg-[var(--ink-deep)]/40">
-              <th className="w-14 px-3 py-2" aria-label="Photo" />
+              <th className="w-12 px-2 py-2 sm:w-14 sm:px-3" aria-label="Photo" />
               <SortHeader label="Listing" col="title" sort={sort} onSort={onSort} />
-              <SortHeader label="Area" col="area" sort={sort} onSort={onSort} />
-              <SortHeader label="Reviews" col="reviews" sort={sort} onSort={onSort} />
+              <SortHeader label="Area" col="area" sort={sort} onSort={onSort} className="hidden lg:table-cell" />
+              <SortHeader label="Reviews" col="reviews" sort={sort} onSort={onSort} className="hidden lg:table-cell" />
               <SortHeader label="Score" col="score" sort={sort} onSort={onSort} />
-              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)]">
+              <th className="hidden px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)] lg:table-cell">
                 AL
               </th>
-              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)]">
+              <th className="hidden px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)] lg:table-cell">
                 Type
               </th>
-              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)]">
+              <th className="hidden px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)] lg:table-cell">
                 Owner
               </th>
-              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)]">
+              <th className="px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--mist)] sm:px-3">
                 Insurance
               </th>
-              {hasAdr && <SortHeader label="Avg ADR" col="adr" sort={sort} onSort={onSort} />}
+              {hasAdr && <SortHeader label="ADR" col="adr" sort={sort} onSort={onSort} />}
             </tr>
           </thead>
           <tbody>
@@ -266,7 +266,7 @@ export function ListingsTable({
                   flagged={flagged}
                   main={
                     <>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-2 sm:px-3">
                         {l.photos.length > 0 ? (
                           <button
                             className="ha-focus ha-press block overflow-hidden rounded-[8px]"
@@ -290,7 +290,7 @@ export function ListingsTable({
                           <div className="h-9 w-12 rounded-[8px] border border-dashed border-[var(--tide)]" aria-hidden />
                         )}
                       </td>
-                      <td className="max-w-[220px] px-3 py-2">
+                      <td className="max-w-0 px-2 py-2 sm:px-3 lg:max-w-[220px]">
                         <div
                           className={`truncate font-medium ${l.removed ? "text-[var(--mist)] line-through" : ""}`}
                         >
@@ -302,21 +302,46 @@ export function ListingsTable({
                             {l.removedAt ? new Date(l.removedAt * 1000).toLocaleDateString() : ""}
                           </span>
                         )}
+                        {/* Sub-line surfaces the columns hidden below lg. */}
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 lg:hidden">
+                          <span className="truncate text-[11px] text-[var(--mist)]">{cityOf(l, lic)}</span>
+                          {l.alNumber ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setModalAls([l.alNumber as string]);
+                              }}
+                              className="ha-mono ha-focus ha-press text-[11px] text-[var(--mist)] underline decoration-[var(--tide)] decoration-dotted underline-offset-2 hover:text-[var(--verdi)]"
+                            >
+                              {l.alNumber}/AL{l.alSource === "manual" ? " ·m" : ""}
+                            </button>
+                          ) : l.status === "done" ? (
+                            <span
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[11px] text-[var(--mist)]"
+                            >
+                              <SetAlCell onSave={onSetAl ? (al) => onSetAl(l.url, al) : undefined} />
+                            </span>
+                          ) : null}
+                          {owner?.name && (
+                            <span className="truncate text-[11px] text-[var(--mist)]">{owner.name}</span>
+                          )}
+                        </div>
                         <a
                           href={l.url}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="ha-mono ha-focus text-[11px] text-[var(--mist)] hover:text-[var(--verdi)]"
+                          className="ha-mono ha-focus hidden text-[11px] text-[var(--mist)] hover:text-[var(--verdi)] lg:inline"
                         >
                           {shortRoomUrl(l.url)}
                         </a>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-[var(--mist)]">
-                        {areaOf(l, lic)}
+                      <td className="hidden max-w-[140px] truncate px-3 py-2 text-[var(--mist)] lg:table-cell">
+                        {cityOf(l, lic)}
                       </td>
-                      <td className="ha-mono px-3 py-2">{l.reviewsCount ?? "-"}</td>
-                      <td className="ha-mono px-3 py-2">
+                      <td className="ha-mono hidden px-3 py-2 lg:table-cell">{l.reviewsCount ?? "-"}</td>
+                      <td className="ha-mono px-2 py-2 sm:px-3">
                         {l.reviewsScore != null ? (
                           <span
                             className={
@@ -329,7 +354,7 @@ export function ListingsTable({
                           "-"
                         )}
                       </td>
-                      <td className="ha-mono whitespace-nowrap px-3 py-2">
+                      <td className="ha-mono hidden whitespace-nowrap px-3 py-2 lg:table-cell">
                         {l.alNumber ? (
                           <button
                             onClick={(e) => {
@@ -356,17 +381,17 @@ export function ListingsTable({
                           "…"
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-[var(--mist)]">
+                      <td className="hidden whitespace-nowrap px-3 py-2 text-[var(--mist)] lg:table-cell">
                         {rnt?.modalidade || "-"}
                       </td>
-                      <td className="max-w-[160px] truncate px-3 py-2 text-[var(--mist)]">
+                      <td className="hidden max-w-[160px] truncate px-3 py-2 text-[var(--mist)] lg:table-cell">
                         {owner?.name || "-"}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-2 sm:px-3">
                         <InsuranceBadge status={ins} />
                       </td>
                       {hasAdr && (
-                        <td className="ha-mono whitespace-nowrap px-3 py-2">
+                        <td className="ha-mono whitespace-nowrap px-2 py-2 sm:px-3">
                           {adr != null ? `€${adr.toFixed(0)}` : "-"}
                         </td>
                       )}
@@ -398,14 +423,14 @@ export function ListingsTable({
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={safePage === 0}
-              className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-3 py-1 text-xs text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-40"
+              className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-4 py-2 text-xs text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-40"
             >
               Prev
             </button>
             <button
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
               disabled={safePage >= pageCount - 1}
-              className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-3 py-1 text-xs text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-40"
+              className="ha-focus ha-press rounded-[10px] border border-[var(--tide)] px-4 py-2 text-xs text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/40 disabled:opacity-40"
             >
               Next
             </button>
