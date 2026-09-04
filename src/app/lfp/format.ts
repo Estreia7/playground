@@ -68,3 +68,14 @@ export function shortDate(iso: string, lang: Lang = "pt"): string {
     year: "numeric",
   }).format(d);
 }
+
+/** Parses what a Portuguese user types into a number field: decimal commas,
+ *  stray spaces, a pasted "€". Returns null for anything that isn't a number
+ *  yet (empty, lone minus) so the field can hold a half-typed draft. Lives
+ *  here rather than in the input component so it is testable without JSX. */
+export function parseNumber(raw: string): number | null {
+  const cleaned = raw.replace(/\s|€/g, "").replace(",", ".");
+  if (cleaned === "" || cleaned === "-") return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}

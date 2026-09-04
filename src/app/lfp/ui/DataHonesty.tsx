@@ -25,17 +25,21 @@ export function YearChip({ year, className }: { year: number; className?: string
 
 export function SourceBadge({ meta }: { meta: DatasetMeta }) {
   return (
-    <p className="text-xs leading-relaxed text-[var(--lfp-mist)]">
-      Fonte:{" "}
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs leading-relaxed text-[var(--lfp-mist)]">
+      <span>Fonte:</span>
+      {/* A chip, not an inline link: it needs a 44px hit area, and stretching
+          the surrounding sentence to get one would look broken. */}
       <a
         href={meta.source}
         target="_blank"
         rel="noopener noreferrer"
-        className="lfp-focus underline underline-offset-2 hover:text-[var(--lfp-cobalt)]"
+        className="lfp-focus inline-flex min-h-11 items-center rounded-md border border-[var(--lfp-line)] px-2.5 font-medium text-[var(--lfp-cobalt)] underline underline-offset-2 transition-colors hover:border-[var(--lfp-cobalt)]"
       >
         {meta.label}
-      </a>{" "}
-      · dados de {meta.year} · verificado em {shortDate(meta.lastVerified)}
+      </a>
+      <span>
+        dados de {meta.year} · verificado em {shortDate(meta.lastVerified)}
+      </span>
     </p>
   );
 }
@@ -85,7 +89,7 @@ export function UnverifiedBanner({
 export function Disclaimer({ notes }: { notes?: string[] }) {
   return (
     <div className="lfp-sunk px-4 py-3">
-      <p className="text-xs leading-relaxed text-[var(--lfp-mist)]">
+      <p className="text-xs leading-relaxed text-[var(--lfp-cobalt-deep)]">
         Estimativa construída a partir de informação pública.{" "}
         <strong className="font-semibold text-[var(--lfp-cobalt-deep)]">
           Não tem valor legal
@@ -97,7 +101,7 @@ export function Disclaimer({ notes }: { notes?: string[] }) {
           {notes.map((n) => (
             <li
               key={n}
-              className="flex gap-2 text-xs leading-relaxed text-[var(--lfp-mist)]"
+              className="flex gap-2 text-xs leading-relaxed text-[var(--lfp-cobalt-deep)]"
             >
               <span aria-hidden="true">·</span>
               {n}
