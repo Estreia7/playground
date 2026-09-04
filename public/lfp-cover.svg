@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" width="640" height="320" role="img" aria-label="LFP — Literacia Financeira Portuguesa">
+  <defs>
+    <pattern id="lfpTile" width="32" height="32" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M 0 16 H 32 M 16 0 V 32" stroke="#1B4E8C" stroke-width="0.9"/>
+    </pattern>
+  </defs>
+
+  <rect width="640" height="320" fill="#F5F2E9"/>
+  <rect width="640" height="320" fill="url(#lfpTile)" opacity="0.07"/>
+
+  <!-- Wallet -->
+  <g transform="translate(126 168)">
+    <rect x="-46" y="-34" width="92" height="68" rx="11" fill="#FBFAF6" stroke="#1B4E8C" stroke-width="2.5"/>
+    <rect x="-39" y="-27" width="78" height="54" rx="7" fill="none" stroke="#1B4E8C" stroke-width="1" opacity="0.35"/>
+    <rect x="16" y="-8" width="26" height="16" rx="8" fill="#1B4E8C" opacity="0.9"/>
+    <circle cx="29" cy="0" r="3" fill="#FBFAF6"/>
+  </g>
+
+  <!-- Lanes: thickness is the data -->
+  <path d="M 320 168 C 280 168, 240 168, 180 168" stroke="#1B7A4B" stroke-width="34" fill="none" stroke-linecap="round"/>
+  <path d="M 320 168 C 380 168, 400 128, 466 122" stroke="#B02A26" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <path d="M 320 168 C 380 168, 400 208, 466 214" stroke="#AE4A2E" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <circle cx="320" cy="168" r="6" fill="#FBFAF6" stroke="#1B4E8C" stroke-width="2.5"/>
+
+  <!-- The State: Pombaline arcade -->
+  <g transform="translate(516 168)">
+    <rect x="-50" y="-38" width="100" height="76" rx="5" fill="#FBFAF6" stroke="#1B4E8C" stroke-width="2.5"/>
+    <rect x="-56" y="-45" width="112" height="11" rx="3" fill="#1B4E8C"/>
+    <path d="M -39 34 L -39 6 A 7 7 0 0 1 -25 6 L -25 34 Z" fill="#1B4E8C" opacity="0.82"/>
+    <path d="M -13 34 L -13 6 A 7 7 0 0 1 1 6 L 1 34 Z" fill="#1B4E8C" opacity="0.82"/>
+    <path d="M 13 34 L 13 6 A 7 7 0 0 1 27 6 L 27 34 Z" fill="#1B4E8C" opacity="0.82"/>
+  </g>
+
+  <g font-family="ui-monospace, monospace">
+    <text x="48" y="62" font-size="13" letter-spacing="3.4" fill="#5A6B80">LITERACIA FINANCEIRA</text>
+    <text x="48" y="104" font-size="38" font-weight="700" fill="#0E2E57" font-family="Georgia, serif">LFP</text>
+    <text x="126" y="246" font-size="12" font-weight="600" text-anchor="middle" fill="#1B7A4B">fica contigo</text>
+    <text x="516" y="246" font-size="12" font-weight="600" text-anchor="middle" fill="#B02A26">o Estado</text>
+  </g>
+</svg>

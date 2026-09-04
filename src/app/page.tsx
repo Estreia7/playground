@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const experiments = [
   {
+    title: "LFP — Literacia Financeira Portuguesa",
+    description:
+      "Como funciona o dinheiro em Portugal: IRS, IVA, IRC e Segurança Social explicados, calculadoras animadas, inflação e comparação internacional.",
+    href: "/lfp",
+    status: "wip" as const,
+    image: "/lfp-cover.svg",
+  },
+  {
     title: "Papelaria da Vila",
     description:
       "Interactive sales deck — tailored software solutions by Aekios. Multi-language presentation (PT/EN/ES).",

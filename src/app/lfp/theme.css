@@ -1,0 +1,199 @@
+/* LFP — Literacia Financeira Portuguesa.
+   "Painel de azulejo": cal (lime plaster) ground, cobalt ink, tile geometry.
+   Scoped under .lfp so nothing leaks into the rest of the playground.
+
+   Palette (locked):
+     Cal        #F5F2E9  page ground      Cal Tile   #FBFAF6  raised cards
+     Cobalto    #1B4E8C  ink, borders     Cobalto D. #0E2E57  display, body text
+     Verde      #1B7A4B  MONEY YOU KEEP   Vermelho   #B02A26  MONEY TO THE STATE
+     Ouro       #C8901E  caution / unverified data
+
+   Verde and vermelho are SEMANTIC ONLY — never hovers, links or ornament.
+   A green number always means one thing: it stays in your pocket. */
+
+.lfp {
+  --lfp-cal: #f5f2e9;
+  --lfp-cal-tile: #fbfaf6;
+  --lfp-cal-sunk: #ebe6d8;
+
+  --lfp-cobalt: #1b4e8c;
+  --lfp-cobalt-deep: #0e2e57;
+  --lfp-cobalt-soft: rgba(27, 78, 140, 0.14);
+  --lfp-cobalt-faint: rgba(27, 78, 140, 0.06);
+
+  --lfp-verde: #1b7a4b;
+  --lfp-verde-dim: rgba(27, 122, 75, 0.14);
+  --lfp-vermelho: #b02a26;
+  --lfp-vermelho-dim: rgba(176, 42, 38, 0.13);
+  /* Darkened from a brighter gold to clear 4.5:1 on both grounds — this is
+     the "valores por verificar" colour, so it has to be readable. */
+  --lfp-ouro: #8a6314;
+  --lfp-ouro-dim: rgba(138, 99, 20, 0.14);
+
+  /* Secondary ink — passes 4.5:1 on --lfp-cal. */
+  --lfp-mist: #5a6b80;
+  --lfp-line: rgba(14, 46, 87, 0.16);
+  --lfp-line-strong: rgba(14, 46, 87, 0.28);
+
+  /* Flow lane tones. Every stream maps to exactly one of these. */
+  /* The two TSU tones sit between IRS red and the ochres; both were darkened
+     so their amount chips clear 4.5:1 on the tile ground. */
+  --lfp-tone-liquido: var(--lfp-verde);
+  --lfp-tone-irs: var(--lfp-vermelho);
+  --lfp-tone-tsu-trab: #ae4a2e;
+  --lfp-tone-tsu-patronal: #a8511e;
+  --lfp-tone-iva: var(--lfp-vermelho);
+  --lfp-tone-irc: #8e2f52;
+  --lfp-tone-empresa: var(--lfp-cobalt);
+  --lfp-tone-servico: var(--lfp-cobalt);
+
+  background:
+    radial-gradient(1100px 600px at 88% -12%, rgba(27, 78, 140, 0.07), transparent 62%),
+    radial-gradient(800px 520px at -8% 108%, rgba(27, 122, 75, 0.05), transparent 58%),
+    var(--lfp-cal);
+  color: var(--lfp-cobalt-deep);
+  font-family: var(--font-lfp-body), system-ui, sans-serif;
+  min-height: 100dvh;
+}
+
+.lfp ::selection {
+  background: rgba(27, 78, 140, 0.18);
+}
+
+/* ── Type roles ─────────────────────────────────────────────── */
+
+.lfp-display {
+  font-family: var(--font-lfp-display), Georgia, serif;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  letter-spacing: -0.018em;
+  line-height: 1.06;
+  color: var(--lfp-cobalt-deep);
+}
+
+.lfp-num {
+  font-family: var(--font-lfp-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.lfp-eyebrow {
+  font-family: var(--font-lfp-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lfp-mist);
+}
+
+/* ── Surfaces ───────────────────────────────────────────────── */
+
+.lfp-panel {
+  background: var(--lfp-cal-tile);
+  border: 1px solid var(--lfp-line);
+  border-radius: 14px;
+}
+
+/* The azulejo tile: a hairline inner rule, like the glaze edge on a real tile. */
+.lfp-tile {
+  position: relative;
+  background: var(--lfp-cal-tile);
+  border: 1px solid var(--lfp-line);
+  border-radius: 12px;
+}
+.lfp-tile::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid var(--lfp-cobalt-faint);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.lfp-sunk {
+  background: var(--lfp-cal-sunk);
+  border: 1px solid var(--lfp-line);
+  border-radius: 10px;
+}
+
+/* ── Interactive affordances ────────────────────────────────── */
+
+.lfp-focus:focus-visible {
+  outline: 2px solid var(--lfp-cobalt);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.lfp-press {
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lfp-press:active {
+  transform: scale(0.975);
+}
+
+.lfp-input {
+  background: var(--lfp-cal-tile);
+  border: 1px solid var(--lfp-line-strong);
+  border-radius: 10px;
+  color: var(--lfp-cobalt-deep);
+  font-family: var(--font-lfp-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.lfp-input:focus {
+  outline: none;
+  border-color: var(--lfp-cobalt);
+  box-shadow: 0 0 0 3px var(--lfp-cobalt-soft);
+}
+.lfp-input::placeholder {
+  color: var(--lfp-mist);
+  opacity: 0.7;
+}
+
+/* ── Semantic value colouring ───────────────────────────────── */
+
+.lfp-keep {
+  color: var(--lfp-verde);
+}
+.lfp-state {
+  color: var(--lfp-vermelho);
+}
+
+/* ── Flow stage ─────────────────────────────────────────────── */
+
+.lfp-compass {
+  transform-origin: center;
+  animation: lfp-rotate 90s linear infinite;
+}
+
+.lfp-lane-rigging {
+  stroke: var(--lfp-cal-tile);
+  opacity: 0.5;
+  fill: none;
+  animation: lfp-rigging 2.4s linear infinite;
+}
+
+@keyframes lfp-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dash offset drift reads as rope running through the channel. */
+@keyframes lfp-rigging {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────
+   Layer 1 of 2. MoneyFlow also calls framer-motion's useReducedMotion()
+   in JS, because CSS alone cannot stop a rAF-driven animation. */
+
+@media (prefers-reduced-motion: reduce) {
+  .lfp-compass,
+  .lfp-lane-rigging {
+    animation: none;
+  }
+  .lfp-press {
+    transition: none;
+  }
+}
