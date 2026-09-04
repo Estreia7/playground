@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Taxas contributivas — regime geral dos trabalhadores por conta de outrem",
+    "source": "https://www2.gov.pt/servicos/obter-informacoes-sobre-as-contribuicoes-para-a-seguranca-social-pagamento-de-entidade-empregadora-por-trabalhador-por-conta-de-outrem",
+    "sources": [
+      "https://files.diariodarepublica.pt/1s/2026/01/02103/0001100011.pdf"
+    ],
+    "lastVerified": "2026-09-04",
+    "version": 1,
+    "notes": [
+      "Taxa global de 34,75% (11% trabalhador + 23,75% entidade patronal), fixada no Código dos Regimes Contributivos.",
+      "Subsídio de refeição: 6,15 €/dia em dinheiro (Portaria n.º 51-B/2026/1, de 30 de janeiro, com efeitos a 1 de janeiro de 2026); em cartão o limite é 70% superior, ou seja 10,455 €/dia.",
+      "O seguro de acidentes de trabalho é obrigatório mas o prémio é de mercado — não é uma taxa legal. O valor usado é uma estimativa.",
+      "Regimes especiais (órgãos estatutários, trabalhadores independentes) fora do âmbito desta versão."
+    ]
+  },
+  "regimes": [
+    {
+      "id": "trabalhador_conta_outrem",
+      "trabalhador": 0.11,
+      "entidadePatronal": 0.2375
+    }
+  ],
+  "defaultRegime": "trabalhador_conta_outrem",
+  "subsidioRefeicao": {
+    "dinheiro": 6.15,
+    "cartao": 10.455,
+    "diasUteisMes": 22
+  },
+  "seguroAcidentesTrabalho": {
+    "estimativaMin": 0.005,
+    "estimativaMax": 0.02,
+    "estimativaDefault": 0.01,
+    "isEstimate": true
+  }
+}

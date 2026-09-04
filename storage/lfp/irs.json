@@ -1,0 +1,245 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "IRS — tabelas de retenção na fonte e escalões anuais (Continente)",
+    "source": "https://files.diariodarepublica.pt/2s/2026/01/003000001/0000200010.pdf",
+    "sources": [
+      "https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/tabela_ret_doclib/Documents/Tabelas_RF_Continente_2026.xlsx",
+      "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs68.aspx"
+    ],
+    "lastVerified": "2026-09-04",
+    "version": 1,
+    "notes": [
+      "Tabelas de retenção na fonte fixadas pelo Despacho n.º 233-A/2026, em vigor desde 1 de janeiro de 2026 (artigo 99.º-F do CIRS).",
+      "A retenção é um adiantamento mensal, não o imposto final. O acerto faz-se na declaração anual, que pode devolver ou cobrar mais.",
+      "A Tabela I serve dois casos: não casado sem dependentes e casado com dois titulares. A Tabela II aplica-se a não casado com dependentes e só difere na parcela por dependente (34,29 € em vez de 21,43 €).",
+      "Nos dois primeiros escalões tributados a parcela a abater é uma fórmula do próprio salário, não um valor fixo.",
+      "Apenas Continente. Madeira e Açores têm tabelas próprias, ainda não incluídas.",
+      "Não considera IRS Jovem, deficiência, residente não habitual, outros rendimentos nem trabalho suplementar.",
+      "Os subsídios de férias e de Natal são retidos separadamente, com a sua própria taxa efetiva — não somam ao salário do mês nem empurram para um escalão superior.",
+      "Com três ou mais dependentes a taxa marginal é reduzida em 1 ponto percentual (n.º 5 do Despacho). Ainda não modelado nesta versão.",
+      "Valores conferidos linha a linha contra o Excel oficial da AT. Atenção a quem verificar pelo PDF: a extração de texto desalinha as colunas em uma linha."
+    ]
+  },
+  "escaloes": {
+    "continente": [
+      {
+        "from": 0,
+        "to": 8342,
+        "rate": 0.125
+      },
+      {
+        "from": 8342,
+        "to": 12587,
+        "rate": 0.157
+      },
+      {
+        "from": 12587,
+        "to": 17838,
+        "rate": 0.212
+      },
+      {
+        "from": 17838,
+        "to": 23089,
+        "rate": 0.241
+      },
+      {
+        "from": 23089,
+        "to": 29397,
+        "rate": 0.311
+      },
+      {
+        "from": 29397,
+        "to": 43090,
+        "rate": 0.349
+      },
+      {
+        "from": 43090,
+        "to": 46566,
+        "rate": 0.431
+      },
+      {
+        "from": 46566,
+        "to": 86634,
+        "rate": 0.446
+      },
+      {
+        "from": 86634,
+        "to": null,
+        "rate": 0.48
+      }
+    ]
+  },
+  "retencao": [
+    {
+      "situacao": "nao_casado",
+      "regiao": "continente",
+      "rows": [
+        {
+          "upTo": 920,
+          "taxaMarginalMaxima": 0,
+          "parcelaAbater": 0,
+          "parcelaAbaterPorDependente": 0
+        },
+        {
+          "upTo": 1042,
+          "taxaMarginalMaxima": 0.125,
+          "parcelaAbaterFormula": {
+            "factor": 2.6,
+            "limite": 1273.85
+          },
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 1108,
+          "taxaMarginalMaxima": 0.157,
+          "parcelaAbaterFormula": {
+            "factor": 1.35,
+            "limite": 1554.83
+          },
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 1154,
+          "taxaMarginalMaxima": 0.157,
+          "parcelaAbater": 94.71,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 1212,
+          "taxaMarginalMaxima": 0.212,
+          "parcelaAbater": 158.18,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 1819,
+          "taxaMarginalMaxima": 0.241,
+          "parcelaAbater": 193.33,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 2119,
+          "taxaMarginalMaxima": 0.311,
+          "parcelaAbater": 320.66,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 2499,
+          "taxaMarginalMaxima": 0.349,
+          "parcelaAbater": 401.19,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 3305,
+          "taxaMarginalMaxima": 0.3836,
+          "parcelaAbater": 487.66,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 5547,
+          "taxaMarginalMaxima": 0.3969,
+          "parcelaAbater": 531.62,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": 20221,
+          "taxaMarginalMaxima": 0.4495,
+          "parcelaAbater": 823.4,
+          "parcelaAbaterPorDependente": 34.29
+        },
+        {
+          "upTo": null,
+          "taxaMarginalMaxima": 0.4717,
+          "parcelaAbater": 1272.31,
+          "parcelaAbaterPorDependente": 34.29
+        }
+      ]
+    },
+    {
+      "situacao": "casado_dois_titulares",
+      "regiao": "continente",
+      "rows": [
+        {
+          "upTo": 920,
+          "taxaMarginalMaxima": 0,
+          "parcelaAbater": 0,
+          "parcelaAbaterPorDependente": 0
+        },
+        {
+          "upTo": 1042,
+          "taxaMarginalMaxima": 0.125,
+          "parcelaAbaterFormula": {
+            "factor": 2.6,
+            "limite": 1273.85
+          },
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 1108,
+          "taxaMarginalMaxima": 0.157,
+          "parcelaAbaterFormula": {
+            "factor": 1.35,
+            "limite": 1554.83
+          },
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 1154,
+          "taxaMarginalMaxima": 0.157,
+          "parcelaAbater": 94.71,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 1212,
+          "taxaMarginalMaxima": 0.212,
+          "parcelaAbater": 158.18,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 1819,
+          "taxaMarginalMaxima": 0.241,
+          "parcelaAbater": 193.33,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 2119,
+          "taxaMarginalMaxima": 0.311,
+          "parcelaAbater": 320.66,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 2499,
+          "taxaMarginalMaxima": 0.349,
+          "parcelaAbater": 401.19,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 3305,
+          "taxaMarginalMaxima": 0.3836,
+          "parcelaAbater": 487.66,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 5547,
+          "taxaMarginalMaxima": 0.3969,
+          "parcelaAbater": 531.62,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": 20221,
+          "taxaMarginalMaxima": 0.4495,
+          "parcelaAbater": 823.4,
+          "parcelaAbaterPorDependente": 21.43
+        },
+        {
+          "upTo": null,
+          "taxaMarginalMaxima": 0.4717,
+          "parcelaAbater": 1272.31,
+          "parcelaAbaterPorDependente": 21.43
+        }
+      ]
+    }
+  ],
+  "deducaoEspecifica": 4587.09,
+  "minimoExistencia": 12880
+}

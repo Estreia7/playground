@@ -45,7 +45,16 @@ export interface RetencaoRow {
   /** Upper bound of monthly gross remuneration. null = top row. */
   upTo: number | null;
   taxaMarginalMaxima: number;
-  parcelaAbater: number;
+  /** Fixed deductible parcel, EUR/month. Mutually exclusive with the formula
+   *  below: the official 2026 tables express the first two taxed brackets as
+   *  a formula of R instead of a constant. */
+  parcelaAbater?: number;
+  /**
+   * Formula form of the parcela: `taxa * factor * (limite - R)`, taken
+   * verbatim from Despacho n.º 233-A/2026. Modelling this properly matters —
+   * substituting a constant would misprice every salary in these brackets.
+   */
+  parcelaAbaterFormula?: { factor: number; limite: number };
   parcelaAbaterPorDependente: number;
 }
 

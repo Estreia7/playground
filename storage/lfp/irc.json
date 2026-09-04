@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "IRC — taxas, derrama municipal e derrama estadual",
+    "source": "https://www.occ.pt/sites/default/files/public/2025-11/Alt_IRC.pdf",
+    "sources": [
+      "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/circ_rep/Pages/circ87.aspx"
+    ],
+    "lastVerified": "2026-09-04",
+    "version": 1,
+    "notes": [
+      "Taxa geral de 19% em 2026. Atenção: o texto consolidado do artigo 87.º do CIRC já indica 17%, mas a norma transitória do artigo 3.º da Lei n.º 64/2025 fixa 19% para 2026 (18% em 2027, 17% em 2028).",
+      "PME e Small Mid Cap: 15% sobre os primeiros 50.000 € de matéria coletável; o excedente é tributado à taxa geral.",
+      "A derrama municipal incide sobre o lucro tributável, não sobre a coleta, e o seu valor concreto é fixado por cada município até ao máximo legal de 1,5%.",
+      "Derrama estadual apresentada para o Continente. Açores e Madeira têm taxas reduzidas.",
+      "Simulação simplificada: não considera tributações autónomas, pagamentos especiais por conta, deduções à coleta nem prejuízos fiscais reportáveis. O resultado não é uma Modelo 22."
+    ]
+  },
+  "taxaGeral": 0.19,
+  "pme": {
+    "taxaReduzida": 0.15,
+    "limiteTranche": 50000
+  },
+  "derramaMunicipal": {
+    "max": 0.015,
+    "default": 0.015
+  },
+  "derramaEstadual": [
+    { "from": 1500000, "to": 7500000, "rate": 0.03 },
+    { "from": 7500000, "to": 35000000, "rate": 0.05 },
+    { "from": 35000000, "to": null, "rate": 0.09 }
+  ]
+}

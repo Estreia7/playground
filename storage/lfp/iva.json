@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Taxas de IVA — Continente, Madeira e Açores",
+    "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/instrucoes_administrativas/Documents/Oficio_circulado_25045_2024.pdf",
+    "sources": [
+      "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx"
+    ],
+    "lastVerified": "2026-09-04",
+    "version": 1,
+    "notes": [
+      "Taxas fixadas no artigo 18.º do CIVA para o Continente.",
+      "Açores: taxas nacionais reduzidas em 30% (DLR n.º 15-A/2021/A).",
+      "Madeira: a taxa reduzida passou de 5% para 4% a 1 de outubro de 2024 (DLR n.º 6/2024/M). Muitos sites ainda publicam 5%.",
+      "A taxa aplicável depende do bem ou serviço concreto, listado nas Listas I e II anexas ao CIVA."
+    ]
+  },
+  "rates": {
+    "continente": { "normal": 0.23, "intermedia": 0.13, "reduzida": 0.06 },
+    "madeira": { "normal": 0.22, "intermedia": 0.12, "reduzida": 0.04 },
+    "acores": { "normal": 0.16, "intermedia": 0.09, "reduzida": 0.04 }
+  },
+  "examples": [
+    { "tipo": "reduzida", "key": "pao", "icon": "bread" },
+    { "tipo": "reduzida", "key": "leite", "icon": "milk" },
+    { "tipo": "reduzida", "key": "medicamentos", "icon": "pill" },
+    { "tipo": "reduzida", "key": "livros", "icon": "book" },
+    { "tipo": "intermedia", "key": "restauracao", "icon": "plate" },
+    { "tipo": "intermedia", "key": "vinho", "icon": "glass" },
+    { "tipo": "intermedia", "key": "conservas", "icon": "can" },
+    { "tipo": "normal", "key": "eletrodomesticos", "icon": "plug" },
+    { "tipo": "normal", "key": "vestuario", "icon": "shirt" },
+    { "tipo": "normal", "key": "combustivel", "icon": "fuel" }
+  ]
+}

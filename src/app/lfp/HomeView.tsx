@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MoneyFlow } from "./flow/MoneyFlow";
-import { eur0 } from "./format";
-import type { FlowStream } from "./types";
+import { fromSalarioLiquido } from "./flow/adapters";
+import { salarioLiquido } from "./calc";
+import { eur0, pct } from "./format";
+import { useLfpData } from "./useLfpData";
+import { UnverifiedBanner, YearChip } from "./ui/DataHonesty";
+import type { SalarioLiquidoInput } from "./types";
 
-/* Illustrative figures for the hero. Deliberately round and labelled as an
-   example — the real numbers come from the calculators, which cite sources. */
-const DEMO_BRUTO = 1500;
-const DEMO_STREAMS: FlowStream[] = [
-  { id: "liquido", label: "Fica contigo", amount: 1152, direction: "toPeople", tone: "liquido" },
-  { id: "irs", label: "IRS", amount: 183, direction: "toState", tone: "irs" },
-  { id: "tsu", label: "Segurança Social", amount: 165, direction: "toState", tone: "tsu-trab" },
-];
+/** Preset salaries: minimum wage, roughly the national median, and two above.
+ *  Concrete anchors beat an empty input box on a landing page. */
+const PRESETS = [920, 1200, 1500, 2500];
+
+const NO_SUB = {
+  ativo: false,
+  valorDiario: 0,
+  meio: "cartao" as const,
+  diasMes: 22,
+};
 
 interface Door {
   href: string;
@@ -48,9 +54,38 @@ const DOORS: Door[] = [
 ];
 
 export default function HomeView() {
+  const { data, meta, loading, error } = useLfpData();
+  const [bruto, setBruto] = useState(1500);
   const [active, setActive] = useState<string | null>(null);
-  const toState = DEMO_STREAMS.filter((s) => s.direction === "toState");
-  const stateTotal = toState.reduce((s, x) => s + x.amount, 0);
+
+  const result = useMemo(() => {
+    if (!data?.irs || !data?.tsu) return null;
+    const input: SalarioLiquidoInput = {
+      brutoMensal: bruto,
+      meses: 14,
+      situacao: "nao_casado",
+      dependentes: 0,
+      regiao: "continente",
+      subsidioRefeicao: NO_SUB,
+    };
+    return salarioLiquido(input, { irs: data.irs, tsu: data.tsu });
+  }, [data, bruto]);
+
+  const flow = useMemo(
+    () =>
+      result
+        ? fromSalarioLiquido(result, {
+            carteira: "A tua carteira",
+            estado: "O Estado",
+            liquido: "Fica contigo",
+            irs: "IRS",
+            tsu: "Segurança Social",
+          })
+        : null,
+    [result]
+  );
+
+  const year = data?.irs?.meta.year;
 
   return (
     <div className="min-h-screen">
@@ -78,75 +113,133 @@ export default function HomeView() {
           </p>
         </section>
 
-        {/* The signature: money leaving the wallet, split into real streams. */}
+        {meta && (
+          <div className="mt-6">
+            <UnverifiedBanner datasets={meta.datasets} missing={meta.missing} />
+          </div>
+        )}
+
+        {/* The signature: real money, from the real tables. */}
         <section className="mt-8" aria-labelledby="lfp-fluxo">
           <div className="lfp-panel overflow-hidden">
-            <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--lfp-line)] px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--lfp-line)] px-5 py-3">
               <h2 id="lfp-fluxo" className="text-sm font-semibold">
-                Para onde vai um salário de {eur0(DEMO_BRUTO)}
+                Para onde vai um salário de {eur0(bruto)}
+                {year && <YearChip year={year} />}
               </h2>
-              <span className="lfp-eyebrow">Exemplo ilustrativo</span>
-            </div>
 
-            <div className="px-2 py-3 sm:px-5 sm:py-5">
-              <MoneyFlow
-                origin={{ label: "A tua carteira", total: 1152 }}
-                destination={{ label: "O Estado", total: stateTotal }}
-                streams={DEMO_STREAMS}
-                baseline={DEMO_BRUTO}
-                activeStreamId={active}
-                onStreamHover={setActive}
-                formatAmount={(n) => eur0(n)}
-                ariaLabel={`De ${eur0(DEMO_BRUTO)} de salário bruto: ${eur0(1152)} ficam na carteira, ${eur0(183)} vão para o IRS e ${eur0(165)} para a Segurança Social.`}
-              />
-            </div>
-
-            {/* The same figures as text. Screen-reader and sighted users read
-                identical data, and this survives with motion disabled. Kept
-                quiet so it reads as the ledger under the diagram, not a rival. */}
-            <table className="w-full border-t border-[var(--lfp-line)] text-sm">
-              <caption className="sr-only">
-                Repartição de um salário bruto de {eur0(DEMO_BRUTO)}
-              </caption>
-              <thead>
-                <tr className="border-b border-[var(--lfp-line)]">
-                  <th scope="col" className="lfp-eyebrow px-5 py-2 text-left font-normal">
-                    Destino
-                  </th>
-                  <th scope="col" className="lfp-eyebrow px-5 py-2 text-right font-normal">
-                    Valor
-                  </th>
-                  <th scope="col" className="lfp-eyebrow w-20 px-5 py-2 text-right font-normal">
-                    Peso
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {DEMO_STREAMS.map((s) => (
-                  <tr
-                    key={s.id}
-                    onPointerEnter={() => setActive(s.id)}
-                    onPointerLeave={() => setActive(null)}
-                    className="border-b border-[var(--lfp-line)] transition-colors last:border-0 hover:bg-[var(--lfp-cobalt-faint)]"
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Escolher salário bruto mensal"
+              >
+                {PRESETS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setBruto(p)}
+                    aria-pressed={bruto === p}
+                    className={`lfp-num lfp-focus lfp-press min-h-11 rounded-lg border px-3 text-sm transition-colors ${
+                      bruto === p
+                        ? "border-[var(--lfp-cobalt)] bg-[var(--lfp-cobalt)] text-[var(--lfp-cal-tile)]"
+                        : "border-[var(--lfp-line)] text-[var(--lfp-mist)] hover:border-[var(--lfp-cobalt)]"
+                    }`}
                   >
-                    <th scope="row" className="px-5 py-2.5 text-left font-medium">
-                      <span
-                        aria-hidden="true"
-                        className="mr-2.5 inline-block h-2.5 w-2.5 rounded-full align-middle"
-                        style={{ background: `var(--lfp-tone-${s.tone})` }}
-                      />
-                      {s.label}
-                    </th>
-                    <td className="lfp-num px-5 py-2.5 text-right font-semibold">
-                      {eur0(s.amount)}
-                    </td>
-                    <td className="lfp-num w-20 px-5 py-2.5 text-right text-[var(--lfp-mist)]">
-                      {Math.round((s.amount / DEMO_BRUTO) * 100)}%
-                    </td>
-                  </tr>
+                    {eur0(p)}
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+
+            {loading && (
+              <p className="px-5 py-16 text-center text-sm text-[var(--lfp-mist)]">
+                A carregar os dados fiscais…
+              </p>
+            )}
+
+            {error && (
+              <p className="px-5 py-16 text-center text-sm text-[var(--lfp-vermelho)]">
+                Não foi possível carregar os dados fiscais. Tenta recarregar a página.
+              </p>
+            )}
+
+            {result && flow && (
+              <>
+                <div className="px-2 py-3 sm:px-5 sm:py-5">
+                  <MoneyFlow
+                    origin={flow.origin}
+                    destination={flow.destination}
+                    streams={flow.streams}
+                    baseline={flow.baseline}
+                    activeStreamId={active}
+                    onStreamHover={setActive}
+                    formatAmount={(n) => eur0(n)}
+                    ariaLabel={`De ${eur0(bruto)} de salário bruto: ${eur0(result.liquidoMensal)} ficam na carteira, ${eur0(result.irsRetido)} vão para o IRS e ${eur0(result.tsuTrabalhador)} para a Segurança Social.`}
+                  />
+                </div>
+
+                {/* The same figures as text — identical data for screen-reader
+                    and sighted users, and it survives with motion disabled. */}
+                <table className="w-full border-t border-[var(--lfp-line)] text-sm">
+                  <caption className="sr-only">
+                    Repartição de um salário bruto de {eur0(bruto)}
+                  </caption>
+                  <thead>
+                    <tr className="border-b border-[var(--lfp-line)]">
+                      <th scope="col" className="lfp-eyebrow px-5 py-2 text-left font-normal">
+                        Destino
+                      </th>
+                      <th scope="col" className="lfp-eyebrow px-5 py-2 text-right font-normal">
+                        Valor
+                      </th>
+                      <th
+                        scope="col"
+                        className="lfp-eyebrow w-20 px-5 py-2 text-right font-normal"
+                      >
+                        Peso
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flow.streams.map((s) => (
+                      <tr
+                        key={s.id}
+                        onPointerEnter={() => setActive(s.id)}
+                        onPointerLeave={() => setActive(null)}
+                        className="border-b border-[var(--lfp-line)] transition-colors last:border-0 hover:bg-[var(--lfp-cobalt-faint)]"
+                      >
+                        <th scope="row" className="px-5 py-2.5 text-left font-medium">
+                          <span
+                            aria-hidden="true"
+                            className="mr-2.5 inline-block h-2.5 w-2.5 rounded-full align-middle"
+                            style={{ background: `var(--lfp-tone-${s.tone})` }}
+                          />
+                          {s.label}
+                        </th>
+                        <td className="lfp-num px-5 py-2.5 text-right font-semibold">
+                          {eur0(s.amount)}
+                        </td>
+                        <td className="lfp-num w-20 px-5 py-2.5 text-right text-[var(--lfp-mist)]">
+                          {pct(s.amount / flow.baseline, "pt", 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <p className="border-t border-[var(--lfp-line)] px-5 py-3 text-xs leading-relaxed text-[var(--lfp-mist)]">
+                  Solteiro, sem dependentes, Continente, sem subsídio de refeição. A
+                  retenção é um adiantamento mensal — o acerto faz-se na declaração
+                  anual.{" "}
+                  <Link
+                    href="/lfp/individual/salario-liquido"
+                    className="lfp-focus inline-flex min-h-11 items-center font-medium text-[var(--lfp-cobalt)] underline underline-offset-2"
+                  >
+                    Calcular o teu caso
+                  </Link>
+                </p>
+              </>
+            )}
           </div>
         </section>
 
@@ -186,7 +279,8 @@ export default function HomeView() {
                 Quão boa é a tua literacia financeira?
               </h2>
               <p className="mt-1.5 text-sm text-[var(--lfp-mist)]">
-                Perguntas rápidas de escolha múltipla, com explicação e fonte em cada resposta.
+                Perguntas rápidas de escolha múltipla, com explicação e fonte em cada
+                resposta.
               </p>
             </div>
             <span className="lfp-num rounded-full border border-[var(--lfp-cobalt)] px-4 py-2 text-sm font-semibold text-[var(--lfp-cobalt)]">
@@ -201,8 +295,6 @@ export default function HomeView() {
           Projeto educativo, construído a partir de informação pública.{" "}
           <strong className="font-semibold">Não tem valor legal</strong> e não substitui
           aconselhamento fiscal. Cada número indica o ano e a fonte.{" "}
-          {/* inline-block + padding grows the hit area without breaking the
-              sentence it sits inside. */}
           <Link
             href="/lfp/sobre"
             className="lfp-focus inline-flex min-h-11 items-center font-medium text-[var(--lfp-cobalt)] underline underline-offset-2"
