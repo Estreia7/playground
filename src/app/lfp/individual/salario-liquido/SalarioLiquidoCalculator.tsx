@@ -7,30 +7,18 @@ import { fromSalarioLiquido } from "../../flow/adapters";
 import { MoneyFlow } from "../../flow/MoneyFlow";
 import { WedgeBar } from "../../flow/WedgeBar";
 import { eur, eur0, pct } from "../../format";
+import { tr } from "../../i18n";
 import { Disclaimer, SourceBadge, UnverifiedBanner, YearChip } from "../../ui/DataHonesty";
 import { ChoiceGroup, NumberField, Stepper, Toggle } from "../../ui/Inputs";
 import { PageIntro, Shell } from "../../ui/Shell";
 import { useLfpData } from "../../useLfpData";
+import { useLfpLang } from "../../useLfpLang";
 import type { SalarioLiquidoInput, SituacaoIrs } from "../../types";
-
-/** The avisos the calculator can raise, in the user's words. */
-const AVISOS: Record<string, string> = {
-  "aviso.subsidio_excede_isencao":
-    "O subsídio de refeição ultrapassa o limite isento — o excesso paga IRS e Segurança Social.",
-  "aviso.tabela_indisponivel":
-    "Ainda não temos a tabela de retenção para esta situação. O IRS aparece a zero.",
-};
-
-const LABELS = {
-  carteira: "A tua carteira",
-  estado: "O Estado",
-  liquido: "Fica contigo",
-  irs: "IRS",
-  tsu: "Segurança Social",
-};
 
 export default function SalarioLiquidoCalculator() {
   const { data, meta, loading, error } = useLfpData();
+  const { t, lang } = useLfpLang();
+  const s = t.calc.salario;
 
   const [bruto, setBruto] = useState(1500);
   const [meses, setMeses] = useState<12 | 14>(14);
@@ -59,29 +47,31 @@ export default function SalarioLiquidoCalculator() {
     [data, input]
   );
 
-  const flow = useMemo(() => (result ? fromSalarioLiquido(result, LABELS) : null), [result]);
+  const flow = useMemo(
+    () => (result ? fromSalarioLiquido(result, t.chrome.flow) : null),
+    [result, t]
+  );
 
   const irsMeta = data?.irs?.meta;
+  const tsuMeta = data?.tsu?.meta;
   // Captured once so the narrowing survives into the .find() callback.
   const tsu = data?.tsu;
   const tsuRate = tsu
     ? (tsu.regimes.find((r) => r.id === tsu.defaultRegime) ?? tsu.regimes[0])?.trabalhador ??
       null
     : null;
-  const tsuMeta = data?.tsu?.meta;
-  const ceiling = data?.tsu
+  const ceiling = tsu
     ? subMeio === "cartao"
-      ? data.tsu.subsidioRefeicao.cartao
-      : data.tsu.subsidioRefeicao.dinheiro
+      ? tsu.subsidioRefeicao.cartao
+      : tsu.subsidioRefeicao.dinheiro
     : null;
 
+  const money = (n: number) => eur(n, lang);
+  const money0 = (n: number) => eur0(n, lang);
+
   return (
-    <Shell crumbs={[{ href: "/lfp/individual", label: "Individual" }, { label: "Salário líquido" }]}>
-      <PageIntro
-        eyebrow="Calculadora"
-        title="Quanto do teu salário fica mesmo contigo?"
-        lede="Põe o bruto, ajusta a tua situação, e vê cada euro a seguir o seu caminho. A retenção de IRS é um adiantamento — o acerto final faz-se na declaração anual."
-      />
+    <Shell crumbs={[{ href: "/lfp/individual", label: t.chrome.individual.crumb }, { label: s.crumb }]}>
+      <PageIntro eyebrow={s.eyebrow} title={s.title} lede={s.lede} />
 
       {meta && (
         <div className="mb-6">
@@ -90,12 +80,10 @@ export default function SalarioLiquidoCalculator() {
       )}
 
       {loading && (
-        <p className="py-16 text-center text-sm text-[var(--lfp-mist)]">A carregar os dados fiscais…</p>
+        <p className="py-16 text-center text-sm text-[var(--lfp-mist)]">{t.chrome.loading}</p>
       )}
       {error && (
-        <p className="py-16 text-center text-sm text-[var(--lfp-vermelho)]">
-          Não foi possível carregar os dados fiscais. Tenta recarregar a página.
-        </p>
+        <p className="py-16 text-center text-sm text-[var(--lfp-vermelho)]">{t.chrome.loadError}</p>
       )}
 
       {result && flow && (
@@ -104,74 +92,74 @@ export default function SalarioLiquidoCalculator() {
           <form
             onSubmit={(e) => e.preventDefault()}
             className="lfp-panel space-y-5 p-5 lg:sticky lg:top-6"
-            aria-label="Dados do teu salário"
+            aria-label={s.formAria}
           >
             <NumberField
-              label="Salário bruto mensal"
+              label={s.fields.bruto}
               value={bruto}
               onChange={setBruto}
               min={0}
               max={100000}
-              hint="O valor antes de qualquer desconto."
+              hint={s.fields.brutoHint}
             />
 
             <ChoiceGroup
-              label="Pagamentos por ano"
+              label={s.fields.meses}
               value={meses}
               onChange={setMeses}
               choices={[
-                { value: 14, label: "14 meses" },
-                { value: 12, label: "12 (duodécimos)" },
+                { value: 14, label: s.fields.meses14 },
+                { value: 12, label: s.fields.meses12 },
               ]}
             />
 
             <ChoiceGroup
-              label="Situação"
+              label={s.fields.situacao}
               value={situacao}
               onChange={setSituacao}
               columns={1}
               choices={[
-                { value: "nao_casado", label: "Não casado" },
-                { value: "casado_dois_titulares", label: "Casado, dois titulares" },
+                { value: "nao_casado", label: s.fields.naoCasado },
+                { value: "casado_dois_titulares", label: s.fields.casado2 },
               ]}
             />
 
             <Stepper
-              label="Dependentes"
+              label={s.fields.dependentes}
               value={dependentes}
               onChange={setDependentes}
               max={10}
-              hint="Cada dependente reduz o IRS retido."
+              hint={s.fields.dependentesHint}
             />
 
             <div className="space-y-4 border-t border-[var(--lfp-line)] pt-5">
-              <Toggle
-                label="Recebo subsídio de refeição"
-                checked={subAtivo}
-                onChange={setSubAtivo}
-              />
+              <Toggle label={s.fields.subToggle} checked={subAtivo} onChange={setSubAtivo} />
               {subAtivo && (
                 <div className="space-y-4 pl-1">
                   <ChoiceGroup
-                    label="Pago em"
+                    label={s.fields.subMeio}
                     value={subMeio}
                     onChange={setSubMeio}
                     choices={[
-                      { value: "cartao", label: "Cartão" },
-                      { value: "dinheiro", label: "Dinheiro" },
+                      { value: "cartao", label: s.fields.subCartao },
+                      { value: "dinheiro", label: s.fields.subDinheiro },
                     ]}
                   />
                   <NumberField
-                    label="Valor por dia"
+                    label={s.fields.subValor}
                     value={subValor}
                     onChange={setSubValor}
                     min={0}
                     max={100}
                     step={0.05}
-                    hint={ceiling !== null ? `Isento até ${eur(ceiling)} por dia.` : undefined}
+                    hint={
+                      ceiling !== null
+                        ? tr(s.fields.subValorHint, { amount: money(ceiling) })
+                        : undefined
+                    }
                   />
                   <Stepper
-                    label="Dias por mês"
+                    label={s.fields.subDias}
                     value={subDias}
                     onChange={setSubDias}
                     min={1}
@@ -187,45 +175,47 @@ export default function SalarioLiquidoCalculator() {
             {/* Headline */}
             <div className="lfp-panel px-5 py-5 sm:px-6">
               <p className="lfp-eyebrow">
-                Entra na tua conta, por mês
+                {s.headline.eyebrow}
                 {irsMeta && <YearChip year={irsMeta.year} />}
               </p>
               <p className="lfp-display lfp-keep mt-2 text-5xl font-semibold sm:text-6xl">
-                <span className="lfp-num">{eur(result.liquidoMensal)}</span>
+                <span className="lfp-num">{money(result.liquidoMensal)}</span>
               </p>
               <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
                 <div>
-                  <dt className="text-[var(--lfp-mist)]">Por ano</dt>
-                  <dd className="lfp-num font-semibold">{eur0(result.liquidoAnual)}</dd>
+                  <dt className="text-[var(--lfp-mist)]">{s.headline.porAno}</dt>
+                  <dd className="lfp-num font-semibold">{money0(result.liquidoAnual)}</dd>
                 </div>
                 <div>
-                  <dt className="text-[var(--lfp-mist)]">Vai para o Estado</dt>
+                  <dt className="text-[var(--lfp-mist)]">{s.headline.estado}</dt>
                   <dd className="lfp-num lfp-state font-semibold">
-                    {eur(result.totalEntregueAoEstado)}
+                    {money(result.totalEntregueAoEstado)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[var(--lfp-mist)]">Taxa efetiva de IRS</dt>
-                  <dd className="lfp-num font-semibold">{pct(result.taxaEfetivaIrs)}</dd>
+                  <dt className="text-[var(--lfp-mist)]">{s.headline.taxaEfetiva}</dt>
+                  <dd className="lfp-num font-semibold">{pct(result.taxaEfetivaIrs, lang)}</dd>
                 </div>
                 <div>
-                  <dt className="text-[var(--lfp-mist)]">Taxa marginal</dt>
+                  <dt className="text-[var(--lfp-mist)]">{s.headline.taxaMarginal}</dt>
                   <dd className="lfp-num font-semibold">
-                    {result.escalaoAplicado ? pct(result.escalaoAplicado.taxaMarginalMaxima) : "—"}
+                    {result.escalaoAplicado
+                      ? pct(result.escalaoAplicado.taxaMarginalMaxima, lang)
+                      : "—"}
                   </dd>
                 </div>
               </dl>
             </div>
 
             {result.avisos.length > 0 && (
-              <ul className="space-y-2" aria-label="Avisos">
+              <ul className="space-y-2" aria-label={s.avisosAria}>
                 {result.avisos.map((a) => (
                   <li
                     key={a}
                     role="status"
                     className="rounded-lg border border-[var(--lfp-ouro)] bg-[var(--lfp-ouro-dim)] px-4 py-2.5 text-sm"
                   >
-                    {AVISOS[a] ?? a}
+                    {(s.avisos as Record<string, string>)[a] ?? a}
                   </li>
                 ))}
               </ul>
@@ -234,7 +224,7 @@ export default function SalarioLiquidoCalculator() {
             {/* The flow */}
             <div className="lfp-panel overflow-hidden">
               <div className="border-b border-[var(--lfp-line)] px-5 py-3">
-                <h2 className="text-sm font-semibold">Para onde vai cada euro</h2>
+                <h2 className="text-sm font-semibold">{s.flowTitle}</h2>
               </div>
               <div className="px-2 py-3 sm:px-5 sm:py-5">
                 <MoneyFlow
@@ -244,8 +234,13 @@ export default function SalarioLiquidoCalculator() {
                   baseline={flow.baseline}
                   activeStreamId={active}
                   onStreamHover={setActive}
-                  formatAmount={(n) => eur0(n)}
-                  ariaLabel={`De ${eur0(flow.baseline)}: ${eur0(result.liquidoMensal)} ficam na carteira, ${eur0(result.irsRetido)} vão para o IRS e ${eur0(result.tsuTrabalhador)} para a Segurança Social.`}
+                  formatAmount={money0}
+                  ariaLabel={tr(s.flowAria, {
+                    bruto: money0(flow.baseline),
+                    liquido: money0(result.liquidoMensal),
+                    irs: money0(result.irsRetido),
+                    tsu: money0(result.tsuTrabalhador),
+                  })}
                 />
               </div>
               <div className="border-t border-[var(--lfp-line)] px-5 py-4">
@@ -254,7 +249,7 @@ export default function SalarioLiquidoCalculator() {
                   baseline={flow.baseline}
                   activeStreamId={active}
                   onStreamHover={setActive}
-                  formatAmount={(n) => eur(n)}
+                  formatAmount={money}
                 />
               </div>
             </div>
@@ -263,59 +258,57 @@ export default function SalarioLiquidoCalculator() {
             <div className="lfp-panel overflow-hidden">
               <table className="w-full text-sm">
                 <caption className="border-b border-[var(--lfp-line)] px-5 py-3 text-left text-sm font-semibold">
-                  A conta, linha a linha
+                  {s.ledger.caption}
                 </caption>
                 <tbody>
-                  <Row label="Salário bruto" value={eur(result.brutoMensal)} strong />
+                  <Row label={s.ledger.bruto} value={money(result.brutoMensal)} strong />
                   {subAtivo && (
                     <>
                       <Row
-                        label="Subsídio de refeição (isento)"
-                        value={`+ ${eur(result.subsidioRefeicaoIsento)}`}
+                        label={s.ledger.subIsento}
+                        value={`+ ${money(result.subsidioRefeicaoIsento)}`}
                         tone="keep"
                       />
                       {result.subsidioRefeicaoTributado > 0 && (
                         <Row
-                          label="Subsídio de refeição (tributado)"
-                          value={`+ ${eur(result.subsidioRefeicaoTributado)}`}
+                          label={s.ledger.subTributado}
+                          value={`+ ${money(result.subsidioRefeicaoTributado)}`}
                         />
                       )}
                     </>
                   )}
+                  {/* The rate comes from the dataset, not a literal — a
+                      hardcoded "11%" would quietly lie the day it changes. */}
                   <Row
                     label={
                       tsuRate !== null
-                        ? `Segurança Social (${pct(tsuRate, "pt", 0)})`
-                        : "Segurança Social"
+                        ? tr(s.ledger.tsu, { rate: pct(tsuRate, lang, 0) })
+                        : s.ledger.tsuPlain
                     }
-                    value={`− ${eur(result.tsuTrabalhador)}`}
+                    value={`− ${money(result.tsuTrabalhador)}`}
                     tone="state"
                   />
                   <Row
                     label={
                       result.escalaoAplicado
-                        ? `IRS retido (escalão ${pct(result.escalaoAplicado.taxaMarginalMaxima)})`
-                        : "IRS retido"
+                        ? tr(s.ledger.irs, {
+                            rate: pct(result.escalaoAplicado.taxaMarginalMaxima, lang),
+                          })
+                        : s.ledger.irsPlain
                     }
-                    value={`− ${eur(result.irsRetido)}`}
+                    value={`− ${money(result.irsRetido)}`}
                     tone="state"
                   />
-                  <Row label="Líquido mensal" value={eur(result.liquidoMensal)} strong tone="keep" />
+                  <Row label={s.ledger.liquido} value={money(result.liquidoMensal)} strong tone="keep" />
                   <Row
-                    label={`Líquido anual (${meses} pagamentos)`}
-                    value={eur0(result.liquidoAnual)}
+                    label={tr(s.ledger.anual, { n: meses })}
+                    value={money0(result.liquidoAnual)}
                   />
                 </tbody>
               </table>
             </div>
 
-            <Disclaimer
-              notes={[
-                "Só Continente. Madeira e Açores têm tabelas próprias.",
-                "Não considera IRS Jovem, deficiência, residente não habitual nem outros rendimentos.",
-                "Os subsídios de férias e de Natal são retidos à parte, com a sua própria taxa — não empurram o mês para um escalão superior.",
-              ]}
-            />
+            <Disclaimer notes={s.notes} />
 
             <div className="space-y-1.5">
               {irsMeta && <SourceBadge meta={irsMeta} />}
@@ -323,12 +316,12 @@ export default function SalarioLiquidoCalculator() {
             </div>
 
             <p className="text-sm text-[var(--lfp-mist)]">
-              Queres perceber porque é que o IRS funciona assim?{" "}
+              {s.readMore}{" "}
               <Link
                 href="/lfp/individual/irs"
                 className="lfp-focus inline-flex min-h-11 items-center font-medium text-[var(--lfp-cobalt)] underline underline-offset-2"
               >
-                Ler a explicação do IRS
+                {s.readMoreLink}
               </Link>
             </p>
           </div>
@@ -358,6 +351,7 @@ function Row({
       >
         {label}
       </th>
+      {/* Value cells never wrap: the sign must stay with the amount. */}
       <td className={`lfp-num whitespace-nowrap px-5 py-2.5 text-right ${strong ? "font-semibold" : ""} ${color}`}>
         {value}
       </td>

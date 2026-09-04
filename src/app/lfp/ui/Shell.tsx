@@ -1,10 +1,12 @@
 "use client";
 
 /* Page chrome shared by every LFP route: back link, wordmark, breadcrumb,
-   and the persistent-but-discreet disclaimer. Kept deliberately plain so the
-   content — and the one bold element per page — carries the personality. */
+   language toggle, and the persistent-but-discreet disclaimer. Kept plain so
+   the content — and the one bold element per page — carries the personality. */
 
 import Link from "next/link";
+import { LangToggle } from "./LangToggle";
+import { useLfpLang } from "../useLfpLang";
 
 export interface Crumb {
   href?: string;
@@ -18,6 +20,9 @@ export function Shell({
   crumbs?: Crumb[];
   children: React.ReactNode;
 }) {
+  const { t } = useLfpLang();
+  const c = t.chrome;
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-[var(--lfp-line)]">
@@ -27,7 +32,7 @@ export function Shell({
               href="/"
               className="lfp-focus inline-flex min-h-11 shrink-0 items-center text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
             >
-              ← Playground
+              {c.nav.playground}
             </Link>
             <span aria-hidden="true" className="text-[var(--lfp-line-strong)]">
               /
@@ -40,29 +45,30 @@ export function Shell({
             >
               LFP
             </Link>
-            {crumbs.map((c) => (
-              <span key={c.label} className="flex min-w-0 items-center gap-2">
+            {crumbs.map((crumb) => (
+              <span key={crumb.label} className="flex min-w-0 items-center gap-2">
                 <span aria-hidden="true" className="text-[var(--lfp-line-strong)]">
                   /
                 </span>
-                {c.href ? (
+                {crumb.href ? (
                   <Link
-                    href={c.href}
+                    href={crumb.href}
                     className="lfp-focus inline-flex min-h-11 items-center truncate text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
                   >
-                    {c.label}
+                    {crumb.label}
                   </Link>
                 ) : (
                   <span aria-current="page" className="truncate font-medium">
-                    {c.label}
+                    {crumb.label}
                   </span>
                 )}
               </span>
             ))}
           </nav>
-          <span className="lfp-eyebrow hidden sm:inline">
-            Informação pública · sem valor legal
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="lfp-eyebrow hidden md:inline">{c.nav.eyebrow}</span>
+            <LangToggle />
+          </div>
         </div>
       </header>
 
@@ -70,14 +76,13 @@ export function Shell({
 
       <footer className="border-t border-[var(--lfp-line)]">
         <div className="mx-auto max-w-6xl px-6 py-5 text-xs leading-relaxed text-[var(--lfp-mist)]">
-          Projeto educativo, construído a partir de informação pública.{" "}
-          <strong className="font-semibold">Não tem valor legal</strong> e não substitui
-          aconselhamento fiscal. Cada número indica o ano e a fonte.{" "}
+          {c.footer.lead} <strong className="font-semibold">{c.footer.noLegal}</strong>{" "}
+          {c.footer.tail}{" "}
           <Link
             href="/lfp/sobre"
             className="lfp-focus inline-flex min-h-11 items-center font-medium text-[var(--lfp-cobalt)] underline underline-offset-2"
           >
-            Fontes e metodologia
+            {c.footer.sources}
           </Link>
         </div>
       </footer>

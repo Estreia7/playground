@@ -9,6 +9,8 @@
 
 import { useId, useState } from "react";
 import { parseNumber } from "../format";
+import { tr } from "../i18n";
+import { useLfpLang } from "../useLfpLang";
 
 export function NumberField({
   label,
@@ -152,6 +154,7 @@ export function Stepper({
 }) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
+  const { t } = useLfpLang();
   const set = (n: number) => onChange(Math.min(max, Math.max(min, n)));
 
   return (
@@ -164,7 +167,7 @@ export function Stepper({
           type="button"
           onClick={() => set(value - 1)}
           disabled={value <= min}
-          aria-label={`Menos um: ${label}`}
+          aria-label={tr(t.chrome.inputs.less, { label })}
           className="lfp-focus lfp-press h-11 w-11 rounded-lg border border-[var(--lfp-line)] text-lg text-[var(--lfp-cobalt)] transition-colors hover:border-[var(--lfp-cobalt)] disabled:opacity-40"
         >
           −
@@ -179,7 +182,7 @@ export function Stepper({
           type="button"
           onClick={() => set(value + 1)}
           disabled={value >= max}
-          aria-label={`Mais um: ${label}`}
+          aria-label={tr(t.chrome.inputs.more, { label })}
           className="lfp-focus lfp-press h-11 w-11 rounded-lg border border-[var(--lfp-line)] text-lg text-[var(--lfp-cobalt)] transition-colors hover:border-[var(--lfp-cobalt)] disabled:opacity-40"
         >
           +

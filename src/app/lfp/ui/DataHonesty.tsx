@@ -7,10 +7,13 @@
 
 import type { DatasetMeta } from "../types";
 import { shortDate } from "../format";
+import { tr } from "../i18n";
+import { useLfpLang } from "../useLfpLang";
 
 /** The year a figure REFERS TO, not when it was fetched. Sits next to the
  *  number so a 2022 median can never masquerade as current. */
 export function YearChip({ year, className }: { year: number; className?: string }) {
+  const { t } = useLfpLang();
   return (
     // The visible chip is terse, but screen readers get a full phrase —
     // otherwise it runs straight into the preceding figure ("1500 €2026").
@@ -18,15 +21,16 @@ export function YearChip({ year, className }: { year: number; className?: string
       className={`lfp-num ml-2 rounded border border-[var(--lfp-line)] px-1.5 py-0.5 align-middle text-[0.625rem] text-[var(--lfp-mist)] ${className ?? ""}`}
     >
       <span aria-hidden="true">{year}</span>
-      <span className="sr-only">(valores de {year})</span>
+      <span className="sr-only">{tr(t.chrome.honesty.yearChip, { year })}</span>
     </span>
   );
 }
 
 export function SourceBadge({ meta }: { meta: DatasetMeta }) {
+  const { t, lang } = useLfpLang();
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs leading-relaxed text-[var(--lfp-mist)]">
-      <span>Fonte:</span>
+      <span>{t.chrome.honesty.source}</span>
       {/* A chip, not an inline link: it needs a 44px hit area, and stretching
           the surrounding sentence to get one would look broken. */}
       <a
@@ -38,7 +42,10 @@ export function SourceBadge({ meta }: { meta: DatasetMeta }) {
         {meta.label}
       </a>
       <span>
-        dados de {meta.year} · verificado em {shortDate(meta.lastVerified)}
+        {tr(t.chrome.honesty.dataOf, {
+          year: meta.year,
+          date: shortDate(meta.lastVerified, lang),
+        })}
       </span>
     </p>
   );
@@ -54,30 +61,22 @@ export function UnverifiedBanner({
   datasets: Array<{ id: string; unverified: boolean }>;
   missing?: string[];
 }) {
+  const { t } = useLfpLang();
+  const h = t.chrome.honesty;
   const pending = datasets.filter((d) => d.unverified).map((d) => d.id.toUpperCase());
   const absent = missing.map((m) => m.toUpperCase());
-  const all = [...pending, ...absent];
-  if (all.length === 0) return null;
+  if (pending.length + absent.length === 0) return null;
 
   return (
     <div
       role="status"
       className="rounded-lg border border-[var(--lfp-ouro)] bg-[var(--lfp-ouro-dim)] px-4 py-3"
     >
-      <p className="text-sm font-semibold text-[var(--lfp-ouro)]">
-        Valores por verificar
-      </p>
+      <p className="text-sm font-semibold text-[var(--lfp-ouro)]">{h.unverifiedTitle}</p>
       <p className="mt-1 text-xs leading-relaxed text-[var(--lfp-cobalt-deep)]">
-        {absent.length > 0 && (
-          <>Faltam dados de {absent.join(", ")}. </>
-        )}
-        {pending.length > 0 && (
-          <>
-            Os valores de {pending.join(", ")} ainda não foram confirmados nas fontes
-            oficiais.{" "}
-          </>
-        )}
-        Não uses estes números para decisões — trata-os como ilustração.
+        {absent.length > 0 && <>{tr(h.unverifiedMissing, { list: absent.join(", ") })} </>}
+        {pending.length > 0 && <>{tr(h.unverifiedPending, { list: pending.join(", ") })} </>}
+        {h.unverifiedAdvice}
       </p>
     </div>
   );
@@ -85,16 +84,17 @@ export function UnverifiedBanner({
 
 /** The persistent, discreet disclaimer. Rendered inline on calculators, not
  *  buried in a footer, because someone landing straight on a calculator must
- *  see it too. */
-export function Disclaimer({ notes }: { notes?: string[] }) {
+ *  see it too. Notes arrive already translated by the caller. */
+export function Disclaimer({ notes }: { notes?: readonly string[] }) {
+  const { t } = useLfpLang();
+  const h = t.chrome.honesty;
   return (
     <div className="lfp-sunk px-4 py-3">
+      {/* Body text in cobalt-deep: --lfp-mist clears 4.5:1 on the cal and
+          tile grounds but not on this darker sunk panel. */}
       <p className="text-xs leading-relaxed text-[var(--lfp-cobalt-deep)]">
-        Estimativa construída a partir de informação pública.{" "}
-        <strong className="font-semibold text-[var(--lfp-cobalt-deep)]">
-          Não tem valor legal
-        </strong>{" "}
-        e não substitui aconselhamento fiscal nem a tua declaração de IRS.
+        {h.disclaimerLead} <strong className="font-semibold">{h.disclaimerNoLegal}</strong>{" "}
+        {h.disclaimerTail}
       </p>
       {notes && notes.length > 0 && (
         <ul className="mt-2 space-y-1">

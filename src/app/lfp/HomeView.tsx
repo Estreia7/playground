@@ -6,8 +6,11 @@ import { MoneyFlow } from "./flow/MoneyFlow";
 import { fromSalarioLiquido } from "./flow/adapters";
 import { salarioLiquido } from "./calc";
 import { eur0, pct } from "./format";
+import { tr } from "./i18n";
 import { useLfpData } from "./useLfpData";
+import { useLfpLang } from "./useLfpLang";
 import { UnverifiedBanner, YearChip } from "./ui/DataHonesty";
+import { LangToggle } from "./ui/LangToggle";
 import type { SalarioLiquidoInput } from "./types";
 
 /** Preset salaries: minimum wage, roughly the national median, and two above.
@@ -21,40 +24,10 @@ const NO_SUB = {
   diasMes: 22,
 };
 
-interface Door {
-  href: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  items: string[];
-}
-
-const DOORS: Door[] = [
-  {
-    href: "/lfp/individual",
-    eyebrow: "Para ti",
-    title: "Individual",
-    body: "O que sai do teu salário, para onde vai, e o que sobra ao fim do mês.",
-    items: ["IRS explicado", "Salário líquido", "Segurança Social", "Recibos verdes"],
-  },
-  {
-    href: "/lfp/empresarial",
-    eyebrow: "Para empresas",
-    title: "Empresarial",
-    body: "Quanto custa mesmo um trabalhador, e como funcionam o IVA e o IRC.",
-    items: ["Custo real de um salário", "IVA", "IRC", "Derramas"],
-  },
-  {
-    href: "/lfp/economia",
-    eyebrow: "Contexto",
-    title: "Economia",
-    body: "Inflação, poder de compra, e como Portugal se compara lá fora.",
-    items: ["Máquina do tempo", "Onde te situas", "Dias de trabalho", "Onde vão os impostos"],
-  },
-];
-
 export default function HomeView() {
   const { data, meta, loading, error } = useLfpData();
+  const { t, lang } = useLfpLang();
+  const h = t.chrome.home;
   const [bruto, setBruto] = useState(1500);
   const [active, setActive] = useState<string | null>(null);
 
@@ -72,44 +45,38 @@ export default function HomeView() {
   }, [data, bruto]);
 
   const flow = useMemo(
-    () =>
-      result
-        ? fromSalarioLiquido(result, {
-            carteira: "A tua carteira",
-            estado: "O Estado",
-            liquido: "Fica contigo",
-            irs: "IRS",
-            tsu: "Segurança Social",
-          })
-        : null,
-    [result]
+    () => (result ? fromSalarioLiquido(result, t.chrome.flow) : null),
+    [result, t]
   );
 
   const year = data?.irs?.meta.year;
+  const money = (n: number) => eur0(n, lang);
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-[var(--lfp-line)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
           <Link
             href="/"
-            className="lfp-focus -my-2 inline-flex min-h-11 items-center py-2 text-sm text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
+            className="lfp-focus inline-flex min-h-11 items-center text-sm text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
           >
-            ← Playground
+            {t.chrome.nav.playground}
           </Link>
-          <span className="lfp-eyebrow">Informação pública · sem valor legal</span>
+          <div className="flex items-center gap-4">
+            <span className="lfp-eyebrow hidden md:inline">{t.chrome.nav.eyebrow}</span>
+            <LangToggle />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-6">
         <section className="pt-14 pb-4 sm:pt-20">
-          <p className="lfp-eyebrow mb-4">Literacia Financeira Portuguesa</p>
+          <p className="lfp-eyebrow mb-4">{h.eyebrow}</p>
           <h1 className="lfp-display max-w-3xl text-[2.5rem] font-semibold sm:text-6xl">
-            O teu dinheiro, explicado sem dores de cabeça.
+            {h.title}
           </h1>
           <p className="mt-5 max-w-xl text-[1.0625rem] leading-relaxed text-[var(--lfp-mist)]">
-            IRS, IVA, IRC, Segurança Social e inflação — em português simples, com
-            calculadoras e números que podes verificar.
+            {h.lede}
           </p>
         </section>
 
@@ -124,15 +91,11 @@ export default function HomeView() {
           <div className="lfp-panel overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--lfp-line)] px-5 py-3">
               <h2 id="lfp-fluxo" className="text-sm font-semibold">
-                Para onde vai um salário de {eur0(bruto)}
+                {tr(h.flowTitle, { amount: money(bruto) })}
                 {year && <YearChip year={year} />}
               </h2>
 
-              <div
-                className="flex flex-wrap gap-1.5"
-                role="group"
-                aria-label="Escolher salário bruto mensal"
-              >
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label={h.presetsLabel}>
                 {PRESETS.map((p) => (
                   <button
                     key={p}
@@ -145,7 +108,7 @@ export default function HomeView() {
                         : "border-[var(--lfp-line)] text-[var(--lfp-mist)] hover:border-[var(--lfp-cobalt)]"
                     }`}
                   >
-                    {eur0(p)}
+                    {money(p)}
                   </button>
                 ))}
               </div>
@@ -153,13 +116,13 @@ export default function HomeView() {
 
             {loading && (
               <p className="px-5 py-16 text-center text-sm text-[var(--lfp-mist)]">
-                A carregar os dados fiscais…
+                {t.chrome.loading}
               </p>
             )}
 
             {error && (
               <p className="px-5 py-16 text-center text-sm text-[var(--lfp-vermelho)]">
-                Não foi possível carregar os dados fiscais. Tenta recarregar a página.
+                {t.chrome.loadError}
               </p>
             )}
 
@@ -173,8 +136,13 @@ export default function HomeView() {
                     baseline={flow.baseline}
                     activeStreamId={active}
                     onStreamHover={setActive}
-                    formatAmount={(n) => eur0(n)}
-                    ariaLabel={`De ${eur0(bruto)} de salário bruto: ${eur0(result.liquidoMensal)} ficam na carteira, ${eur0(result.irsRetido)} vão para o IRS e ${eur0(result.tsuTrabalhador)} para a Segurança Social.`}
+                    formatAmount={money}
+                    ariaLabel={tr(h.flowAria, {
+                      bruto: money(bruto),
+                      liquido: money(result.liquidoMensal),
+                      irs: money(result.irsRetido),
+                      tsu: money(result.tsuTrabalhador),
+                    })}
                   />
                 </div>
 
@@ -182,21 +150,21 @@ export default function HomeView() {
                     and sighted users, and it survives with motion disabled. */}
                 <table className="w-full border-t border-[var(--lfp-line)] text-sm">
                   <caption className="sr-only">
-                    Repartição de um salário bruto de {eur0(bruto)}
+                    {tr(h.tableCaption, { amount: money(bruto) })}
                   </caption>
                   <thead>
                     <tr className="border-b border-[var(--lfp-line)]">
                       <th scope="col" className="lfp-eyebrow px-5 py-2 text-left font-normal">
-                        Destino
+                        {h.colDestino}
                       </th>
                       <th scope="col" className="lfp-eyebrow px-5 py-2 text-right font-normal">
-                        Valor
+                        {h.colValor}
                       </th>
                       <th
                         scope="col"
                         className="lfp-eyebrow w-20 px-5 py-2 text-right font-normal"
                       >
-                        Peso
+                        {h.colPeso}
                       </th>
                     </tr>
                   </thead>
@@ -216,11 +184,11 @@ export default function HomeView() {
                           />
                           {s.label}
                         </th>
-                        <td className="lfp-num px-5 py-2.5 text-right font-semibold">
-                          {eur0(s.amount)}
+                        <td className="lfp-num whitespace-nowrap px-5 py-2.5 text-right font-semibold">
+                          {money(s.amount)}
                         </td>
                         <td className="lfp-num w-20 px-5 py-2.5 text-right text-[var(--lfp-mist)]">
-                          {pct(s.amount / flow.baseline, "pt", 0)}
+                          {pct(s.amount / flow.baseline, lang, 0)}
                         </td>
                       </tr>
                     ))}
@@ -228,14 +196,12 @@ export default function HomeView() {
                 </table>
 
                 <p className="border-t border-[var(--lfp-line)] px-5 py-3 text-xs leading-relaxed text-[var(--lfp-mist)]">
-                  Solteiro, sem dependentes, Continente, sem subsídio de refeição. A
-                  retenção é um adiantamento mensal — o acerto faz-se na declaração
-                  anual.{" "}
+                  {h.assumptions}{" "}
                   <Link
                     href="/lfp/individual/salario-liquido"
                     className="lfp-focus inline-flex min-h-11 items-center font-medium text-[var(--lfp-cobalt)] underline underline-offset-2"
                   >
-                    Calcular o teu caso
+                    {h.calcYours}
                   </Link>
                 </p>
               </>
@@ -244,7 +210,7 @@ export default function HomeView() {
         </section>
 
         <section className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {DOORS.map((d) => (
+          {h.doors.map((d) => (
             <Link
               key={d.href}
               href={d.href}
@@ -274,17 +240,12 @@ export default function HomeView() {
             className="lfp-tile lfp-focus lfp-press flex flex-wrap items-center justify-between gap-4 p-6 transition-colors hover:border-[var(--lfp-cobalt)]"
           >
             <div>
-              <p className="lfp-eyebrow">Testa-te</p>
-              <h2 className="lfp-display mt-1 text-2xl font-semibold">
-                Quão boa é a tua literacia financeira?
-              </h2>
-              <p className="mt-1.5 text-sm text-[var(--lfp-mist)]">
-                Perguntas rápidas de escolha múltipla, com explicação e fonte em cada
-                resposta.
-              </p>
+              <p className="lfp-eyebrow">{h.quizEyebrow}</p>
+              <h2 className="lfp-display mt-1 text-2xl font-semibold">{h.quizTitle}</h2>
+              <p className="mt-1.5 text-sm text-[var(--lfp-mist)]">{h.quizBody}</p>
             </div>
             <span className="lfp-num rounded-full border border-[var(--lfp-cobalt)] px-4 py-2 text-sm font-semibold text-[var(--lfp-cobalt)]">
-              Começar →
+              {h.quizCta}
             </span>
           </Link>
         </section>
@@ -292,14 +253,14 @@ export default function HomeView() {
 
       <footer className="border-t border-[var(--lfp-line)]">
         <div className="mx-auto max-w-6xl px-6 py-5 text-xs leading-relaxed text-[var(--lfp-mist)]">
-          Projeto educativo, construído a partir de informação pública.{" "}
-          <strong className="font-semibold">Não tem valor legal</strong> e não substitui
-          aconselhamento fiscal. Cada número indica o ano e a fonte.{" "}
+          {t.chrome.footer.lead}{" "}
+          <strong className="font-semibold">{t.chrome.footer.noLegal}</strong>{" "}
+          {t.chrome.footer.tail}{" "}
           <Link
             href="/lfp/sobre"
             className="lfp-focus inline-flex min-h-11 items-center font-medium text-[var(--lfp-cobalt)] underline underline-offset-2"
           >
-            Fontes e metodologia
+            {t.chrome.footer.sources}
           </Link>
         </div>
       </footer>
