@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "year": 2024,
+    "label": "Despesa das administrações públicas por função (COFOG), Portugal",
+    "source": "https://ec.europa.eu/eurostat/databrowser/view/gov_10a_exp/default/table",
+    "sourceUrl": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/gov_10a_exp?format=JSON&lang=EN&geo=PT&unit=MIO_EUR&sector=S13&na_item=TE&cofog99=GF01&cofog99=GF02&cofog99=GF03&cofog99=GF04&cofog99=GF05&cofog99=GF06&cofog99=GF07&cofog99=GF08&cofog99=GF09&cofog99=GF10&cofog99=TOTAL&sinceTimePeriod=2018",
+    "datasetCode": "gov_10a_exp",
+    "license": "Eurostat — reuse permitted with attribution (Commission Decision 2011/833/EU)",
+    "retrievedAt": "2026-09-05",
+    "lastVerified": "2026-09-05",
+    "version": 1,
+    "notes": [
+      "Despesa total das administrações públicas (S13) por divisão COFOG, em milhões de euros; as percentagens são calculadas sobre o total.",
+      "É a despesa de todo o Estado, não só a financiada pelo IRS. O «recibo do contribuinte» distribui o teu imposto proporcionalmente — uma aproximação honesta, não uma contabilidade real.",
+      "Publicado com cerca de um ano de atraso."
+    ]
+  },
+  "geo": "PT",
+  "totalMillionEur": 122805.3,
+  "items": [
+    {
+      "code": "GF10",
+      "label": "Social protection",
+      "millionEur": 49649.4,
+      "share": 0.4042936257637089
+    },
+    {
+      "code": "GF07",
+      "label": "Health",
+      "millionEur": 19811.3,
+      "share": 0.1613228419294607
+    },
+    {
+      "code": "GF01",
+      "label": "General public services",
+      "millionEur": 16871.8,
+      "share": 0.13738657859229203
+    },
+    {
+      "code": "GF09",
+      "label": "Education",
+      "millionEur": 12587.7,
+      "share": 0.10250127641070866
+    },
+    {
+      "code": "GF04",
+      "label": "Economic affairs",
+      "millionEur": 10497.4,
+      "share": 0.08548002407062236
+    },
+    {
+      "code": "GF03",
+      "label": "Public order and safety",
+      "millionEur": 4777.6,
+      "share": 0.03890385838396226
+    },
+    {
+      "code": "GF02",
+      "label": "Defence",
+      "millionEur": 2525.8,
+      "share": 0.020567516222834033
+    },
+    {
+      "code": "GF08",
+      "label": "Recreation, culture and religion",
+      "millionEur": 2398.4,
+      "share": 0.01953010171385111
+    },
+    {
+      "code": "GF05",
+      "label": "Environmental protection",
+      "millionEur": 2001,
+      "share": 0.01629408502727488
+    },
+    {
+      "code": "GF06",
+      "label": "Housing and community amenities",
+      "millionEur": 1684.9,
+      "share": 0.013720091885285082
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "meta": {
+    "year": 2025,
+    "label": "Ganhos líquidos anuais, pessoa solteira sem filhos, 100% do salário médio (Eurostat)",
+    "source": "https://ec.europa.eu/eurostat/databrowser/view/earn_nt_net/default/table",
+    "sourceUrl": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/earn_nt_net?format=JSON&lang=EN&geo=PT&geo=ES&geo=FR&geo=DE&geo=IT&geo=NL&geo=BE&geo=AT&geo=IE&geo=PL&geo=CZ&geo=SK&geo=SE&geo=DK&geo=FI&geo=EL&geo=HU&geo=LU&geo=UK&geo=CH&geo=NO&currency=EUR&currency=PPS&estruct=NET&ecase=P1_NCH_AW100&sinceTimePeriod=2021",
+    "datasetCode": "earn_nt_net",
+    "license": "Eurostat — reuse permitted with attribution (Commission Decision 2011/833/EU)",
+    "retrievedAt": "2026-09-05",
+    "lastVerified": "2026-09-05",
+    "version": 1,
+    "notes": [
+      "Líquido — depois de impostos e contribuições — é o que as pessoas têm mesmo, e por isso a base certa para «dias de trabalho para comprar X».",
+      "PPS (padrão de poder de compra) compara o que o dinheiro compra em cada país; EUR é o valor nominal.",
+      "O ano varia por país; cada valor indica o seu. O Reino Unido deixou de ser reportado pelo Eurostat após 2020.",
+      "Sem dados para os países não europeus (EUA, Canadá, Brasil, Austrália): a OCDE, a única fonte com uma unidade comum, tem o serviço instável. Serão acrescentados quando o endpoint responder."
+    ]
+  },
+  "unit": "PPS",
+  "countries": [
+    {
+      "code": "PT",
+      "name": "Portugal",
+      "year": 2025,
+      "value": 24665.51,
+      "valueEur": 21449.05
+    },
+    {
+      "code": "ES",
+      "name": "Spain",
+      "year": 2025,
+      "value": 29750.29,
+      "valueEur": 27040.72
+    },
+    {
+      "code": "FR",
+      "name": "France",
+      "year": 2025,
+      "value": 29085.55,
+      "valueEur": 32346.04
+    },
+    {
+      "code": "DE",
+      "name": "Germany",
+      "year": 2025,
+      "value": 33630.45,
+      "valueEur": 36534.77
+    },
+    {
+      "code": "IT",
+      "name": "Italy",
+      "year": 2025,
+      "value": 28495.76,
+      "valueEur": 27787.67
+    },
+    {
+      "code": "NL",
+      "name": "Netherlands",
+      "year": 2025,
+      "value": 35168.88,
+      "valueEur": 40793.43
+    },
+    {
+      "code": "BE",
+      "name": "Belgium",
+      "year": 2025,
+      "value": 31249.52,
+      "valueEur": 36414.44
+    },
+    {
+      "code": "AT",
+      "name": "Austria",
+      "year": 2025,
+      "value": 37525.3,
+      "valueEur": 42346.93
+    },
+    {
+      "code": "IE",
+      "name": "Ireland",
+      "year": 2025,
+      "value": 34060.34,
+      "valueEur": 47026.77
+    },
+    {
+      "code": "PL",
+      "name": "Poland",
+      "year": 2025,
+      "value": 26014.84,
+      "valueEur": 19086.3
+    },
+    {
+      "code": "CZ",
+      "name": "Czechia",
+      "year": 2025,
+      "value": 23231.73,
+      "valueEur": 20900.93
+    },
+    {
+      "code": "SK",
+      "name": "Slovakia",
+      "year": 2025,
+      "value": 21360.65,
+      "valueEur": 18096.61
+    },
+    {
+      "code": "SE",
+      "name": "Sweden",
+      "year": 2025,
+      "value": 32757.32,
+      "valueEur": 38949.55
+    },
+    {
+      "code": "DK",
+      "name": "Denmark",
+      "year": 2025,
+      "value": 31771.24,
+      "valueEur": 45429.63
+    },
+    {
+      "code": "FI",
+      "name": "Finland",
+      "year": 2025,
+      "value": 30530.05,
+      "valueEur": 37689.65
+    },
+    {
+      "code": "EL",
+      "name": "Greece",
+      "year": 2025,
+      "value": 25010.87,
+      "valueEur": 21498.27
+    },
+    {
+      "code": "HU",
+      "name": "Hungary",
+      "year": 2025,
+      "value": 21120.88,
+      "valueEur": 15431.99
+    },
+    {
+      "code": "LU",
+      "name": "Luxembourg",
+      "year": 2025,
+      "value": 42062.75,
+      "valueEur": 55876.57
+    },
+    {
+      "code": "CH",
+      "name": "Switzerland",
+      "year": 2023,
+      "value": 47247.08,
+      "valueEur": 82060.07
+    },
+    {
+      "code": "NO",
+      "name": "Norway",
+      "year": 2023,
+      "value": 36874.14,
+      "valueEur": 45795.1
+    }
+  ],
+  "missing": [
+    "UK",
+    "US",
+    "CA",
+    "BR",
+    "AU"
+  ]
+}

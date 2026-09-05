@@ -244,6 +244,51 @@ export interface IrcResult {
   breakdown: Array<{ key: string; base: number; rate: number; amount: number }>;
 }
 
+/* ─────────────── Economic datasets ───────────────
+   Produced by scripts/sync-data.mjs from official APIs, never fetched at
+   runtime. `retrievedAt` is when the script ran; `year` is what the data
+   refers to — the two are shown separately. */
+
+export interface EconMeta extends DatasetMeta {
+  sourceUrl: string;
+  datasetCode: string;
+  retrievedAt: string;
+}
+
+/** Annual average price index, one country. `values` is year → index. */
+export interface InflationSeries {
+  meta: EconMeta;
+  geo: string;
+  base: string;
+  firstYear: number;
+  lastYear: number;
+  values: Record<string, number>;
+}
+
+/** Government expenditure by function (COFOG divisions), one year. */
+export interface CofogBreakdown {
+  meta: EconMeta;
+  geo: string;
+  totalMillionEur: number;
+  items: Array<{ code: string; label: string; millionEur: number; share: number }>;
+}
+
+/** Net annual earnings per country, in a comparable unit plus nominal EUR. */
+export interface CountryWages {
+  meta: EconMeta;
+  unit: "PPS" | "USD_PPP";
+  countries: Array<{ code: string; name: string; year: number; value: number; valueEur: number | null }>;
+  missing: string[];
+}
+
+export interface EconData {
+  inflation: InflationSeries;
+  cofog: CofogBreakdown;
+  wages: CountryWages;
+}
+
+export type EconId = keyof EconData;
+
 /* ─────────────── Flow ─────────────── */
 
 export type FlowDirection = "toState" | "toPeople";
