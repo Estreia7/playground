@@ -11,6 +11,7 @@ import { tr } from "../../i18n";
 import { Disclaimer, SourceBadge, UnverifiedBanner, YearChip } from "../../ui/DataHonesty";
 import { ChoiceGroup, NumberField, Stepper, Toggle } from "../../ui/Inputs";
 import { PageIntro, Shell } from "../../ui/Shell";
+import { ShareCard } from "../../ui/ShareCard";
 import { useLfpData } from "../../useLfpData";
 import { useLfpLang } from "../../useLfpLang";
 import type { SalarioLiquidoInput, SituacaoIrs } from "../../types";
@@ -307,6 +308,13 @@ export default function SalarioLiquidoCalculator() {
                 </tbody>
               </table>
             </div>
+
+            <ShareCard
+              card="salario"
+              params={{ bruto }}
+              pagePath="/lfp/individual/salario-liquido"
+              title={`${money(result.liquidoMensal)} — ${tr(t.chrome.share.cards.salarioEyebrow, { bruto: money0(bruto) })}`}
+            />
 
             <Disclaimer notes={s.notes} />
 

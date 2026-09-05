@@ -8,6 +8,7 @@ import { tr } from "../../i18n";
 import { Disclaimer, SourceBadge, YearChip } from "../../ui/DataHonesty";
 import { NumberField } from "../../ui/Inputs";
 import { PageIntro, Shell } from "../../ui/Shell";
+import { ShareCard } from "../../ui/ShareCard";
 import { useLfpEcon } from "../../useLfpEcon";
 import { useLfpLang } from "../../useLfpLang";
 
@@ -175,6 +176,15 @@ export default function InflacaoView() {
                 </tbody>
               </table>
             </details>
+
+            {result.adjusted !== null && (
+              <ShareCard
+                card="inflacao"
+                params={{ amount, from, to: toYear }}
+                pagePath="/lfp/economia/inflacao"
+                title={`${tr(t.chrome.share.cards.inflacaoEyebrow, { amount: money(amount), from })} ${money(result.adjusted)}`}
+              />
+            )}
 
             <Disclaimer notes={c.notes} />
             <SourceBadge meta={infl.meta} />

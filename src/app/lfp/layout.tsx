@@ -23,6 +23,10 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  // Makes the share cards' og:image URLs absolute — WhatsApp and friends
+  // ignore relative ones. Scoped to /lfp so the rest of the playground is
+  // untouched.
+  metadataBase: new URL("https://playground.bruno-dev.xyz"),
   title: {
     default: "LFP — Literacia Financeira Portuguesa",
     template: "%s · LFP",

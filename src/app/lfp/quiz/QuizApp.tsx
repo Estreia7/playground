@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { tr } from "../i18n";
 import { PageIntro, Shell } from "../ui/Shell";
+import { ShareCard } from "../ui/ShareCard";
 import { useLfpLang } from "../useLfpLang";
 import { useQuizState } from "../useQuizState";
 import { bandFor, CATEGORIES, type QuizMode } from "./engine";
@@ -310,6 +311,13 @@ function ResultView({ q, lang }: { q: ReturnType<typeof useQuizState>; lang: "pt
           </ul>
         )}
       </div>
+
+      <ShareCard
+        card="quiz"
+        params={{ mode: run.mode, c: correct, t: total }}
+        pagePath="/lfp/quiz"
+        title={`${d.result.bands[band]} · ${tr(d.result.score, { n: correct, total })}`}
+      />
 
       <div className="flex flex-wrap gap-2">
         <button

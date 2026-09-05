@@ -8,6 +8,7 @@ import { tr } from "../../i18n";
 import { Disclaimer, SourceBadge, YearChip } from "../../ui/DataHonesty";
 import { ChoiceGroup, NumberField } from "../../ui/Inputs";
 import { PageIntro, Shell } from "../../ui/Shell";
+import { ShareCard } from "../../ui/ShareCard";
 import { useLfpEcon } from "../../useLfpEcon";
 import { useLfpLang } from "../../useLfpLang";
 
@@ -142,6 +143,13 @@ export default function DiasView() {
                 </p>
               </aside>
             )}
+
+            <ShareCard
+              card="dias"
+              params={{ price, unit }}
+              pagePath="/lfp/economia/dias-de-trabalho"
+              title={`${tr(t.chrome.share.cards.diasEyebrow, { price: money(price) })} ${days1(pt.days)} ${c.headline.days}`}
+            />
 
             <Disclaimer notes={c.notes} />
             <SourceBadge meta={wages.meta} />
