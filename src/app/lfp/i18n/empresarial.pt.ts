@@ -1,6 +1,13 @@
 /* Empresarial branch — Portuguese, canonical. See chrome.pt.ts for why
    there is no `as const`. */
 
+import type { Block } from "./explainers.pt";
+
+/** Typed identity. Inside an otherwise inferred object, a literal block would
+ *  widen its discriminant to `string`; passing it through this keeps the
+ *  Block union the renderer narrows on. */
+const blocks = (b: Block[]) => b;
+
 export const empresarialPt = {
   hub: {
     crumb: "Empresarial",
@@ -118,6 +125,28 @@ export const empresarialPt = {
       rightLabel: "certo",
       why: "Multiplicar por {wrongFactor} tira {rate} do preço final, mas o IVA foi calculado sobre o preço inicial, que é mais baixo. A diferença parece pequena numa compra e é grande numa fatura.",
     },
+    howItWorks: {
+      heading: "Como funciona o IVA",
+      blocks: blocks([
+        {
+          t: "p",
+          text: "O IVA é um imposto sobre o consumo. Não o pagas ao Estado — pagas a quem te vende, e é o vendedor que o entrega. Por isso anda escondido dentro do preço.",
+        },
+        {
+          t: "p",
+          text: "Cada empresa na cadeia cobra IVA nas vendas e deduz o IVA que pagou nas compras. Só entrega a diferença: o imposto incide sobre o valor que cada uma acrescentou. É daí que vem o nome — Imposto sobre o Valor Acrescentado.",
+        },
+        {
+          t: "p",
+          text: "Para ti, consumidor final, não há dedução: ficas com a conta toda. Num preço de 123 € à taxa normal, 23 € nunca chegam ao vendedor.",
+        },
+        {
+          t: "callout",
+          title: "Nos orçamentos, atenção ao «+ IVA»",
+          text: "Os preços ao público têm o IVA incluído por lei. Um orçamento que diz «+ IVA» está a mostrar-te o preço sem imposto — o que pagas é mais.",
+        },
+      ]),
+    },
     ratesTitle: "As três taxas em {regiao}",
     examples: {
       pao: "Pão",
@@ -157,6 +186,28 @@ export const empresarialPt = {
       efetiva: "Taxa efetiva",
       liquido: "Lucro depois do imposto",
       geral: "Taxa geral",
+    },
+    howItWorks: {
+      heading: "Como funciona o IRC",
+      blocks: blocks([
+        {
+          t: "p",
+          text: "O IRC é o imposto sobre o lucro das empresas — não sobre o que faturam, mas sobre o que sobra depois dos custos. Uma empresa com muita faturação e pouco lucro paga pouco IRC.",
+        },
+        {
+          t: "p",
+          text: "Parte-se do lucro contabilístico, fazem-se ajustamentos fiscais — há despesas que a lei não aceita, e outras que aceita a mais — e chega-se ao lucro tributável. É sobre esse que as taxas se aplicam.",
+        },
+        {
+          t: "p",
+          text: "Por cima do IRC há a derrama municipal, que cada câmara decide até 1,5%, e a derrama estadual para lucros acima de 1,5 milhões. Ambas incidem sobre o lucro tributável, não sobre o imposto.",
+        },
+        {
+          t: "callout",
+          title: "Ser PME conta",
+          text: "Os primeiros 50.000 € de lucro pagam uma taxa mais baixa. Em 2026 a diferença são 2.000 € por ano — a mesma empresa, o mesmo lucro, menos imposto.",
+        },
+      ]),
     },
     flowTitle: "Para onde vai o lucro",
     flowAria: "De {lucro} de lucro tributável: {liquido} ficam na empresa, {irc} vão para o Estado em IRC e {derrama} em derramas.",

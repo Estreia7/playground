@@ -10,8 +10,8 @@ type TopicKey = keyof Dict["chrome"]["individual"]["topics"];
 /** Routing and readiness live in code; the copy lives in the dictionary. */
 const TOPICS: Array<{ key: TopicKey; href: string; kind: "explicacao" | "calculadora"; ready: boolean }> = [
   { key: "salarioLiquido", href: "/lfp/individual/salario-liquido", kind: "calculadora", ready: true },
-  { key: "irs", href: "/lfp/individual/irs", kind: "explicacao", ready: false },
-  { key: "tsu", href: "/lfp/individual/tsu", kind: "explicacao", ready: false },
+  { key: "irs", href: "/lfp/individual/irs", kind: "explicacao", ready: true },
+  { key: "tsu", href: "/lfp/individual/tsu", kind: "explicacao", ready: true },
   { key: "recibosVerdes", href: "/lfp/individual/recibos-verdes", kind: "calculadora", ready: false },
   { key: "cenarios", href: "/lfp/individual/cenarios", kind: "calculadora", ready: false },
 ];

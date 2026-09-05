@@ -117,6 +117,28 @@ export const empresarialEn: EmpresarialDict = {
       rightLabel: "right",
       why: "Multiplying by {wrongFactor} takes {rate} off the final price, but the VAT was calculated on the initial price, which is lower. The difference looks small on one purchase and is large on an invoice.",
     },
+    howItWorks: {
+      heading: "How VAT works",
+      blocks: [
+        {
+          t: "p",
+          text: "VAT is a tax on consumption. You don't pay it to the State — you pay it to whoever sells to you, and the seller hands it over. That's why it hides inside the price.",
+        },
+        {
+          t: "p",
+          text: "Each business in the chain charges VAT on its sales and deducts the VAT it paid on its purchases. It only hands over the difference: the tax falls on the value each one added. That's where the name comes from — Value Added Tax.",
+        },
+        {
+          t: "p",
+          text: "For you, the final consumer, there's no deduction: you carry the whole bill. On a €123 price at the standard rate, €23 never reach the seller.",
+        },
+        {
+          t: "callout",
+          title: "On quotes, watch for \"+ VAT\"",
+          text: "Retail prices include VAT by law. A quote that says \"+ VAT\" is showing you the price before tax — what you pay is more.",
+        },
+      ],
+    },
     ratesTitle: "The three rates in {regiao}",
     examples: {
       pao: "Bread",
@@ -156,6 +178,28 @@ export const empresarialEn: EmpresarialDict = {
       efetiva: "Effective rate",
       liquido: "Profit after tax",
       geral: "General rate",
+    },
+    howItWorks: {
+      heading: "How corporate tax works",
+      blocks: [
+        {
+          t: "p",
+          text: "IRC is the tax on company profit — not on what they invoice, but on what's left after costs. A company with high turnover and little profit pays little corporate tax.",
+        },
+        {
+          t: "p",
+          text: "It starts from the accounting profit, applies tax adjustments — some expenses the law doesn't accept, others it accepts in full — and arrives at the taxable profit. That's what the rates apply to.",
+        },
+        {
+          t: "p",
+          text: "On top of the tax come the municipal surcharge, which each council sets up to 1.5%, and the state surcharge for profits above 1.5 million. Both fall on taxable profit, not on the tax.",
+        },
+        {
+          t: "callout",
+          title: "Being an SME counts",
+          text: "The first €50,000 of profit pay a lower rate. In 2026 the difference is €2,000 a year — same company, same profit, less tax.",
+        },
+      ],
     },
     flowTitle: "Where the profit goes",
     flowAria: "Of {lucro} taxable profit: {liquido} stays in the company, {irc} goes to the State as corporate tax and {derrama} as surcharges.",

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { irc } from "../../calc";
 import { fromIrc } from "../../flow/adapters";
+import { ExplainerSection } from "../../explainers/ExplainerLayout";
 import { MoneyFlow } from "../../flow/MoneyFlow";
 import { WedgeBar } from "../../flow/WedgeBar";
 import { eur, eur0, pct } from "../../format";
@@ -204,6 +205,12 @@ export default function IrcTool() {
               <LedgerRow label={r.ledger.total} value={money(result.totalImposto)} strong tone="state" />
               <LedgerRow label={r.ledger.liquido} value={money(result.lucroLiquido)} strong tone="keep" />
             </Ledger>
+
+            <ExplainerSection
+              id="como-funciona"
+              heading={r.howItWorks.heading}
+              blocks={r.howItWorks.blocks}
+            />
 
             <Disclaimer notes={r.notes} />
             <SourceBadge meta={ircData.meta} />

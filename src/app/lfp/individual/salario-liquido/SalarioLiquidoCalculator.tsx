@@ -317,8 +317,9 @@ export default function SalarioLiquidoCalculator() {
 
             <p className="text-sm text-[var(--lfp-mist)]">
               {s.readMore}{" "}
+              {/* Carries the salary so the explainer opens on this bracket. */}
               <Link
-                href="/lfp/individual/irs"
+                href={`/lfp/individual/irs?bruto=${bruto}#progressivo`}
                 className="lfp-focus inline-flex min-h-11 items-center font-medium text-[var(--lfp-cobalt)] underline underline-offset-2"
               >
                 {s.readMoreLink}

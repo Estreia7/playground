@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { iva } from "../../calc";
 import { fromIva } from "../../flow/adapters";
+import { ExplainerSection } from "../../explainers/ExplainerLayout";
 import { MoneyFlow } from "../../flow/MoneyFlow";
 import { eur, num, pct } from "../../format";
 import { tr } from "../../i18n";
@@ -155,6 +156,12 @@ export default function IvaTool() {
                 />
               </div>
             </div>
+
+            <ExplainerSection
+              id="como-funciona"
+              heading={v.howItWorks.heading}
+              blocks={v.howItWorks.blocks}
+            />
 
             {/* The mistake, with this purchase's own numbers — it lands
                 harder than an abstract warning. */}
