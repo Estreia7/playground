@@ -53,7 +53,7 @@ export function Shell({
                 {crumb.href ? (
                   <Link
                     href={crumb.href}
-                    className="lfp-focus inline-flex min-h-11 items-center truncate text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
+                    className="lfp-focus inline-flex min-h-11 min-w-11 items-center truncate text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
                   >
                     {crumb.label}
                   </Link>

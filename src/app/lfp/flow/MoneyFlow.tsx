@@ -11,6 +11,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, useAnimationFrame, useReducedMotion } from "framer-motion";
+import { useLfpLang } from "../useLfpLang";
 import type { FlowStream } from "../types";
 import {
   computeLanes,
@@ -34,6 +35,10 @@ export interface MoneyFlowProps {
   onStreamHover?: (id: string | null) => void;
   formatAmount?: (n: number) => string;
   ariaLabel?: string;
+  /** What the hub figure IS: "bruto" on a payslip, "custo total" for an
+   *  employer, "lucro tributável" for IRC. Defaults to the dictionary
+   *  "bruto"; a page whose hub is not gross pay must say so. */
+  hubLabel?: string;
   className?: string;
 }
 
@@ -218,12 +223,15 @@ export function MoneyFlow({
   onStreamHover,
   formatAmount,
   ariaLabel,
+  hubLabel,
   className,
 }: MoneyFlowProps) {
   const { stage, mounted } = useStage();
   const prefersReduced = useReducedMotion();
   const reduced = prefersReduced ?? false;
   const uid = useId().replace(/:/g, "");
+  const { t } = useLfpLang();
+  const hub = hubLabel ?? t.chrome.flow.bruto;
 
   const visible = useMemo(() => streams.filter((s) => s.amount > 0), [streams]);
   const total = baseline ?? sumAmounts(visible);
@@ -357,7 +365,7 @@ export function MoneyFlow({
               fontWeight={600}
               fill="var(--lfp-cobalt-deep)"
             >
-              {fmt(total)} bruto
+              {fmt(total)} {hub}
             </text>
           ) : (
             <>
@@ -370,7 +378,7 @@ export function MoneyFlow({
                 letterSpacing="0.12em"
                 fill="var(--lfp-mist)"
               >
-                BRUTO
+                {hub.toUpperCase()}
               </text>
               <text
                 className="lfp-num"

@@ -69,6 +69,19 @@ export function shortDate(iso: string, lang: Lang = "pt"): string {
   }).format(d);
 }
 
+/** For input fields: the locale's decimal separator but NO thousands
+ *  grouping — a cursor dropped into "1 500" would pick up the separator on
+ *  the next keystroke — and only as many decimals as the value has, up to
+ *  `max`. Empty for non-finite, so a field never shows "NaN". */
+export function numPlain(value: number, lang: Lang = "pt", max = 2): string {
+  if (!Number.isFinite(value)) return "";
+  return nf(`plain${max}`, LOCALE[lang], {
+    useGrouping: false,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: max,
+  }).format(value);
+}
+
 /** Parses what a Portuguese user types into a number field: decimal commas,
  *  stray spaces, a pasted "€". Returns null for anything that isn't a number
  *  yet (empty, lone minus) so the field can hold a half-typed draft. Lives

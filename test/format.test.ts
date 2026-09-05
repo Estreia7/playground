@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { eur, eur0, parseNumber, pct } from "../src/app/lfp/format.ts";
+import { eur, eur0, numPlain, parseNumber, pct } from "../src/app/lfp/format.ts";
 
 /* parseNumber is what stands between a keyboard and the calculators. It
    has to accept the ways a Portuguese user actually types money, and it
@@ -54,4 +54,36 @@ test("pct takes a fraction, not a percentage", () => {
 test("formatters do not throw on non-finite input", () => {
   assert.equal(eur(NaN), "—");
   assert.equal(pct(Infinity), "—");
+});
+
+/* numPlain feeds the input fields: locale decimal separator, no thousands
+   grouping, and never a trailing ",00" the user didn't type. */
+
+test("numPlain uses the locale decimal separator", () => {
+  assert.equal(numPlain(212.07, "pt"), "212,07");
+  assert.equal(numPlain(212.07, "en"), "212.07");
+});
+
+test("numPlain never groups thousands", () => {
+  // A separator inside the field would be picked up by the next keystroke.
+  assert.equal(numPlain(1500, "pt"), "1500");
+  assert.equal(numPlain(1234567.5, "pt"), "1234567,5");
+});
+
+test("numPlain shows only the decimals the value has", () => {
+  assert.equal(numPlain(1500, "pt"), "1500");
+  assert.equal(numPlain(6.15, "pt"), "6,15");
+  assert.equal(numPlain(1.005, "pt"), "1,01");
+});
+
+test("numPlain is empty for non-finite so a field never shows NaN", () => {
+  assert.equal(numPlain(NaN), "");
+  assert.equal(numPlain(Infinity), "");
+});
+
+test("numPlain round-trips through parseNumber", () => {
+  for (const v of [0, 6.15, 212.07, 1500, 99999.99]) {
+    assert.equal(parseNumber(numPlain(v, "pt")), v);
+    assert.equal(parseNumber(numPlain(v, "en")), v);
+  }
 });

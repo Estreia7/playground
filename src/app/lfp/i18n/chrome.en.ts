@@ -21,6 +21,9 @@ export const chromeEn: ChromeDict = {
     irs: "Income tax (IRS)",
     tsu: "Social Security",
     bruto: "gross",
+    custoTotal: "total cost",
+    precoComIva: "price with VAT",
+    lucroTributavel: "taxable profit",
   },
   honesty: {
     yearChip: "({year} figures)",

@@ -63,8 +63,14 @@ export function fromCustoEmpresa(
   r: CustoEmpresaResult,
   labels: Record<string, string>
 ): FlowModel {
+  // The flow has two poles — the employee and the State. Insurance and
+  // "other costs" go to third parties (an insurer, a supplier), so they are
+  // left out of the lanes rather than misrouted to one pole. The baseline
+  // stays the full cost, so each lane's width is still its honest share of
+  // what the company pays; the gap is those third-party items, which the
+  // page shows in the wedge bar and the ledger.
   const streams: FlowStream[] = r.breakdown
-    .filter((b) => b.amount > 0)
+    .filter((b) => b.amount > 0 && b.side !== "empresa")
     .map((b) => ({
       id: b.key,
       label: labels[b.key] ?? b.key,

@@ -8,7 +8,7 @@
    rewritten under the cursor. */
 
 import { useId, useState } from "react";
-import { parseNumber } from "../format";
+import { numPlain, parseNumber } from "../format";
 import { tr } from "../i18n";
 import { useLfpLang } from "../useLfpLang";
 
@@ -36,9 +36,11 @@ export function NumberField({
   const autoId = useId();
   const id = idProp ?? autoId;
   const hintId = hint ? `${id}-hint` : undefined;
+  const { lang } = useLfpLang();
 
   // While focused the field is uncontrolled-ish: it shows exactly what was
-  // typed. On blur it snaps back to the canonical value.
+  // typed. On blur it snaps back to the canonical value, rendered in the
+  // locale — a Portuguese user must see "212,07", not JS's "212.07".
   const [draft, setDraft] = useState<string | null>(null);
 
   return (
@@ -52,7 +54,7 @@ export function NumberField({
           type="text"
           inputMode="decimal"
           aria-describedby={hintId}
-          value={draft ?? String(value)}
+          value={draft ?? numPlain(value, lang, 2)}
           onChange={(e) => {
             setDraft(e.target.value);
             const n = parseNumber(e.target.value);

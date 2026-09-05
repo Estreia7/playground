@@ -10,15 +10,17 @@ import { chromePt } from "./chrome.pt";
 import { chromeEn } from "./chrome.en";
 import { calcPt } from "./calc.pt";
 import { calcEn } from "./calc.en";
+import { empresarialPt } from "./empresarial.pt";
+import { empresarialEn } from "./empresarial.en";
 import type { Lang } from "../types";
 
 export type { Lang };
 
-const pt = { chrome: chromePt, calc: calcPt };
+const pt = { chrome: chromePt, calc: calcPt, empresarial: empresarialPt };
 export type Dict = typeof pt;
 
 // A fragment missing here, or a key missing inside one, fails right here.
-const en: Dict = { chrome: chromeEn, calc: calcEn };
+const en: Dict = { chrome: chromeEn, calc: calcEn, empresarial: empresarialEn };
 
 export const dictionaries: Record<Lang, Dict> = { pt, en };
 

@@ -22,7 +22,11 @@ export const chromePt = {
     liquido: "Fica contigo",
     irs: "IRS",
     tsu: "Segurança Social",
+    // Hub labels: what the figure at the split point actually IS.
     bruto: "bruto",
+    custoTotal: "custo total",
+    precoComIva: "preço com IVA",
+    lucroTributavel: "lucro tributável",
   },
   honesty: {
     yearChip: "(valores de {year})",
