@@ -73,7 +73,7 @@ export function LineChart({
   const sx = (x: number) => PAD.left + ((x - x0) / (x1 - x0 || 1)) * (W - PAD.left - PAD.right);
   const sy = (y: number) => H - PAD.bottom - ((y - y0) / (y1 - y0 || 1)) * (H - PAD.top - PAD.bottom);
 
-  const yTicks = niceTicks(y0, y1, 4);
+  const yTicks = niceTicks(y0, y1, 5);
   const xTickCount = Math.min(6, all.length);
   const xTicks = Array.from({ length: xTickCount }, (_, i) =>
     Math.round(x0 + ((x1 - x0) * i) / Math.max(1, xTickCount - 1))
@@ -116,22 +116,36 @@ export function LineChart({
         ))}
       </g>
 
-      {/* series */}
-      {series.map((s, i) => (
-        <motion.path
-          key={s.id}
-          d={path(s.points)}
-          fill="none"
-          stroke={toneVar(s.tone)}
-          strokeWidth={i === 0 ? 3 : 2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          strokeDasharray={s.dashed ? "6 6" : undefined}
-          initial={reduced ? false : { pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={reduced ? { duration: 0 } : { duration: 0.9, ease: "easeOut" }}
-        />
-      ))}
+      {/* series. A dashed reference line is a plain <path>: framer's
+          pathLength draw-in writes its own stroke-dasharray, which would
+          silently turn the dashes solid. */}
+      {series.map((s, i) =>
+        s.dashed ? (
+          <path
+            key={s.id}
+            d={path(s.points)}
+            fill="none"
+            stroke={toneVar(s.tone)}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            strokeDasharray="6 6"
+          />
+        ) : (
+          <motion.path
+            key={s.id}
+            d={path(s.points)}
+            fill="none"
+            stroke={toneVar(s.tone)}
+            strokeWidth={i === 0 ? 3 : 2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            initial={reduced ? false : { pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={reduced ? { duration: 0 } : { duration: 0.9, ease: "easeOut" }}
+          />
+        )
+      )}
 
       {/* highlight */}
       {hl && (

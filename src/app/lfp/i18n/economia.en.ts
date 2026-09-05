@@ -1,0 +1,201 @@
+import type { EconomiaDict } from "./economia.pt";
+
+export const economiaEn: EconomiaDict = {
+  hub: {
+    crumb: "Economy",
+    eyebrow: "Context",
+    title: "Your money across time, and across the map.",
+    lede: "What a salary from twenty years ago is worth today, where your taxes go, how many days you work to buy the same thing as a German. All from official data, with the year in view.",
+    topicsAria: "Topics",
+    kindCalculadora: "Calculator",
+    soon: "Coming soon",
+    topics: {
+      inflacao: {
+        title: "Time machine",
+        body: "What is the money you earned in 1999 worth today? Inflation, with Eurostat figures since 1996.",
+      },
+      juros: {
+        title: "Compound interest",
+        body: "What €100 a month becomes in 30 years — and why time matters more than the rate.",
+      },
+      impostos: {
+        title: "Taxpayer's receipt",
+        body: "Of the euros you hand to the State every month, how many go to health, pensions, education.",
+      },
+      dias: {
+        title: "Days of work",
+        body: "How many days you work to pay for something — and how many a Spaniard, a German, a Pole works.",
+      },
+      situas: {
+        title: "Where you stand",
+        body: "You earn more than what share of Portuguese workers? With the official brackets, without false precision.",
+      },
+    },
+  },
+
+  common: {
+    year: "Year",
+    dataFrom: "Data from {source}, {year}",
+    retrieved: "retrieved {date}",
+  },
+
+  inflacao: {
+    crumb: "Time machine",
+    eyebrow: "Calculator",
+    title: "What is money from {year} worth today?",
+    lede: "Enter an amount and a year. The machine tells you what that money buys today — or what you would need to earn today to live as you did then.",
+    formAria: "Amount and years",
+    fields: {
+      amount: "Amount",
+      fromYear: "In the year",
+      toYear: "Is worth, in",
+      presets: "Reference years",
+    },
+    headline: {
+      eyebrow: "{amount} from {from} is worth, in {to}",
+      cumulative: "Price increase",
+      annualised: "Average per year",
+      factor: "Multiplier",
+      inverse: "{amount} from {to} was worth, in {from}",
+    },
+    chartTitle: "The price index, {first}–{last}",
+    chartAria: "Harmonised index of consumer prices in Portugal from {first} to {last}, base 2015 equals 100. In {from} the index was {idxFrom}; in {to}, {idxTo}.",
+    tableTitle: "Inflation year by year",
+    tableYear: "Year",
+    tableRate: "Inflation",
+    tableIndex: "Index",
+    notes: [
+      "Harmonised Index of Consumer Prices (Eurostat), not the INE CPI — slightly different scope, suited to comparing purchasing power across years.",
+      "It is the average of all goods and services. Your personal inflation depends on what you buy: housing and food weighed more than the average in recent years.",
+      "The series starts in 1996. Earlier years, in escudos, would need INE.",
+    ],
+  },
+
+  juros: {
+    crumb: "Compound interest",
+    eyebrow: "Calculator",
+    title: "What time does to money.",
+    lede: "Interest on interest: each year earns on what already earned. It looks like little in the first years and explodes in the last. Enter your numbers and see the curve.",
+    formAria: "Savings and rate",
+    fields: {
+      principal: "Starting amount",
+      monthly: "Monthly top-up",
+      rate: "Annual rate",
+      rateHint: "Nominal return, before tax. A term deposit is around 2–3%; a stock index has historically returned 6–8% a year, with negative years along the way.",
+      years: "For",
+      yearsUnit: "years",
+      presets: "Horizons",
+    },
+    headline: {
+      eyebrow: "After {years} years",
+      contributed: "From your pocket",
+      interest: "Interest earned",
+      multiple: "Multiplier",
+      multipleValue: "{x}× what you put in",
+    },
+    chartTitle: "How it grows",
+    chartAria: "Growth over {years} years: the total reaches {final}, of which {contributed} was contributed and {interest} is interest.",
+    seriesValue: "Total value",
+    seriesContributed: "What you put in",
+    ledger: {
+      caption: "The maths",
+      principal: "Starting amount",
+      monthly: "Top-ups ({n} months)",
+      contributed: "Total from your pocket",
+      interest: "Compound interest",
+      final: "Final value",
+    },
+    insight: {
+      title: "What the curve teaches",
+      text: "Notice where the solid line pulls away from the dashed one: that is where interest starts earning more than your top-ups. Starting ten years earlier is worth more than doubling the rate.",
+    },
+    notes: [
+      "Nominal, constant rate, before tax: in Portugal investment income is generally taxed at 28%, which reduces the result.",
+      "Does not account for inflation. To see real purchasing power, subtract average inflation from the rate — about 2% a year over recent decades.",
+      "No investment returns a fixed rate every year. This is arithmetic, not a forecast.",
+    ],
+  },
+
+  impostos: {
+    crumb: "Taxpayer's receipt",
+    eyebrow: "Calculator",
+    title: "Where do your taxes go?",
+    lede: "Every month you hand the State income tax and Social Security. The State spends on pensions, health, schools, roads. Here we split your money in the same proportions — your receipt, line by line.",
+    formAria: "Your salary",
+    fields: {
+      bruto: "Gross monthly salary",
+      brutoHint: "Single, no dependants, mainland. Income tax and Social Security use the 2026 tables.",
+    },
+    headline: {
+      eyebrow: "You hand to the State, per month",
+      irs: "Income tax",
+      tsu: "Social Security",
+      year: "Public spending of",
+    },
+    chartTitle: "Your {amount} a month, split the way the State spends",
+    chartAria: "Distribution of {amount} across State functions, in proportion to {year} public spending. The largest share is {top}, at {topAmount}.",
+    perMonth: "/month",
+    cofog: {
+      GF01: "General services (State, debt)",
+      GF02: "Defence",
+      GF03: "Public order and justice",
+      GF04: "Economy and transport",
+      GF05: "Environment",
+      GF06: "Housing and community",
+      GF07: "Health",
+      GF08: "Culture, sport, religion",
+      GF09: "Education",
+      GF10: "Social protection (pensions, benefits)",
+    },
+    notes: [
+      "An honest approximation, not real accounting: the State does not keep your income tax in a drawer with your name on it. We split what you hand over in the proportions the State spends overall.",
+      "Spending includes everything the State pays for — funded by income tax, VAT, corporate tax, contributions and debt. The Social Security you pay goes mostly to pensions, but here it enters in the same proportion as the rest.",
+      "\"General services\" includes interest on public debt.",
+      "Public spending is published about a year late; your income tax is 2026's.",
+    ],
+  },
+
+  dias: {
+    crumb: "Days of work",
+    eyebrow: "Calculator",
+    title: "How many days do you work to pay for this?",
+    lede: "Enter a price. See how many days of net pay it costs in Portugal — and in nineteen other countries, with the same maths.",
+    formAria: "Price and unit",
+    fields: {
+      price: "Price",
+      priceHint: "Anything: a phone, a rent, a car. In euros.",
+      presets: "Examples",
+      unit: "Compare in",
+      unitPps: "Purchasing power",
+      unitEur: "Nominal euros",
+      unitHint:
+        "Purchasing power corrects for each country's prices — the fair comparison. Nominal euros show the salary as it is paid.",
+    },
+    headline: {
+      eyebrow: "In Portugal, it costs",
+      days: "days of work",
+      daysOne: "day of work",
+      weeks: "≈ {weeks} weeks",
+      months: "≈ {months} months",
+      daily: "One day of net work",
+    },
+    chartTitle: "In other countries",
+    chartAria: "Days of work needed to pay {price} in {n} countries. Portugal: {ptDays} days. Fewest days: {best} with {bestDays}. Most days: {worst} with {worstDays}.",
+    chartUnit: "days",
+    missingTitle: "Missing countries",
+    missingText:
+      "No comparable data for {list}. The only source with a common unit for countries outside Europe — the OECD — has an unstable service at the moment. They will be added as soon as it responds.",
+    notes: [
+      "Net annual earnings of a single person without children at 100% of the country's average wage (Eurostat). Divided by 220 working days — 52 five-day weeks minus leave and public holidays.",
+      "\"Purchasing power\" uses PPS (purchasing power standard): the same basket costs the same in every country. It is the fair comparison; the nominal euro figure is what appears on the payslip.",
+      "The year varies by country and is shown beside each bar.",
+    ],
+    countries: {
+      PT: "Portugal", ES: "Spain", FR: "France", DE: "Germany", IT: "Italy",
+      NL: "Netherlands", BE: "Belgium", AT: "Austria", IE: "Ireland", PL: "Poland",
+      CZ: "Czechia", SK: "Slovakia", SE: "Sweden", DK: "Denmark", FI: "Finland",
+      EL: "Greece", HU: "Hungary", LU: "Luxembourg", UK: "United Kingdom", CH: "Switzerland",
+      NO: "Norway", US: "United States", CA: "Canada", BR: "Brazil", AU: "Australia",
+    },
+  },
+};
