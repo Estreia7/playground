@@ -67,6 +67,12 @@ export function Shell({
           </nav>
           <div className="flex items-center gap-4">
             <span className="lfp-eyebrow hidden md:inline">{c.nav.eyebrow}</span>
+            <Link
+              href="/lfp/perfil"
+              className="lfp-focus inline-flex min-h-11 items-center text-sm text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
+            >
+              {t.quiz.nav.perfil}
+            </Link>
             <LangToggle />
           </div>
         </div>

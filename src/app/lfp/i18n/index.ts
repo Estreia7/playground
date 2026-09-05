@@ -16,6 +16,8 @@ import { explainersPt } from "./explainers.pt";
 import { explainersEn } from "./explainers.en";
 import { economiaPt } from "./economia.pt";
 import { economiaEn } from "./economia.en";
+import { quizPt } from "./quiz.pt";
+import { quizEn } from "./quiz.en";
 import type { Lang } from "../types";
 
 export type { Lang };
@@ -26,6 +28,7 @@ const pt = {
   empresarial: empresarialPt,
   explainers: explainersPt,
   economia: economiaPt,
+  quiz: quizPt,
 };
 export type Dict = typeof pt;
 
@@ -36,6 +39,7 @@ const en: Dict = {
   empresarial: empresarialEn,
   explainers: explainersEn,
   economia: economiaEn,
+  quiz: quizEn,
 };
 
 export const dictionaries: Record<Lang, Dict> = { pt, en };

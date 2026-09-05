@@ -1,0 +1,355 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Banco de perguntas de literacia financeira",
+    "source": "https://github.com/Estreia7/playground/tree/master/storage/lfp",
+    "lastVerified": "2026-09-05",
+    "version": 1,
+    "notes": [
+      "Cada pergunta cita a fonte oficial da resposta certa. Os valores são os dos datasets fiscais e económicos deste site, verificados nas mesmas fontes.",
+      "Perguntas mal formadas (índice fora do intervalo, opções em falta, tradução em falta) são rejeitadas pelo validador e não aparecem no site."
+    ]
+  },
+  "questions": [
+    {
+      "id": "irs-progressivo",
+      "category": "irs",
+      "difficulty": "basico",
+      "prompt": { "pt": "Se o teu salário subir e passares para um escalão de IRS mais alto, o que acontece ao teu líquido?", "en": "If your salary rises and you move into a higher income-tax bracket, what happens to your net pay?" },
+      "options": {
+        "pt": ["Sobe sempre — a taxa nova só se aplica à fatia acima do limite", "Pode descer, porque toda a remuneração passa a pagar a taxa mais alta", "Fica igual até ao acerto anual", "Desce, mas o Estado devolve a diferença em maio"],
+        "en": ["It always goes up — the new rate only applies to the slice above the threshold", "It can fall, because all of your pay is now taxed at the higher rate", "It stays the same until the annual settlement", "It falls, but the State refunds the difference in May"]
+      },
+      "correctIndex": 0,
+      "explanation": { "pt": "O IRS é progressivo por escalões: cada taxa só toca na parte do rendimento que cai nesse escalão. Nas tabelas de 2026, entre 2119 € e 2120 € de bruto, o líquido passa de 1547,56 € para 1548,11 €. Subir de escalão nunca te faz ganhar menos.", "en": "Income tax is progressive by brackets: each rate only touches the part of income that falls in that bracket. In the 2026 tables, between €2,119 and €2,120 gross, net pay goes from €1,547.56 to €1,548.11. Moving up a bracket never leaves you with less." },
+      "source": "https://files.diariodarepublica.pt/2s/2026/01/003000001/0000200010.pdf",
+      "learnMore": "/lfp/individual/irs#progressivo"
+    },
+    {
+      "id": "irs-retencao-adiantamento",
+      "category": "irs",
+      "difficulty": "basico",
+      "prompt": { "pt": "O IRS que sai do teu recibo todos os meses é…", "en": "The income tax that leaves your payslip every month is…" },
+      "options": {
+        "pt": ["O imposto final desse mês", "Um adiantamento por conta do imposto anual, acertado na declaração", "Uma contribuição para a Segurança Social", "Uma taxa fixa de 11% sobre o bruto"],
+        "en": ["The final tax for that month", "An advance on the yearly tax, settled on the annual return", "A Social Security contribution", "A flat 11% rate on gross pay"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Chama-se retenção na fonte: a entidade patronal entrega às Finanças uma parte do salário por ti. O imposto a sério calcula-se na declaração anual, com escalões anuais e deduções; se retiveste a mais, recebes reembolso.", "en": "It's called withholding at source: your employer hands part of your salary to the tax office on your behalf. The real tax is calculated on the annual return, with yearly brackets and deductions; if too much was withheld, you get a refund." },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/tabela_ret_doclib/Documents/Tabelas_RF_Continente_2026.xlsx",
+      "learnMore": "/lfp/individual/irs#retencao"
+    },
+    {
+      "id": "irs-minimo-isento",
+      "category": "irs",
+      "difficulty": "medio",
+      "prompt": { "pt": "Em 2026, quem ganha exatamente o salário mínimo (920 € brutos) tem retenção de IRS de…", "en": "In 2026, someone earning exactly the minimum wage (€920 gross) has income-tax withholding of…" },
+      "options": {
+        "pt": ["0 €", "12,50% do bruto", "101,20 €", "Depende dos dependentes"],
+        "en": ["€0", "12.50% of gross", "€101.20", "It depends on dependants"]
+      },
+      "correctIndex": 0,
+      "explanation": { "pt": "O primeiro escalão das tabelas de retenção de 2026 vai «até 920,00 €» com taxa 0%: o salário mínimo não retém IRS. Os 101,20 € que saem são a Segurança Social (11%), não o IRS.", "en": "The first bracket of the 2026 withholding tables runs 'up to €920.00' at 0%: the minimum wage withholds no income tax. The €101.20 that leaves is Social Security (11%), not income tax." },
+      "source": "https://files.diariodarepublica.pt/2s/2026/01/003000001/0000200010.pdf",
+      "learnMore": "/lfp/individual/irs#retencao"
+    },
+    {
+      "id": "irs-reembolso",
+      "category": "irs",
+      "difficulty": "medio",
+      "prompt": { "pt": "Receber um reembolso de IRS em maio significa que…", "en": "Getting an income-tax refund in May means that…" },
+      "options": {
+        "pt": ["O Estado te deu um prémio por entregares a declaração cedo", "Ao longo do ano retiveste mais do que devias — era o teu dinheiro", "Pagaste menos imposto do que os outros", "Tiveste deduções acima do limite legal"],
+        "en": ["The State gave you a prize for filing early", "Over the year more was withheld than you owed — it was your money", "You paid less tax than others", "Your deductions exceeded the legal limit"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "O reembolso é o acerto entre a retenção mensal (um adiantamento) e o imposto final. Se retiveste a mais, emprestaste esse dinheiro ao Estado sem juros durante o ano. Não é bom nem mau — é só o acerto.", "en": "The refund is the settlement between monthly withholding (an advance) and the final tax. If too much was withheld, you lent that money to the State interest-free for a year. It's neither good nor bad — it's just the settlement." },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs68.aspx",
+      "learnMore": "/lfp/individual/irs#acerto"
+    },
+    {
+      "id": "irs-dependentes",
+      "category": "irs",
+      "difficulty": "medio",
+      "prompt": { "pt": "Declarar um dependente à entidade patronal faz o quê à retenção mensal de IRS?", "en": "Declaring a dependant to your employer does what to your monthly income-tax withholding?" },
+      "options": {
+        "pt": ["Nada — só conta na declaração anual", "Baixa-a, porque se abate um valor extra por dependente", "Sobe-a, porque o agregado tem mais rendimento", "Muda a taxa marginal para o escalão seguinte"],
+        "en": ["Nothing — it only counts on the annual return", "Lowers it, because an extra amount is deducted per dependant", "Raises it, because the household has more income", "Moves the marginal rate to the next bracket"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "As tabelas de retenção têm uma «parcela adicional a abater por dependente»: 34,29 € para não casados com dependentes, 21,43 € para casados com dois titulares. Cada dependente baixa a retenção mensal — mais dinheiro em mão ao longo do ano.", "en": "The withholding tables have an 'additional amount deducted per dependant': €34.29 for unmarried people with dependants, €21.43 for married two-earner couples. Each dependant lowers the monthly withholding — more money in hand through the year." },
+      "source": "https://files.diariodarepublica.pt/2s/2026/01/003000001/0000200010.pdf",
+      "learnMore": "/lfp/individual/salario-liquido"
+    },
+
+    {
+      "id": "tsu-taxa-trabalhador",
+      "category": "tsu",
+      "difficulty": "basico",
+      "prompt": { "pt": "Que percentagem do salário bruto desconta um trabalhador por conta de outrem para a Segurança Social?", "en": "What share of gross salary does an employee contribute to Social Security?" },
+      "options": {
+        "pt": ["11%", "23,75%", "34,75%", "Depende do escalão de IRS"],
+        "en": ["11%", "23.75%", "34.75%", "It depends on the income-tax bracket"]
+      },
+      "correctIndex": 0,
+      "explanation": { "pt": "11% do bruto, taxa única sem escalões, regime geral. Os 23,75% são a parte da entidade patronal, paga por cima do salário; 34,75% é a soma das duas — a Taxa Social Única.", "en": "11% of gross, a single rate with no brackets, general regime. 23.75% is the employer's share, paid on top of the salary; 34.75% is the two combined — the Taxa Social Única." },
+      "source": "https://www2.gov.pt/servicos/obter-informacoes-sobre-as-contribuicoes-para-a-seguranca-social-pagamento-de-entidade-empregadora-por-trabalhador-por-conta-de-outrem",
+      "learnMore": "/lfp/individual/tsu"
+    },
+    {
+      "id": "tsu-patronal",
+      "category": "tsu",
+      "difficulty": "basico",
+      "prompt": { "pt": "Por cada 100 € de salário bruto, quanto paga a empresa à Segurança Social por cima desse salário?", "en": "For every €100 of gross salary, how much does the company pay to Social Security on top of that salary?" },
+      "options": {
+        "pt": ["Nada — só o trabalhador desconta", "11 €", "23,75 €", "34,75 €"],
+        "en": ["Nothing — only the employee contributes", "€11", "€23.75", "€34.75"]
+      },
+      "correctIndex": 2,
+      "explanation": { "pt": "A entidade patronal paga 23,75% sobre o bruto, que não aparece no recibo porque não sai do salário — sai do orçamento da empresa. É a principal razão por que um trabalhador custa muito mais do que o seu bruto.", "en": "The employer pays 23.75% on gross, which doesn't appear on the payslip because it doesn't come out of the salary — it comes out of the company's budget. It's the main reason an employee costs far more than their gross." },
+      "source": "https://www2.gov.pt/servicos/obter-informacoes-sobre-as-contribuicoes-para-a-seguranca-social-pagamento-de-entidade-empregadora-por-trabalhador-por-conta-de-outrem",
+      "learnMore": "/lfp/empresarial/custo-trabalhador"
+    },
+    {
+      "id": "tsu-subsidio-refeicao",
+      "category": "tsu",
+      "difficulty": "medio",
+      "prompt": { "pt": "Em 2026, o subsídio de refeição pago em cartão está isento de IRS e Segurança Social até quanto por dia?", "en": "In 2026, a meal allowance paid on a card is exempt from income tax and Social Security up to how much per day?" },
+      "options": {
+        "pt": ["6,15 €", "10,455 € (6,15 € + 70%)", "Não há limite em cartão", "9,60 €"],
+        "en": ["€6.15", "€10.455 (€6.15 + 70%)", "There's no limit on a card", "€9.60"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Em dinheiro, o limite isento é 6,15 €/dia (Portaria n.º 51-B/2026/1). Em cartão ou vale, o limite é 70% superior: 10,455 €/dia. Só o que passar disso paga IRS e Segurança Social.", "en": "In cash, the exempt limit is €6.15/day (Portaria 51-B/2026/1). On a card or voucher the limit is 70% higher: €10.455/day. Only what exceeds it pays income tax and Social Security." },
+      "source": "https://files.diariodarepublica.pt/1s/2026/01/02103/0001100011.pdf",
+      "learnMore": "/lfp/individual/salario-liquido"
+    },
+    {
+      "id": "tsu-subsidios-ferias",
+      "category": "tsu",
+      "difficulty": "medio",
+      "prompt": { "pt": "Os subsídios de férias e de Natal descontam para a Segurança Social?", "en": "Do the holiday and Christmas bonuses contribute to Social Security?" },
+      "options": {
+        "pt": ["Não — são isentos", "Sim, integralmente, os mesmos 11%", "Só metade", "Só o de Natal"],
+        "en": ["No — they're exempt", "Yes, in full, the same 11%", "Only half", "Only the Christmas one"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Contam como remuneração e descontam os mesmos 11%. No IRS, são retidos à parte, cada um com a sua taxa — não se somam ao mês nem empurram para um escalão superior.", "en": "They count as pay and contribute the same 11%. For income tax they're withheld separately, each at its own rate — they don't add to the month or push you into a higher bracket." },
+      "source": "https://www2.gov.pt/servicos/obter-informacoes-sobre-as-contribuicoes-para-a-seguranca-social-pagamento-de-entidade-empregadora-por-trabalhador-por-conta-de-outrem",
+      "learnMore": "/lfp/individual/tsu"
+    },
+    {
+      "id": "tsu-o-que-compra",
+      "category": "tsu",
+      "difficulty": "basico",
+      "prompt": { "pt": "Qual destas prestações NÃO é paga pela Segurança Social?", "en": "Which of these benefits is NOT paid by Social Security?" },
+      "options": {
+        "pt": ["Subsídio de desemprego", "Licença parental", "Seguro de acidentes de trabalho", "Pensão de velhice"],
+        "en": ["Unemployment benefit", "Parental leave", "Workplace accident insurance", "Old-age pension"]
+      },
+      "correctIndex": 2,
+      "explanation": { "pt": "O seguro de acidentes de trabalho é obrigatório mas privado: a empresa contrata-o a uma seguradora, e o prémio é de mercado. Desemprego, parentalidade, doença, invalidez e reforma são pagos pela Segurança Social com as contribuições.", "en": "Workplace accident insurance is mandatory but private: the company buys it from an insurer, and the premium is set by the market. Unemployment, parental leave, sickness, disability and retirement are paid by Social Security from contributions." },
+      "source": "https://www2.gov.pt/servicos/obter-informacoes-sobre-as-contribuicoes-para-a-seguranca-social-pagamento-de-entidade-empregadora-por-trabalhador-por-conta-de-outrem",
+      "learnMore": "/lfp/individual/tsu#o-que-compra"
+    },
+
+    {
+      "id": "iva-taxa-normal",
+      "category": "iva",
+      "difficulty": "basico",
+      "prompt": { "pt": "Qual é a taxa normal de IVA no Continente?", "en": "What is the standard VAT rate on mainland Portugal?" },
+      "options": {
+        "pt": ["13%", "23%", "6%", "21%"],
+        "en": ["13%", "23%", "6%", "21%"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "23% normal, 13% intermédia (restauração, vinho), 6% reduzida (pão, leite, medicamentos, livros). Nos Açores as taxas são 16/9/4 e na Madeira 22/12/4.", "en": "23% standard, 13% intermediate (restaurants, wine), 6% reduced (bread, milk, medicines, books). In the Azores the rates are 16/9/4 and in Madeira 22/12/4." },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/instrucoes_administrativas/Documents/Oficio_circulado_25045_2024.pdf",
+      "learnMore": "/lfp/empresarial/iva"
+    },
+    {
+      "id": "iva-tirar",
+      "category": "iva",
+      "difficulty": "medio",
+      "prompt": { "pt": "Um produto custa 123 € com IVA a 23%. Qual é o preço sem IVA?", "en": "A product costs €123 with VAT at 23%. What is the price without VAT?" },
+      "options": {
+        "pt": ["94,71 € (123 × 0,77)", "100 € (123 ÷ 1,23)", "94,71 € (123 − 23%)", "100,00 € (123 − 23)"],
+        "en": ["€94.71 (123 × 0.77)", "€100 (123 ÷ 1.23)", "€94.71 (123 − 23%)", "€100.00 (123 − 23)"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "O erro clássico é multiplicar por 0,77: tira 23% do preço final, mas o IVA foi calculado sobre o preço inicial, que é mais baixo. Divide-se por 1,23. A última opção dá o número certo por acaso — só funciona porque o preço é 100.", "en": "The classic mistake is multiplying by 0.77: it takes 23% off the final price, but the VAT was calculated on the initial price, which is lower. You divide by 1.23. The last option gets the right number by accident — it only works because the price is 100." },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx",
+      "learnMore": "/lfp/empresarial/iva"
+    },
+    {
+      "id": "iva-quem-paga",
+      "category": "iva",
+      "difficulty": "basico",
+      "prompt": { "pt": "Quem entrega o IVA ao Estado?", "en": "Who hands VAT over to the State?" },
+      "options": {
+        "pt": ["O consumidor, na declaração de IRS", "O vendedor, que o cobrou no preço", "O banco, no pagamento com cartão", "Ninguém — está incluído no IRS"],
+        "en": ["The consumer, on their tax return", "The seller, who charged it in the price", "The bank, on card payments", "Nobody — it's included in income tax"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "O IVA anda escondido dentro do preço: pagas a quem te vende, e é o vendedor que o entrega. Cada empresa deduz o IVA que pagou nas compras e entrega só a diferença — o imposto incide sobre o valor que cada uma acrescentou.", "en": "VAT hides inside the price: you pay whoever sells to you, and the seller hands it over. Each business deducts the VAT it paid on purchases and hands over only the difference — the tax falls on the value each one added." },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx",
+      "learnMore": "/lfp/empresarial/iva#como-funciona"
+    },
+    {
+      "id": "iva-madeira",
+      "category": "iva",
+      "difficulty": "avancado",
+      "prompt": { "pt": "Qual é a taxa reduzida de IVA na Madeira desde outubro de 2024?", "en": "What is the reduced VAT rate in Madeira since October 2024?" },
+      "options": {
+        "pt": ["5%", "4%", "6%", "3%"],
+        "en": ["5%", "4%", "6%", "3%"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Baixou de 5% para 4% a 1 de outubro de 2024 (DLR n.º 6/2024/M). Muitos sites ainda mostram 5%. Nos Açores a reduzida também é 4%; no Continente é 6%.", "en": "It dropped from 5% to 4% on 1 October 2024 (DLR 6/2024/M). Many sites still show 5%. In the Azores the reduced rate is also 4%; on the mainland it's 6%." },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/instrucoes_administrativas/Documents/Oficio_circulado_25045_2024.pdf",
+      "learnMore": "/lfp/empresarial/iva"
+    },
+
+    {
+      "id": "irc-sobre-o-que",
+      "category": "irc",
+      "difficulty": "basico",
+      "prompt": { "pt": "O IRC incide sobre…", "en": "Corporate tax (IRC) is charged on…" },
+      "options": {
+        "pt": ["A faturação total da empresa", "O lucro tributável — o que sobra depois dos custos, ajustado fiscalmente", "Os salários pagos", "O capital social"],
+        "en": ["The company's total turnover", "Taxable profit — what's left after costs, adjusted for tax", "The salaries paid", "The share capital"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Uma empresa com muita faturação e pouco lucro paga pouco IRC. Parte-se do lucro contabilístico, fazem-se ajustamentos fiscais, e chega-se ao lucro tributável — é sobre esse que as taxas se aplicam.", "en": "A company with high turnover and little profit pays little corporate tax. It starts from accounting profit, applies tax adjustments, and arrives at taxable profit — that's what the rates apply to." },
+      "source": "https://www.occ.pt/sites/default/files/public/2025-11/Alt_IRC.pdf",
+      "learnMore": "/lfp/empresarial/irc#como-funciona"
+    },
+    {
+      "id": "irc-taxa-2026",
+      "category": "irc",
+      "difficulty": "avancado",
+      "prompt": { "pt": "Qual é a taxa geral de IRC em vigor em 2026?", "en": "What is the general corporate-tax rate in force in 2026?" },
+      "options": {
+        "pt": ["17% — é o que diz o Código do IRC", "19% — por norma transitória; os 17% só em 2028", "21%", "20%"],
+        "en": ["17% — that's what the Corporate Tax Code says", "19% — under a transitional rule; 17% only from 2028", "21%", "20%"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "O artigo 87.º do CIRC já diz 17%, mas a norma transitória da Lei n.º 64/2025 fixa 19% para 2026, 18% para 2027 e 17% para 2028. Quem leia só o código fica com a taxa errada.", "en": "Article 87 of the Corporate Tax Code already says 17%, but the transitional rule in Law 64/2025 sets 19% for 2026, 18% for 2027 and 17% for 2028. Reading the code alone gives the wrong rate." },
+      "source": "https://www.occ.pt/sites/default/files/public/2025-11/Alt_IRC.pdf",
+      "learnMore": "/lfp/empresarial/irc"
+    },
+    {
+      "id": "irc-pme",
+      "category": "irc",
+      "difficulty": "medio",
+      "prompt": { "pt": "Uma PME paga uma taxa reduzida de IRC sobre…", "en": "An SME pays a reduced corporate-tax rate on…" },
+      "options": {
+        "pt": ["Todo o lucro", "Os primeiros 50 000 € de lucro tributável", "Os primeiros 100 000 € de faturação", "Nada — a taxa é igual para todas"],
+        "en": ["All of its profit", "The first €50,000 of taxable profit", "The first €100,000 of turnover", "Nothing — the rate is the same for all"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "15% sobre os primeiros 50 000 € de matéria coletável; o excedente paga a taxa geral (19% em 2026). A diferença são 2 000 € por ano — a mesma empresa, o mesmo lucro, menos imposto.", "en": "15% on the first €50,000 of taxable profit; the excess pays the general rate (19% in 2026). The difference is €2,000 a year — same company, same profit, less tax." },
+      "source": "https://www.occ.pt/sites/default/files/public/2025-11/Alt_IRC.pdf",
+      "learnMore": "/lfp/empresarial/irc"
+    },
+    {
+      "id": "irc-derrama",
+      "category": "irc",
+      "difficulty": "avancado",
+      "prompt": { "pt": "A derrama municipal, que cada câmara fixa até 1,5%, incide sobre…", "en": "The municipal surcharge, set by each council up to 1.5%, is charged on…" },
+      "options": {
+        "pt": ["O IRC a pagar (a coleta)", "O lucro tributável", "A faturação", "O IMI da sede"],
+        "en": ["The corporate tax due", "Taxable profit", "Turnover", "The property tax on the head office"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Sobre o lucro tributável, não sobre o imposto. Com 100 000 € de lucro e derrama de 1,5%, são 1 500 € — independentemente de quanto IRC a empresa paga. Lisboa e Porto aplicam o máximo.", "en": "On taxable profit, not on the tax. With €100,000 profit and a 1.5% surcharge, that's €1,500 — regardless of how much corporate tax the company pays. Lisbon and Porto apply the maximum." },
+      "source": "https://www.occ.pt/sites/default/files/public/2025-11/Alt_IRC.pdf",
+      "learnMore": "/lfp/empresarial/irc"
+    },
+
+    {
+      "id": "eco-inflacao",
+      "category": "economia",
+      "difficulty": "basico",
+      "prompt": { "pt": "Inflação de 4% num ano significa que…", "en": "4% inflation in a year means that…" },
+      "options": {
+        "pt": ["Os salários subiram 4%", "Os preços, em média, subiram 4% — o mesmo dinheiro compra menos", "O Estado cobrou mais 4% de impostos", "A economia cresceu 4%"],
+        "en": ["Wages rose 4%", "Prices, on average, rose 4% — the same money buys less", "The State collected 4% more tax", "The economy grew 4%"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Inflação é a subida geral dos preços. 100 € de 1999 compram hoje o que 175 € compravam então — em Portugal os preços subiram cerca de 75% desde a chegada do euro (índice de preços do Eurostat).", "en": "Inflation is the general rise in prices. €100 from 1999 buys today what €175 bought then — in Portugal prices rose about 75% since the euro arrived (Eurostat price index)." },
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_aind/default/table",
+      "learnMore": "/lfp/economia/inflacao"
+    },
+    {
+      "id": "eco-aumento-real",
+      "category": "economia",
+      "difficulty": "medio",
+      "prompt": { "pt": "Tiveste um aumento de 3% num ano em que a inflação foi 4%. O teu poder de compra…", "en": "You got a 3% raise in a year when inflation was 4%. Your purchasing power…" },
+      "options": {
+        "pt": ["Subiu 3%", "Desceu — cerca de 1%", "Ficou igual", "Subiu 7%"],
+        "en": ["Rose 3%", "Fell — by about 1%", "Stayed the same", "Rose 7%"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Um aumento abaixo da inflação é um corte real. A conta exata é (1,03 ÷ 1,04) − 1 ≈ −0,96%: divide-se, não se subtrai — a subtração lisonjeia o aumento. Compara sempre o aumento com a inflação do ano.", "en": "A raise below inflation is a real cut. The exact maths is (1.03 ÷ 1.04) − 1 ≈ −0.96%: you divide, not subtract — subtraction flatters the raise. Always compare a raise with the year's inflation." },
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_aind/default/table",
+      "learnMore": "/lfp/economia/inflacao"
+    },
+    {
+      "id": "eco-juros-compostos",
+      "category": "economia",
+      "difficulty": "medio",
+      "prompt": { "pt": "Nos juros compostos, o que faz o dinheiro crescer mais: duplicar a taxa ou começar dez anos mais cedo?", "en": "With compound interest, what grows money more: doubling the rate or starting ten years earlier?" },
+      "options": {
+        "pt": ["Duplicar a taxa, sempre", "Começar mais cedo — o tempo pesa mais porque os juros rendem sobre juros", "É indiferente", "Nenhum — só os reforços contam"],
+        "en": ["Doubling the rate, always", "Starting earlier — time weighs more because interest earns on interest", "It makes no difference", "Neither — only the top-ups count"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "100 € por mês a 5% dão cerca de 43 800 € em 20 anos e 87 700 € em 30 — os últimos dez anos valem mais do que os primeiros vinte. Cada ano rende sobre o que já rendeu; parece pouco no início e explode no fim.", "en": "€100 a month at 5% gives about €43,800 in 20 years and €87,700 in 30 — the last ten years are worth more than the first twenty. Each year earns on what already earned; it looks like little at first and explodes at the end." },
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_aind/default/table",
+      "learnMore": "/lfp/economia/juros-compostos"
+    },
+    {
+      "id": "eco-onde-vai",
+      "category": "economia",
+      "difficulty": "medio",
+      "prompt": { "pt": "Qual é a maior fatia da despesa do Estado português?", "en": "What is the largest slice of Portuguese State spending?" },
+      "options": {
+        "pt": ["Saúde", "Educação", "Proteção social — pensões e apoios", "Defesa"],
+        "en": ["Health", "Education", "Social protection — pensions and benefits", "Defence"]
+      },
+      "correctIndex": 2,
+      "explanation": { "pt": "Cerca de 40% de toda a despesa pública vai para proteção social, sobretudo pensões. A saúde é a segunda, com cerca de 16%; a educação ronda 10%; a defesa 2%. (Eurostat, despesa por função, 2024.)", "en": "About 40% of all public spending goes to social protection, mostly pensions. Health is second at about 16%; education around 10%; defence 2%. (Eurostat, spending by function, 2024.)" },
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/gov_10a_exp/default/table",
+      "learnMore": "/lfp/economia/impostos"
+    },
+    {
+      "id": "eco-pps",
+      "category": "economia",
+      "difficulty": "avancado",
+      "prompt": { "pt": "Para comparar salários entre países de forma justa, usa-se o «poder de compra» (PPS). Porquê?", "en": "To compare salaries across countries fairly, 'purchasing power' (PPS) is used. Why?" },
+      "options": {
+        "pt": ["Porque converte tudo para dólares", "Porque corrige os preços de cada país — o mesmo cabaz custa o mesmo em todo o lado", "Porque desconta os impostos", "Porque usa o salário mínimo como base"],
+        "en": ["Because it converts everything to dollars", "Because it corrects for each country's prices — the same basket costs the same everywhere", "Because it deducts taxes", "Because it uses the minimum wage as a base"]
+      },
+      "correctIndex": 1,
+      "explanation": { "pt": "Um salário nominal mais alto num país onde tudo custa mais pode comprar menos. O PPS ajusta pelo nível de preços: em Portugal, 21 449 € líquidos valem 24 666 PPS, porque os preços cá são mais baixos que a média europeia.", "en": "A higher nominal salary in a country where everything costs more may buy less. PPS adjusts for the price level: in Portugal, €21,449 net is worth 24,666 PPS, because prices here are below the European average." },
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/earn_nt_net/default/table",
+      "learnMore": "/lfp/economia/dias-de-trabalho"
+    },
+    {
+      "id": "eco-custo-trabalhador",
+      "category": "economia",
+      "difficulty": "medio",
+      "prompt": { "pt": "Um trabalhador com 1500 € brutos custa à empresa, por mês, aproximadamente…", "en": "An employee on €1,500 gross costs the company, per month, approximately…" },
+      "options": {
+        "pt": ["1 500 €", "1 167 € — o líquido", "1 870 € — bruto mais Segurança Social patronal e seguro", "3 000 €"],
+        "en": ["€1,500", "€1,167 — the net", "€1,870 — gross plus employer Social Security and insurance", "€3,000"]
+      },
+      "correctIndex": 2,
+      "explanation": { "pt": "1 500 € + 356,25 € de Segurança Social patronal (23,75%) + cerca de 15 € de seguro de acidentes ≈ 1 871 €. O trabalhador recebe 1 167 €. Por cada euro que chega ao trabalhador, a empresa gasta 1,60 €.", "en": "€1,500 + €356.25 employer Social Security (23.75%) + about €15 accident insurance ≈ €1,871. The employee takes home €1,167. For every euro that reaches the employee, the company spends €1.60." },
+      "source": "https://www2.gov.pt/servicos/obter-informacoes-sobre-as-contribuicoes-para-a-seguranca-social-pagamento-de-entidade-empregadora-por-trabalhador-por-conta-de-outrem",
+      "learnMore": "/lfp/empresarial/custo-trabalhador"
+    }
+  ]
+}
