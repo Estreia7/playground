@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Mitos fiscais — afirmações que se ouvem, com a resposta e a fonte",
+    "source": "https://github.com/Estreia7/playground/tree/master/storage/lfp",
+    "lastVerified": "2026-09-09",
+    "version": 1,
+    "notes": [
+      "Cada afirmação tem um veredicto (mito ou verdade), uma explicação curta e a fonte oficial que a sustenta.",
+      "Entradas mal formadas (veredicto inválido, tradução em falta, fonte sem https) são rejeitadas pelo validador e não aparecem no site."
+    ]
+  },
+  "myths": [
+    {
+      "id": "escalao-ganhar-menos",
+      "verdict": "mito",
+      "claim": {
+        "pt": "Se subir de escalão de IRS, passo a ganhar menos.",
+        "en": "If I move up an income-tax bracket, I end up earning less."
+      },
+      "explanation": {
+        "pt": "O IRS é progressivo por fatias: a taxa mais alta só se aplica à parte do rendimento que ultrapassa o limite do escalão anterior. Um aumento nunca reduz o líquido — só é tributado a uma taxa marginal maior.",
+        "en": "Income tax is progressive by slices: the higher rate applies only to the part of income above the previous bracket's limit. A raise never lowers net pay — it is just taxed at a higher marginal rate."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs68.aspx",
+      "learnMore": "/lfp/individual/irs"
+    },
+    {
+      "id": "retencao-e-imposto-final",
+      "verdict": "mito",
+      "claim": {
+        "pt": "O IRS que me descontam no recibo é o imposto final.",
+        "en": "The income tax withheld on my payslip is the final tax."
+      },
+      "explanation": {
+        "pt": "A retenção na fonte é um adiantamento por conta do imposto do ano. O imposto final calcula-se na declaração anual; a diferença é reembolsada ou paga.",
+        "en": "Withholding is an advance on the year's tax. The final tax is computed in the annual return; the difference is refunded or paid."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs98.aspx",
+      "learnMore": "/lfp/individual/salario-liquido"
+    },
+    {
+      "id": "subsidio-refeicao-isento",
+      "verdict": "verdade",
+      "claim": {
+        "pt": "O subsídio de refeição não paga IRS nem Segurança Social até um limite diário.",
+        "en": "The meal allowance pays no income tax or Social Security up to a daily limit."
+      },
+      "explanation": {
+        "pt": "Até ao limite legal por dia (mais alto se for pago em cartão), o subsídio de refeição está excluído da tributação. Só o excesso conta como rendimento.",
+        "en": "Up to the legal daily limit (higher when paid on a card), the meal allowance is excluded from taxation. Only the excess counts as income."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs2.aspx",
+      "learnMore": "/lfp/individual/salario-liquido"
+    },
+    {
+      "id": "empresa-nao-paga-ss",
+      "verdict": "mito",
+      "claim": {
+        "pt": "Os 11% que desconto são tudo o que vai para a Segurança Social pelo meu trabalho.",
+        "en": "The 11% I pay is all that goes to Social Security for my work."
+      },
+      "explanation": {
+        "pt": "A entidade patronal paga mais 23,75% sobre o teu bruto, que nunca aparece no recibo. Por cada 100 € brutos, a Segurança Social recebe quase 35 €.",
+        "en": "The employer pays another 23.75% on your gross, which never shows on the payslip. For every €100 gross, Social Security receives almost €35."
+      },
+      "source": "https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2009-34514575",
+      "learnMore": "/lfp/empresarial/custo-trabalhador"
+    },
+    {
+      "id": "iva-pagam-empresas",
+      "verdict": "mito",
+      "claim": {
+        "pt": "O IVA é um imposto sobre as empresas — quem o paga são elas.",
+        "en": "VAT is a tax on companies — they're the ones who pay it."
+      },
+      "explanation": {
+        "pt": "As empresas cobram e entregam o IVA, mas quem o suporta é o consumidor final: está no preço de tudo o que compras. A empresa deduz o IVA que paga nas compras e entrega a diferença.",
+        "en": "Companies collect and hand over VAT, but the final consumer bears it: it's in the price of everything you buy. The company deducts the VAT on its purchases and remits the difference."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva37.aspx",
+      "learnMore": "/lfp/empresarial/iva"
+    },
+    {
+      "id": "restaurante-13-tudo",
+      "verdict": "mito",
+      "claim": {
+        "pt": "Num restaurante, o IVA é 13% em tudo.",
+        "en": "In a restaurant, VAT is 13% on everything."
+      },
+      "explanation": {
+        "pt": "A taxa intermédia cobre a refeição e as bebidas como água, sumos naturais ou vinho; bebidas alcoólicas destiladas e refrigerantes pagam a taxa normal de 23%. Por isso a fatura vem dividida.",
+        "en": "The intermediate rate covers the meal and drinks like water, fresh juice or wine; spirits and soft drinks pay the standard 23%. That's why the bill comes split."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx",
+      "learnMore": "/lfp/economia/recibo-de-iva"
+    },
+    {
+      "id": "carro-empresa-deduz-iva",
+      "verdict": "mito",
+      "claim": {
+        "pt": "Se comprar o carro em nome da empresa, deduzo o IVA todo.",
+        "en": "If I buy the car in the company's name, I deduct all the VAT."
+      },
+      "explanation": {
+        "pt": "O IVA de viaturas ligeiras de passageiros, do seu combustível e das suas despesas está, em regra, excluído do direito à dedução. Há exceções para viaturas elétricas ou afetas a certas atividades.",
+        "en": "VAT on passenger cars, their fuel and their running costs is, as a rule, excluded from deduction. There are exceptions for electric vehicles or specific activities."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva21.aspx",
+      "learnMore": "/lfp/empresarial/iva"
+    },
+    {
+      "id": "pme-15-em-tudo",
+      "verdict": "mito",
+      "claim": {
+        "pt": "As PME pagam IRC a 15% sobre todo o lucro.",
+        "en": "SMEs pay corporate tax at 15% on all their profit."
+      },
+      "explanation": {
+        "pt": "A taxa reduzida aplica-se só aos primeiros 50 000 € de matéria coletável; o resto paga a taxa geral. E há ainda a derrama municipal e, para lucros grandes, a estadual.",
+        "en": "The reduced rate applies only to the first €50,000 of taxable income; the rest pays the general rate. Then there's the municipal surcharge and, for large profits, the state one."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/CIRC_2R/Pages/circ87.aspx",
+      "learnMore": "/lfp/empresarial/irc"
+    },
+    {
+      "id": "independentes-primeiro-ano",
+      "verdict": "verdade",
+      "claim": {
+        "pt": "No primeiro ano a recibos verdes não se paga Segurança Social.",
+        "en": "In the first year as a freelancer you pay no Social Security."
+      },
+      "explanation": {
+        "pt": "Verdade, com condições: só no primeiro enquadramento de sempre como independente, durante 12 meses, e sem acumular com trabalho por conta de outrem. Sem contribuições, também não há proteção.",
+        "en": "True, with conditions: only on a first-ever enrolment as an independent, for 12 months, and not combined with employment. No contributions also means no cover."
+      },
+      "source": "https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2009-34514575",
+      "learnMore": "/lfp/individual/recibos-verdes"
+    },
+    {
+      "id": "colchao-nao-perde",
+      "verdict": "mito",
+      "claim": {
+        "pt": "Dinheiro guardado em casa não perde valor — está lá todo.",
+        "en": "Cash kept at home doesn't lose value — it's all still there."
+      },
+      "explanation": {
+        "pt": "As notas ficam; o que compram, não. Com 2% de inflação ao ano, 1 000 € guardados compram, dez anos depois, o que hoje custa cerca de 820 €.",
+        "en": "The notes stay; what they buy doesn't. At 2% inflation a year, €1,000 kept aside buys, ten years later, what costs about €820 today."
+      },
+      "source": "https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_aind/default/table",
+      "learnMore": "/lfp/economia/inflacao"
+    },
+    {
+      "id": "juros-compostos-pouco",
+      "verdict": "mito",
+      "claim": {
+        "pt": "Poupar 100 € por mês durante 30 anos dá pouco mais do que os 36 000 € que lá pus.",
+        "en": "Saving €100 a month for 30 years gives little more than the €36,000 I put in."
+      },
+      "explanation": {
+        "pt": "A 5% ao ano, com juros sobre juros, os 36 000 € tornam-se cerca de 83 000 €. Mais de metade do valor final são juros — e quase todos chegam nos últimos anos.",
+        "en": "At 5% a year, with interest on interest, the €36,000 becomes about €83,000. More than half of the final value is interest — and almost all of it arrives in the last years."
+      },
+      "source": "https://www.todoscontam.pt/",
+      "learnMore": "/lfp/economia/juros-compostos"
+    },
+    {
+      "id": "pensao-percentagem-fixa",
+      "verdict": "mito",
+      "claim": {
+        "pt": "A pensão de reforma é uma percentagem fixa do último salário.",
+        "en": "The retirement pension is a fixed percentage of the last salary."
+      },
+      "explanation": {
+        "pt": "A pensão depende de toda a carreira contributiva — as remunerações de todos os anos, revalorizadas — da idade em que te reformas e do fator de sustentabilidade. O último salário, sozinho, não a determina.",
+        "en": "The pension depends on the whole contribution record — every year's earnings, revalued — on the age you retire and on the sustainability factor. The last salary alone doesn't set it."
+      },
+      "source": "https://www2.gov.pt/servicos/requerer-a-pensao-de-velhice",
+      "learnMore": "/lfp/economia/vida"
+    },
+    {
+      "id": "casa-custa-o-preco",
+      "verdict": "mito",
+      "claim": {
+        "pt": "Uma casa de 250 000 € custa 250 000 €.",
+        "en": "A €250,000 house costs €250,000."
+      },
+      "explanation": {
+        "pt": "À entrada há IMT, Imposto do Selo e registos; depois, trinta anos de juros e IMI. Com um crédito a 3%, o custo total anda perto de uma vez e meia o preço.",
+        "en": "On the way in there's transfer tax, stamp duty and registration; then thirty years of interest and property tax. With a 3% loan, the total cost lands near one and a half times the price."
+      },
+      "source": "https://info.portaldasfinancas.gov.pt/pt/atualidades/instrucoesadmin/Paginas/Oficio-circulado-40129-2026.aspx",
+      "learnMore": "/lfp/economia/casa"
+    }
+  ]
+}

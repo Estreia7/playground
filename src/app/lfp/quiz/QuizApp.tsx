@@ -77,6 +77,17 @@ export default function QuizApp() {
                 </li>
               );
             })}
+            <li>
+              <Link
+                href="/lfp/mitos"
+                className="lfp-tile lfp-focus lfp-press flex h-full w-full flex-col items-start border-dashed p-6 text-left transition-colors hover:border-[var(--lfp-cobalt)]"
+              >
+                <span className="lfp-eyebrow">{t.sec.mitos.eyebrow}</span>
+                <span className="lfp-display mt-2 text-2xl font-semibold">{t.sec.mitos.hubTitle}</span>
+                <span className="mt-2 text-sm leading-relaxed text-[var(--lfp-mist)]">{t.sec.mitos.hubBody}</span>
+                <span className="lfp-num mt-4 text-sm font-semibold text-[var(--lfp-cobalt)]">{d.start} →</span>
+              </Link>
+            </li>
           </ul>
         </div>
       )}

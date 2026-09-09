@@ -307,6 +307,35 @@ export const secPt = {
       "Sem impostos sobre o rendimento da poupança (28% em regra), sem IRS sobre a pensão, sem inflação diferente da média.",
     ],
   },
+
+  mitos: {
+    crumb: "Mitos",
+    eyebrow: "Verdade ou mito?",
+    title: "As coisas que toda a gente diz sobre impostos.",
+    lede: "Algumas são verdade. A maioria custa dinheiro a quem acredita nelas. Uma afirmação de cada vez: decide, e vê a resposta com a fonte.",
+    claimEyebrow: "Ouve-se dizer que",
+    answerAria: "A tua resposta",
+    verdade: "Verdade",
+    mito: "Mito",
+    right: "Acertaste",
+    wrong: "Falhaste",
+    isMito: "É mito.",
+    isVerdade: "É verdade.",
+    counter: "{n} de {total}",
+    known: "{n} de {total} desmontados",
+    progressAria: "Progresso",
+    next: "Próximo",
+    finish: "Ver resultado",
+    done: {
+      eyebrow: "Fim da ronda",
+      title: "{n} de {total} certos",
+      body: "Os que falhaste voltam à frente da fila quando repetires. As fontes ficam — vale a pena abrir uma ou duas.",
+    },
+    again: "Repetir",
+    toQuiz: "Ir para o quiz",
+    hubTitle: "Mitos fiscais",
+    hubBody: "Verdade ou mito, uma afirmação de cada vez, com a fonte oficial da resposta.",
+  },
 };
 
 export type SecDict = typeof secPt;
