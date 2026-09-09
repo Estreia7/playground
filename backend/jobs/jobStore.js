@@ -128,6 +128,7 @@ function deleteJob(id) {
     db.prepare(`DELETE FROM job_events WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM listing_results WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM excluded_cells WHERE job_id = ?`).run(jobId);
+    db.prepare(`DELETE FROM adr_overrides WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM host_results WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM host_meta WHERE job_id = ?`).run(jobId);
     db.prepare(`DELETE FROM jobs WHERE id = ?`).run(jobId);
@@ -208,6 +209,38 @@ function setCellExcluded({ jobId, url, monthIndex, excluded }) {
     db.prepare(
       `DELETE FROM excluded_cells WHERE job_id = ? AND url = ? AND month_index = ?`
     ).run(jobId, url, monthIndex);
+  }
+}
+
+// --- Manual per-job ADR overrides ------------------------------------------
+// A cell is (url, monthIndex 0..11). The scraped value is never touched, so
+// clearing an override restores it. Returned as a { "url|monthIndex": value }
+// map so the frontend can look a cell up directly.
+function adrOverrides(jobId) {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT url, month_index AS monthIndex, value FROM adr_overrides WHERE job_id = ?`
+    )
+    .all(jobId);
+  return Object.fromEntries(rows.map((r) => [`${r.url}|${r.monthIndex}`, r.value]));
+}
+
+// value === null clears the override and restores the scraped price.
+function setAdrOverride({ jobId, url, monthIndex, value }) {
+  const db = getDb();
+  if (value === null || value === undefined) {
+    db.prepare(
+      `DELETE FROM adr_overrides WHERE job_id = ? AND url = ? AND month_index = ?`
+    ).run(jobId, url, monthIndex);
+  } else {
+    db.prepare(
+      `INSERT INTO adr_overrides (job_id, url, month_index, value, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(job_id, url, month_index) DO UPDATE SET
+         value = excluded.value,
+         updated_at = excluded.updated_at`
+    ).run(jobId, url, monthIndex, value, nowSec());
   }
 }
 
@@ -672,6 +705,8 @@ module.exports = {
   hostListingEvents,
   listingsByAlNumber,
   excludedCells,
+  adrOverrides,
+  setAdrOverride,
   setCellExcluded,
   cacheLookup,
   cacheUpsert,

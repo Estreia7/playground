@@ -19,8 +19,13 @@ router.get('/jobs/stream', (req, res) => {
     res.write(`data: ${JSON.stringify(evt.payload)}\n\n`);
   }
 
-  const lastSeqHeader = req.headers['last-event-id'];
-  const fromSeq = parseInt(lastSeqHeader, 10);
+  // Resume point. The browser's own Last-Event-ID wins on an automatic
+  // reconnect; ?since= lets the client pin the position of the REST snapshot
+  // it already applied, so a fresh connection replays only what it missed
+  // instead of the entire event log (which would re-apply long-dead statuses).
+  const headerSeq = parseInt(req.headers['last-event-id'], 10);
+  const querySeq = parseInt(req.query.since, 10);
+  const fromSeq = Number.isFinite(headerSeq) ? headerSeq : querySeq;
   if (Number.isFinite(fromSeq)) {
     const replay = store.eventsAfter(fromSeq);
     for (const r of replay) send({ seq: r.seq, type: r.type, payload: r.payload });

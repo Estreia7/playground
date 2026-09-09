@@ -136,3 +136,17 @@ CREATE TABLE IF NOT EXISTS scrape_attempts (
 CREATE INDEX IF NOT EXISTS idx_scrape_attempts_ts ON scrape_attempts(ts);
 CREATE INDEX IF NOT EXISTS idx_scrape_attempts_job ON scrape_attempts(job_id);
 CREATE INDEX IF NOT EXISTS idx_scrape_attempts_outcome ON scrape_attempts(outcome);
+
+-- Per-job manual ADR overrides: a listing/month cell whose scraped price the
+-- user replaced by hand. The scraped value stays in listing_results so the
+-- override is always revertible; `value` is what every average and the export
+-- actually use.
+CREATE TABLE IF NOT EXISTS adr_overrides (
+  job_id      TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  month_index INTEGER NOT NULL,
+  value       REAL NOT NULL,
+  updated_at  INTEGER NOT NULL,
+  PRIMARY KEY (job_id, url, month_index)
+);
+CREATE INDEX IF NOT EXISTS idx_adr_overrides_job ON adr_overrides(job_id);

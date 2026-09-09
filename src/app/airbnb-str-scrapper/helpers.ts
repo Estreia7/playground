@@ -1,4 +1,4 @@
-import { cellKey, type JobState, type JobStatus, type ListingState } from "./types";
+import { cellKey, type JobState, type JobStatus, type ListingState } from "./types.ts";
 
 export const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -21,9 +21,16 @@ export type SummaryRow = {
   reviewsScore: number | null;
   recent: boolean;
   // 12 slots, Jan..Dec; null = not scraped / no price for that month.
+  // Where the user typed an override, this holds the override — it is the
+  // effective value used by every average and the export.
   adrByMonth: (number | null)[];
+  // The untouched scraped value per month, so a cell can be reverted and the
+  // original can be shown alongside an override.
+  scrapedByMonth: (number | null)[];
   // true where the user manually hid that month's ADR.
   excludedByMonth: boolean[];
+  // true where the effective value came from a manual override.
+  overriddenByMonth: boolean[];
   // per-listing average over included (non-hidden) months only.
   avgAdr: number | null;
 };
@@ -64,7 +71,14 @@ export function buildSummary(job: JobState): {
 } {
   const rows: SummaryRow[] = job.urls.map((url) => {
     const ls = job.listings[url];
-    const adrByMonth = adrByCalendarMonth(ls);
+    const scrapedByMonth = adrByCalendarMonth(ls);
+    // A manual override wins over the scraped value everywhere downstream.
+    const overriddenByMonth = scrapedByMonth.map(
+      (_, i) => job.overrides[cellKey(url, i)] !== undefined
+    );
+    const adrByMonth = scrapedByMonth.map((v, i) =>
+      overriddenByMonth[i] ? job.overrides[cellKey(url, i)] : v
+    );
     const excludedByMonth = adrByMonth.map((_, i) => job.excluded.has(cellKey(url, i)));
     // Per-listing average counts only months that have a value AND aren't hidden.
     const included = adrByMonth.filter(
@@ -78,7 +92,9 @@ export function buildSummary(job: JobState): {
       reviewsScore: ls?.meta?.reviewsScore ?? null,
       recent: isRecentOnMarket(reviewsCount),
       adrByMonth,
+      scrapedByMonth,
       excludedByMonth,
+      overriddenByMonth,
       avgAdr: roundMean(included),
     };
   });
@@ -132,6 +148,7 @@ export function emptyJob(j: {
     location: j.location ?? "",
     listings,
     excluded: new Set<string>(),
+    overrides: {},
   };
 }
 

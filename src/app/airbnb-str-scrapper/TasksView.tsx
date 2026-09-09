@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { JobState } from "./types";
 import { buildSummary, fmtTime, MONTH_LABELS, shortId, statusColor } from "./helpers";
@@ -14,6 +15,7 @@ export function TasksView({
   onDelete,
   onNewTask,
   onToggleExclusion,
+  onSetOverride,
 }: {
   jobs: JobState[];
   selected: string | null;
@@ -23,6 +25,7 @@ export function TasksView({
   onDelete: (id: string) => void;
   onNewTask: () => void;
   onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
+  onSetOverride: (jobId: string, url: string, monthIndex: number, value: number | null) => void;
 }) {
   return (
     <div className="grid h-full gap-4 lg:grid-cols-[320px_1fr]">
@@ -74,6 +77,7 @@ export function TasksView({
             onCancel={() => onCancel(current.id)}
             onDelete={() => onDelete(current.id)}
             onToggleExclusion={onToggleExclusion}
+            onSetOverride={onSetOverride}
           />
         )}
       </div>
@@ -173,11 +177,13 @@ function JobDetail({
   onCancel,
   onDelete,
   onToggleExclusion,
+  onSetOverride,
 }: {
   job: JobState;
   onCancel: () => void;
   onDelete: () => void;
   onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
+  onSetOverride: (jobId: string, url: string, monthIndex: number, value: number | null) => void;
 }) {
   const active = job.status === "queued" || job.status === "running";
   const totalMonths = job.urls.length * 12;
@@ -252,7 +258,11 @@ function JobDetail({
         </div>
       </div>
 
-      <SummaryTable job={job} onToggleExclusion={onToggleExclusion} />
+      <SummaryTable
+        job={job}
+        onToggleExclusion={onToggleExclusion}
+        onSetOverride={onSetOverride}
+      />
     </div>
   );
 }
@@ -260,9 +270,11 @@ function JobDetail({
 function SummaryTable({
   job,
   onToggleExclusion,
+  onSetOverride,
 }: {
   job: JobState;
   onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
+  onSetOverride: (jobId: string, url: string, monthIndex: number, value: number | null) => void;
 }) {
   const { rows, monthAverages, overallAvg, totalReviews, avgReviewsScore, recentYes, recentNo } =
     buildSummary(job);
@@ -277,7 +289,9 @@ function SummaryTable({
           ADR by month · {rows.length} listing{rows.length === 1 ? "" : "s"}
         </h4>
         <span className="text-[11px] text-zinc-500">
-          {jobDone ? "hover a price → click the eye to exclude it" : "values are nightly ADR"}
+          {jobDone
+            ? "click a price to edit · eye hides it from averages"
+            : "values are nightly ADR"}
         </span>
       </div>
       <div className="thin-scroll overflow-x-auto">
@@ -338,9 +352,13 @@ function SummaryTable({
                   <AdrCell
                     key={i}
                     value={v}
+                    scraped={r.scrapedByMonth[i]}
+                    overridden={r.overriddenByMonth[i]}
                     excluded={r.excludedByMonth[i]}
+                    editable={jobDone}
                     canToggle={jobDone && v !== null}
                     onToggle={() => onToggleExclusion(job.id, r.url, i)}
+                    onCommit={(next) => onSetOverride(job.id, r.url, i, next)}
                   />
                 ))}
                 <td className="px-2 py-2 text-right font-mono font-semibold text-orange-300">
@@ -390,23 +408,89 @@ function SummaryTable({
 
 function AdrCell({
   value,
+  scraped,
+  overridden,
   excluded,
+  editable,
   canToggle,
   onToggle,
+  onCommit,
 }: {
   value: number | null;
+  scraped: number | null;
+  overridden: boolean;
   excluded: boolean;
+  editable: boolean;
   canToggle: boolean;
   onToggle: () => void;
+  onCommit: (value: number | null) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
   const text = value !== null ? value.toFixed(0) : "—";
   const empty = value === null;
+
+  function open() {
+    if (!editable) return;
+    setDraft(value !== null ? String(value) : "");
+    setEditing(true);
+  }
+
+  // Blank commits nothing but a revert; anything unparseable is discarded so a
+  // typo can never wipe a scraped price.
+  function commit() {
+    setEditing(false);
+    const raw = draft.trim();
+    if (raw === "") {
+      if (overridden) onCommit(null);
+      return;
+    }
+    const parsed = Number(raw.replace(",", "."));
+    if (!Number.isFinite(parsed) || parsed < 0) return;
+    const rounded = Math.round(parsed * 100) / 100;
+    if (rounded === value) return;
+    onCommit(rounded);
+  }
+
+  if (editing) {
+    return (
+      <td className="relative px-1 py-1 text-right">
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="decimal"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setEditing(false);
+            }
+          }}
+          aria-label="ADR value"
+          className="w-16 rounded border border-orange-600/60 bg-zinc-950 px-1 py-0.5 text-right font-mono text-xs text-zinc-100 outline-none"
+        />
+      </td>
+    );
+  }
 
   return (
     <td
       className={`group/cell relative px-2 py-2 text-right font-mono ${
         excluded
           ? "text-zinc-600 line-through"
+          : overridden
+          ? "text-sky-300"
           : empty
           ? "text-zinc-700"
           : "text-zinc-200"
@@ -426,9 +510,44 @@ function AdrCell({
             <EyeIcon off={excluded} />
           </button>
         )}
-        <span>{text}</span>
+        {overridden && (
+          <button
+            type="button"
+            onClick={() => onCommit(null)}
+            aria-label="Reset to scraped value"
+            title={
+              scraped !== null
+                ? `Reset to scraped value (${scraped.toFixed(0)})`
+                : "Reset — no scraped value for this month"
+            }
+            className="shrink-0 text-sky-500/70 transition-colors hover:text-sky-300"
+          >
+            <ResetIcon />
+          </button>
+        )}
+        {editable ? (
+          <button
+            type="button"
+            onClick={open}
+            title={overridden ? "Manual value — click to edit" : "Click to edit"}
+            className="rounded px-0.5 hover:bg-zinc-800/80"
+          >
+            {text}
+          </button>
+        ) : (
+          <span>{text}</span>
+        )}
       </span>
     </td>
+  );
+}
+
+function ResetIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 2v6h6" />
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L3 8" />
+    </svg>
   );
 }
 

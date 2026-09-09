@@ -40,7 +40,23 @@ export async function exportJobToExcel(job: JobState) {
     r.adrByMonth.forEach((v, i) => {
       row[MONTH_LABELS[i]] = r.excludedByMonth[i] ? null : v;
     });
-    summary.addRow(row);
+    const added = summary.addRow(row);
+    // Manually overridden months are tinted and annotated with the scraped
+    // value they replaced, so the sheet stays auditable.
+    r.overriddenByMonth.forEach((isOverride, i) => {
+      if (!isOverride || r.excludedByMonth[i]) return;
+      const cell = added.getCell(MONTH_LABELS[i]);
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFDCEBFA" },
+      };
+      const original = r.scrapedByMonth[i];
+      cell.note =
+        original !== null
+          ? `Manual override — scraped value was ${original}`
+          : "Manual value — nothing was scraped for this month";
+    });
   }
 
   const recentTally = `${rows.filter((r) => r.recent).length} yes · ${

@@ -67,6 +67,7 @@ export default function ScrapperPage() {
               onDelete={handleDelete}
               onNewTask={() => setView("new")}
               onToggleExclusion={state.toggleExclusion}
+              onSetOverride={state.setOverride}
             />
           )}
           {view === "monitor" && (

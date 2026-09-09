@@ -59,7 +59,10 @@ router.get('/jobs/:id', (req, res) => {
   if (!job) return res.status(404).json({ error: 'not-found' });
   const listings = store.listingResults(req.params.id);
   const excluded = store.excludedCells(req.params.id);
-  return res.json({ job, listings, excluded });
+  const overrides = store.adrOverrides(req.params.id);
+  // seq pins the event log position this snapshot reflects, so the client can
+  // resume the SSE stream from here instead of replaying the whole log.
+  return res.json({ job, listings, excluded, overrides, seq: store.lastEventSeq() });
 });
 
 const ExclusionBody = z.object({
@@ -78,6 +81,25 @@ router.put('/jobs/:id/exclusions', (req, res) => {
   }
   store.setCellExcluded({ jobId: req.params.id, ...parsed.data });
   return res.json({ ok: true, excluded: store.excludedCells(req.params.id) });
+});
+
+const OverrideBody = z.object({
+  url: z.string().min(1),
+  monthIndex: z.number().int().min(0).max(11),
+  // null clears the override and restores the scraped price.
+  value: z.number().finite().nonnegative().nullable(),
+});
+
+// Set or clear a single ADR cell's manual override.
+router.put('/jobs/:id/overrides', (req, res) => {
+  const job = store.getJob(req.params.id);
+  if (!job) return res.status(404).json({ error: 'not-found' });
+  const parsed = OverrideBody.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'invalid-body', issues: parsed.error.issues });
+  }
+  store.setAdrOverride({ jobId: req.params.id, ...parsed.data });
+  return res.json({ ok: true, overrides: store.adrOverrides(req.params.id) });
 });
 
 router.get('/jobs/:id/events', (req, res) => {

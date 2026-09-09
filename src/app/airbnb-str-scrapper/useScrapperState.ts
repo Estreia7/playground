@@ -11,6 +11,15 @@ export function useScrapperState() {
   const [order, setOrder] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const lastSeqRef = useRef<number>(0);
+  // The REST snapshot and the SSE stream used to race on mount: the stream
+  // applied live events while the (slower) snapshot fetch was in flight, then
+  // the snapshot's wholesale setJobs() clobbered them — which is why a finished
+  // task could sit at a stale "error" until a manual refresh. The stream is now
+  // opened only once the snapshot has been applied, and resumes from the
+  // snapshot's event seq so nothing in between is missed and nothing already
+  // reflected is replayed back over current state.
+  const snapshotSeqRef = useRef<number | null>(null);
+  const [streamReady, setStreamReady] = useState(false);
 
   const applyEvent = useCallback((type: string, payload: Record<string, unknown>) => {
     const jobId = payload.jobId as string;
@@ -138,6 +147,9 @@ export function useScrapperState() {
         };
         if (cancelled) return;
 
+        // Highest event seq any snapshot reflects — the stream resumes here.
+        let maxSeq = 0;
+
         const detailed = await Promise.all(
           list.map(async (j) => {
             try {
@@ -152,8 +164,18 @@ export function useScrapperState() {
                   result: MonthResult[];
                 }>;
                 excluded?: string[];
+                overrides?: Record<string, number>;
+                seq?: number;
               };
-              return { meta: data.job, listings: data.listings, excluded: data.excluded };
+              if (typeof data.seq === "number") {
+                maxSeq = Math.max(maxSeq, data.seq);
+              }
+              return {
+                meta: data.job,
+                listings: data.listings,
+                excluded: data.excluded,
+                overrides: data.overrides,
+              };
             } catch {
               return j;
             }
@@ -173,6 +195,7 @@ export function useScrapperState() {
                 result: MonthResult[];
               }>;
               excluded?: string[];
+              overrides?: Record<string, number>;
             };
             const base = emptyJob(e.meta);
             for (const l of e.listings) {
@@ -185,6 +208,7 @@ export function useScrapperState() {
               };
             }
             base.excluded = new Set(e.excluded ?? []);
+            base.overrides = e.overrides ?? {};
             next[e.meta.id] = base;
             ord.push(e.meta.id);
           } else {
@@ -195,8 +219,17 @@ export function useScrapperState() {
         }
         setJobs(next);
         setOrder(ord);
+
+        // The snapshot is authoritative up to maxSeq; the stream picks up there.
+        snapshotSeqRef.current = maxSeq;
+        lastSeqRef.current = Math.max(lastSeqRef.current, maxSeq);
+        setStreamReady(true);
       } catch (err) {
         console.warn("initial load failed", err);
+        // Never strand the UI on a failed snapshot — connect the stream anyway
+        // so live events still drive the view.
+        snapshotSeqRef.current = 0;
+        setStreamReady(true);
       }
     })();
     return () => {
@@ -205,11 +238,16 @@ export function useScrapperState() {
   }, []);
 
   useEffect(() => {
-    const es = new EventSource(`${API_BASE}/jobs/stream`);
+    // Wait for the snapshot so the stream can resume from its seq instead of
+    // replaying the entire event log over already-current state.
+    if (!streamReady) return;
+    const since = snapshotSeqRef.current ?? 0;
+    const es = new EventSource(`${API_BASE}/jobs/stream?since=${since}`);
     const handlers = [
       "job-created",
       "job-status",
       "listing-started",
+      "listing-meta",
       "progress",
       "listing-done",
       "deleted",
@@ -236,7 +274,7 @@ export function useScrapperState() {
     };
 
     return () => es.close();
-  }, [applyEvent]);
+  }, [applyEvent, streamReady]);
 
   const visibleJobs = useMemo(() => order.map((id) => jobs[id]).filter(Boolean), [order, jobs]);
   const activeCount = useMemo(
@@ -308,6 +346,45 @@ export function useScrapperState() {
     []
   );
 
+  // Set (value) or clear (null) a manual ADR override for one cell. Optimistic,
+  // same as toggleExclusion: apply locally, persist, roll back on failure.
+  const setOverride = useCallback(
+    async (jobId: string, url: string, monthIndex: number, value: number | null) => {
+      const key = `${url}|${monthIndex}`;
+      let previous: number | undefined;
+
+      setJobs((prev) => {
+        const job = prev[jobId];
+        if (!job) return prev;
+        previous = job.overrides[key];
+        const next = { ...job.overrides };
+        if (value === null) delete next[key];
+        else next[key] = value;
+        return { ...prev, [jobId]: { ...job, overrides: next } };
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/jobs/${jobId}/overrides`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, monthIndex, value }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        console.warn("setOverride failed, rolling back", err);
+        setJobs((prev) => {
+          const job = prev[jobId];
+          if (!job) return prev;
+          const next = { ...job.overrides };
+          if (previous === undefined) delete next[key];
+          else next[key] = previous;
+          return { ...prev, [jobId]: { ...job, overrides: next } };
+        });
+      }
+    },
+    []
+  );
+
   const currentJob = selected ? jobs[selected] : null;
 
   return {
@@ -321,5 +398,6 @@ export function useScrapperState() {
     cancelJob,
     deleteJob,
     toggleExclusion,
+    setOverride,
   };
 }
