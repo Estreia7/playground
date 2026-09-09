@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "year": 2022,
+    "label": "Distribuição dos salários mensais brutos, tempo inteiro (Eurostat, Inquérito à Estrutura dos Ganhos)",
+    "source": "https://ec.europa.eu/eurostat/databrowser/view/earn_ses_monthly/default/table",
+    "sourceUrl": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/earn_ses_monthly?format=JSON&lang=EN&geo=PT&nace_r2=B-S_X_O&isco08=TOTAL&worktime=FT&age=TOTAL&sex=T&indic_se=D1_E_EUR&indic_se=MED_E_EUR&indic_se=MEAN_E_EUR&indic_se=D9_E_EUR",
+    "datasetCode": "earn_ses_monthly",
+    "license": "Eurostat — reuse permitted with attribution (Commission Decision 2011/833/EU)",
+    "retrievedAt": "2026-09-09",
+    "lastVerified": "2026-09-09",
+    "version": 1,
+    "notes": [
+      "Quatro pontos oficiais — 1.º decil, mediana, média e 9.º decil — não uma tabela de escalões. Entre eles, a posição é interpolada e apresentada como estimativa, com um intervalo.",
+      "Ganho mensal BRUTO de trabalhadores a tempo inteiro, empresas de 10 ou mais pessoas, excluindo administração pública.",
+      "O Inquérito à Estrutura dos Ganhos é quadrienal: os dados são de 2022 e os salários de hoje já subiram. Comparar um salário atual com esta distribuição sobrestima a tua posição.",
+      "Os escalões completos dos Quadros de Pessoal (GEP) dariam uma curva real; o portal do GEP redireciona os PDFs e não são acessíveis. Entram assim que estiverem."
+    ]
+  },
+  "unit": "EUR",
+  "basis": "gross_monthly_full_time",
+  "points": [
+    {
+      "percentile": 10,
+      "value": 814,
+      "label": "D1"
+    },
+    {
+      "percentile": 50,
+      "value": 1099,
+      "label": "median"
+    },
+    {
+      "percentile": 90,
+      "value": 2612,
+      "label": "D9"
+    }
+  ],
+  "mean": 1483
+}

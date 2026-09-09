@@ -307,6 +307,58 @@ export const secEn: SecDict = {
     ],
   },
 
+  situas: {
+    crumb: "Where you stand",
+    eyebrow: "Calculator",
+    title: "You earn more than how many people in Portugal?",
+    lede: "Enter your gross monthly salary. We compare it against the official distribution of wages in Portugal — and tell you the range you're in, without inventing precision the data doesn't have.",
+    formAria: "Your salary",
+    fields: {
+      bruto: "Gross monthly salary",
+      brutoHint: "Gross, not net — that's how the distribution is published. Full-time.",
+    },
+    headline: {
+      eyebrow: "You earn more than",
+      of: "of full-time employees",
+      between: "Between {low}% and {high}%",
+      estimate: "Estimate: ~{n}th percentile",
+      belowTitle: "Below the first decile",
+      belowBody: "You're in the lowest-paid 10%. Below this point the official data doesn't say exactly where.",
+      aboveTitle: "Above the ninth decile",
+      aboveBody: "You're in the highest-paid 10%. Above this point the official data doesn't say exactly where.",
+    },
+    scale: {
+      title: "The scale, with the official points",
+      aria: "Distribution of gross monthly wages in {year}: first decile {d1}, median {median}, mean {mean}, ninth decile {d9}. Your salary of {yours} sits at about percentile {pct}.",
+      you: "You",
+      d1: "1st decile",
+      median: "Median",
+      mean: "Mean",
+      d9: "9th decile",
+    },
+    points: {
+      title: "The four published points",
+      d1: "First decile — 10% earn less than this",
+      median: "Median — half earn less, half earn more",
+      mean: "Mean — pulled up by the high salaries",
+      d9: "Ninth decile — 10% earn more than this",
+    },
+    gap: {
+      title: "Why the average misleads",
+      text: "The mean ({mean}) sits well above the median ({median}). In any wage distribution a few very high salaries pull the mean up, which is why \"the average salary\" always sounds higher than what most people get. When you want to know what's normal, look at the median.",
+    },
+    caveat: {
+      title: "Four points, not a curve",
+      text: "The official survey publishes four values — first decile, median, mean and ninth decile — not a full table. Between them your position is interpolated: it's an estimate within a range, and the range is the honest answer.",
+    },
+    notes: [
+      "Gross monthly earnings of full-time employees (Eurostat, Structure of Earnings Survey), firms with 10 or more people, excluding public administration.",
+      "The survey runs every four years: this data is from {year}. Wages have risen since, so comparing today's salary against this distribution overstates your position.",
+      "Position between published points is interpolated on a log scale — the usual approximation for wage distributions, which are right-skewed.",
+      "Part-time work, freelancers and public administration are outside the survey.",
+    ],
+  },
+
   mitos: {
     crumb: "Myths",
     eyebrow: "True or myth?",

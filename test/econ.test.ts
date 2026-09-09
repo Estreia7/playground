@@ -222,3 +222,69 @@ test("projectLife: no gap when the pension matches the salary", () => {
   assert.equal(r.gapMensalReal, 0);
   assert.equal(r.anosCobertos, null);
 });
+
+/* ── where you stand ─────────────────────────────────────── */
+
+import { wageStanding } from "../src/app/lfp/econ.ts";
+
+const anchors = [
+  { percentile: 10, value: 814, label: "D1" },
+  { percentile: 50, value: 1099, label: "median" },
+  { percentile: 90, value: 2612, label: "D9" },
+];
+
+test("wageStanding lands exactly on the published anchors", () => {
+  assert.equal(wageStanding(814, anchors)!.estimate, 10);
+  assert.equal(wageStanding(1099, anchors)!.estimate, 50);
+  assert.equal(wageStanding(2612, anchors)!.estimate, 90);
+});
+
+test("wageStanding reports a bound, not a number, outside the anchors", () => {
+  const low = wageStanding(600, anchors)!;
+  assert.equal(low.outside, "below");
+  assert.equal(low.low, 0);
+  assert.equal(low.high, 10);
+  const high = wageStanding(5000, anchors)!;
+  assert.equal(high.outside, "above");
+  assert.equal(high.low, 90);
+  assert.equal(high.high, 100);
+});
+
+test("wageStanding interpolates inside the right span and stays monotone", () => {
+  const r = wageStanding(1500, anchors)!;
+  assert.equal(r.outside, null);
+  assert.equal(r.low, 50);
+  assert.equal(r.high, 90);
+  assert.ok(r.estimate > 50 && r.estimate < 90);
+  // Log space, not euros: the median→D9 span is wide (€1,099→€2,612), and a
+  // straight line in euros treats the first €100 above the median as worth
+  // the same as the last €100 below D9. On a right-skewed distribution far
+  // more people sit just above the median, so log puts €1,500 at ~64 where
+  // a linear reading would say ~61.
+  assert.ok(Math.abs(r.estimate - 64.4) < 0.2, `expected ~64.4, got ${r.estimate}`);
+  let prev = -1;
+  for (const w of [700, 814, 900, 1099, 1400, 1800, 2612, 4000]) {
+    const e = wageStanding(w, anchors)!.estimate;
+    assert.ok(e >= prev, `not monotone at ${w}: ${e} < ${prev}`);
+    prev = e;
+  }
+});
+
+test("wageStanding refuses to guess without enough anchors", () => {
+  assert.equal(wageStanding(1000, []), null);
+  assert.equal(wageStanding(1000, [anchors[0]]), null);
+  assert.equal(wageStanding(Number.NaN, anchors), null);
+});
+
+test("the published distribution dataset is ordered and complete", () => {
+  const d = JSON.parse(fs.readFileSync(path.join(process.cwd(), "storage", "lfp", "econ", "distribution.json"), "utf8"));
+  assert.ok(d.meta.year >= 2018);
+  assert.ok(d.meta.source.startsWith("https://"));
+  assert.equal(d.points.length, 3);
+  for (let i = 1; i < d.points.length; i++) {
+    assert.ok(d.points[i].percentile > d.points[i - 1].percentile);
+    assert.ok(d.points[i].value > d.points[i - 1].value);
+  }
+  // The mean sits above the median in every real wage distribution.
+  assert.ok(d.mean > d.points[1].value);
+});

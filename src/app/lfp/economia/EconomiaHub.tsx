@@ -19,7 +19,7 @@ const TOPICS: Array<{ key: TopicKey; href: string; ready: boolean }> = [
   { key: "casa", href: "/lfp/economia/casa", ready: true },
   { key: "cesto", href: "/lfp/economia/recibo-de-iva", ready: true },
   { key: "vida", href: "/lfp/economia/vida", ready: true },
-  { key: "situas", href: "/lfp/economia/onde-te-situas", ready: false },
+  { key: "situas", href: "/lfp/economia/onde-te-situas", ready: true },
 ];
 
 export default function EconomiaHub() {

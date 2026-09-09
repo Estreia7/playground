@@ -310,3 +310,73 @@ export function projectLife(input: LifeInput): LifeResult {
       gapMensalReal > 0 ? Math.round((poupancaReal / (gapMensalReal * 12)) * 10) / 10 : null,
   };
 }
+
+/* ── where you stand ─────────────────────────────────────── */
+
+export interface DistributionPoint {
+  /** 10, 50, 90 — the percentile this euro value marks. */
+  percentile: number;
+  value: number;
+  label: string;
+}
+
+export interface StandingResult {
+  /** Point estimate, 0–100. Interpolated between anchors — never precise. */
+  estimate: number;
+  /** The honest span: the two published anchors this salary falls between. */
+  low: number;
+  high: number;
+  /** True when the salary is below the lowest or above the highest anchor,
+   *  where there is nothing to interpolate and the answer is a bound. */
+  outside: "below" | "above" | null;
+  /** The anchors bracketing the salary, for the caller to name them. */
+  lower: DistributionPoint | null;
+  upper: DistributionPoint | null;
+}
+
+/**
+ * Where a gross monthly salary sits, from a handful of published anchor
+ * points (D1, median, D9) rather than a full bracket table.
+ *
+ * Between two anchors the position is interpolated LINEARLY IN LOG SPACE:
+ * wage distributions are right-skewed, and a straight line in euros between
+ * the median and D9 puts a €1,500 salary far too high. Log space is the
+ * standard approximation and errs toward modesty.
+ *
+ * Below the first anchor or above the last, no interpolation is possible:
+ * the result is the bound itself, flagged with `outside`, so the page can
+ * say "below the first decile" instead of inventing a number.
+ */
+export function wageStanding(gross: number, points: DistributionPoint[]): StandingResult | null {
+  if (!Number.isFinite(gross) || points.length < 2) return null;
+  const sorted = [...points].sort((a, b) => a.percentile - b.percentile);
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  if (gross <= first.value) {
+    return { estimate: first.percentile, low: 0, high: first.percentile, outside: "below", lower: null, upper: first };
+  }
+  if (gross >= last.value) {
+    return { estimate: last.percentile, low: last.percentile, high: 100, outside: "above", lower: last, upper: null };
+  }
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    if (gross >= a.value && gross <= b.value) {
+      const t =
+        a.value > 0 && b.value > a.value
+          ? (Math.log(gross) - Math.log(a.value)) / (Math.log(b.value) - Math.log(a.value))
+          : 0;
+      return {
+        estimate: Math.round((a.percentile + (b.percentile - a.percentile) * t) * 10) / 10,
+        low: a.percentile,
+        high: b.percentile,
+        outside: null,
+        lower: a,
+        upper: b,
+      };
+    }
+  }
+  return null;
+}

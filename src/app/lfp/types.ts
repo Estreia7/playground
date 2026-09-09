@@ -409,10 +409,22 @@ export interface CountryWages {
   missing: string[];
 }
 
+/** Anchor points of the national wage distribution. Not brackets: the
+ *  official survey publishes deciles and a median, so the page interpolates
+ *  between them and says it is interpolating. */
+export interface WageDistribution {
+  meta: EconMeta;
+  unit: "EUR";
+  basis: "gross_monthly_full_time";
+  points: Array<{ percentile: number; value: number; label: string }>;
+  mean: number;
+}
+
 export interface EconData {
   inflation: InflationSeries;
   cofog: CofogBreakdown;
   wages: CountryWages;
+  distribution: WageDistribution;
 }
 
 export type EconId = keyof EconData;

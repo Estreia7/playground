@@ -308,6 +308,58 @@ export const secPt = {
     ],
   },
 
+  situas: {
+    crumb: "Onde te situas",
+    eyebrow: "Calculadora",
+    title: "Ganhas mais do que quantos portugueses?",
+    lede: "Mete o teu salário bruto mensal. Comparamos com a distribuição oficial dos salários em Portugal — e dizemos-te o intervalo em que estás, sem inventar uma precisão que os dados não têm.",
+    formAria: "O teu salário",
+    fields: {
+      bruto: "Salário bruto mensal",
+      brutoHint: "Bruto, não líquido — é assim que a distribuição é publicada. A tempo inteiro.",
+    },
+    headline: {
+      eyebrow: "Ganhas mais do que",
+      of: "dos trabalhadores a tempo inteiro",
+      between: "Entre os {low}% e os {high}%",
+      estimate: "Estimativa: ~{n}.º percentil",
+      belowTitle: "Abaixo do 1.º decil",
+      belowBody: "Estás no grupo dos 10% que menos ganham. Abaixo deste ponto os dados oficiais não dizem onde exatamente.",
+      aboveTitle: "Acima do 9.º decil",
+      aboveBody: "Estás no grupo dos 10% que mais ganham. Acima deste ponto os dados oficiais não dizem onde exatamente.",
+    },
+    scale: {
+      title: "A escala, com os pontos oficiais",
+      aria: "Distribuição dos salários mensais brutos em {year}: 1.º decil {d1}, mediana {median}, média {mean}, 9.º decil {d9}. O teu salário de {yours} fica em cerca do percentil {pct}.",
+      you: "Tu",
+      d1: "1.º decil",
+      median: "Mediana",
+      mean: "Média",
+      d9: "9.º decil",
+    },
+    points: {
+      title: "Os quatro pontos publicados",
+      d1: "1.º decil — 10% ganham menos do que isto",
+      median: "Mediana — metade ganha menos, metade ganha mais",
+      mean: "Média — puxada para cima pelos salários altos",
+      d9: "9.º decil — 10% ganham mais do que isto",
+    },
+    gap: {
+      title: "Porque é que a média engana",
+      text: "A média ({mean}) é bastante mais alta do que a mediana ({median}). Numa distribuição de salários há sempre poucos muito altos a puxar a média, e é por isso que «o salário médio» soa sempre acima do que a maioria recebe. Quando quiseres saber o que é normal, olha para a mediana.",
+    },
+    caveat: {
+      title: "Quatro pontos, não uma curva",
+      text: "O inquérito oficial publica quatro valores — 1.º decil, mediana, média e 9.º decil — não uma tabela completa. Entre eles, a tua posição é interpolada: é uma estimativa dentro de um intervalo, e o intervalo é a resposta honesta.",
+    },
+    notes: [
+      "Ganho mensal bruto de trabalhadores a tempo inteiro (Eurostat, Inquérito à Estrutura dos Ganhos), empresas com 10 ou mais pessoas, sem administração pública.",
+      "O inquérito é quadrienal: os dados são de {year}. Os salários subiram desde então, por isso comparar o teu salário de hoje com esta distribuição sobrestima a tua posição.",
+      "A posição entre pontos publicados é interpolada em escala logarítmica — a aproximação habitual para distribuições de salários, que são assimétricas à direita.",
+      "Trabalho a tempo parcial, recibos verdes e administração pública ficam de fora do inquérito.",
+    ],
+  },
+
   mitos: {
     crumb: "Mitos",
     eyebrow: "Verdade ou mito?",

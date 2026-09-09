@@ -368,11 +368,83 @@ async function syncWagesOecd() {
   if (pt && de) console.log(`  PRT ${pt.year}=${pt.usdPpp}  DEU ${de.year}=${de.usdPpp}`);
 }
 
+/** The Portuguese wage distribution: first decile, median, mean and ninth
+ *  decile of GROSS monthly earnings, full-time employees.
+ *
+ *  The plan called for the GEP's Quadros de Pessoal brackets, which would
+ *  give a full curve. The GEP portal redirects every publication URL to
+ *  another department's homepage, so those tables cannot be fetched or
+ *  downloaded. Eurostat's Structure of Earnings Survey is the same kind of
+ *  source — an official survey of employers — and it is reachable, but it
+ *  publishes four anchor points rather than brackets. That is what this
+ *  writes, and the page says so: an estimate between known points, never a
+ *  precise percentile.
+ *
+ *  SES runs every four years, so `year` here is 2022 while the tax data is
+ *  2026. Both years are shown, because comparing a 2026 salary against a
+ *  2022 distribution overstates where you sit. */
+async function syncDistribution() {
+  const indics = ["D1_E_EUR", "MED_E_EUR", "MEAN_E_EUR", "D9_E_EUR"];
+  const url =
+    `${EUROSTAT}/earn_ses_monthly?format=JSON&lang=EN&geo=PT` +
+    `&nace_r2=B-S_X_O&isco08=TOTAL&worktime=FT&age=TOTAL&sex=T&` +
+    indics.map((i) => `indic_se=${i}`).join("&");
+  console.log("distribution ←", url.slice(0, 140) + "…");
+  const ds = await getJson(url);
+  const rows = jsonStatRows(ds);
+  if (INSPECT) { console.log("  dims:", ds.id, "rows:", rows.length); console.log("  sample:", rows.slice(0, 2)); }
+
+  // Keep the most recent year that has all four points.
+  const byYear = {};
+  for (const r of rows) {
+    if (!Number.isFinite(r.value)) continue;
+    (byYear[Number(r.dims.time)] ??= {})[r.dims.indic_se] = r.value;
+  }
+  const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
+  const year = years.find((y) => indics.every((i) => Number.isFinite(byYear[y][i])));
+  if (!year) throw new Error("distribution: no year has all four points");
+  const p = byYear[year];
+
+  // A monotone series is the whole basis for interpolating a percentile.
+  if (!(p.D1_E_EUR < p.MED_E_EUR && p.MED_E_EUR < p.D9_E_EUR)) {
+    throw new Error(`distribution: points out of order (${p.D1_E_EUR}, ${p.MED_E_EUR}, ${p.D9_E_EUR})`);
+  }
+
+  await write("distribution", {
+    meta: {
+      year,
+      label: "Distribuição dos salários mensais brutos, tempo inteiro (Eurostat, Inquérito à Estrutura dos Ganhos)",
+      source: "https://ec.europa.eu/eurostat/databrowser/view/earn_ses_monthly/default/table",
+      sourceUrl: url,
+      datasetCode: "earn_ses_monthly",
+      license: EUROSTAT_LICENSE,
+      retrievedAt: today,
+      lastVerified: today,
+      version: 1,
+      notes: [
+        "Quatro pontos oficiais — 1.º decil, mediana, média e 9.º decil — não uma tabela de escalões. Entre eles, a posição é interpolada e apresentada como estimativa, com um intervalo.",
+        "Ganho mensal BRUTO de trabalhadores a tempo inteiro, empresas de 10 ou mais pessoas, excluindo administração pública.",
+        "O Inquérito à Estrutura dos Ganhos é quadrienal: os dados são de 2022 e os salários de hoje já subiram. Comparar um salário atual com esta distribuição sobrestima a tua posição.",
+        "Os escalões completos dos Quadros de Pessoal (GEP) dariam uma curva real; o portal do GEP redireciona os PDFs e não são acessíveis. Entram assim que estiverem.",
+      ],
+    },
+    unit: "EUR",
+    basis: "gross_monthly_full_time",
+    points: [
+      { percentile: 10, value: p.D1_E_EUR, label: "D1" },
+      { percentile: 50, value: p.MED_E_EUR, label: "median" },
+      { percentile: 90, value: p.D9_E_EUR, label: "D9" },
+    ],
+    mean: p.MEAN_E_EUR,
+  });
+  console.log(`  ${year}: D1 ${p.D1_E_EUR} · mediana ${p.MED_E_EUR} · média ${p.MEAN_E_EUR} · D9 ${p.D9_E_EUR}`);
+}
+
 /* ── run ─────────────────────────────────────────────────── */
 
-const tasks = { inflation: syncInflation, cofog: syncCofog, wages: syncWages, "wages-oecd": syncWagesOecd };
+const tasks = { inflation: syncInflation, cofog: syncCofog, wages: syncWages, distribution: syncDistribution, "wages-oecd": syncWagesOecd };
 // "all" excludes the OECD task until that endpoint is dependable.
-const run = which === "all" ? ["inflation", "cofog", "wages"] : [which];
+const run = which === "all" ? ["inflation", "cofog", "wages", "distribution"] : [which];
 let failed = 0;
 for (const name of run) {
   try {
