@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import type {
   DatasetId,
+  IndependentesDataset,
   IrcDataset,
   IrsDataset,
   IvaDataset,
@@ -17,7 +18,7 @@ import type {
 const STORAGE_DIR = path.join(process.cwd(), "storage", "lfp");
 const HISTORY_DIR = path.join(STORAGE_DIR, "history");
 
-export const DATASET_IDS = ["irs", "tsu", "iva", "irc"] as const;
+export const DATASET_IDS = ["irs", "tsu", "iva", "irc", "independentes"] as const;
 
 export function isDatasetId(v: string): v is DatasetId {
   return (DATASET_IDS as readonly string[]).includes(v);
@@ -169,6 +170,19 @@ function validateIrc(v: unknown, errors: string[]) {
   if (!isRate(d.derramaMunicipal?.max)) errors.push("derramaMunicipal.max inválida");
 }
 
+function validateIndependentes(v: unknown, errors: string[]) {
+  const d = v as IndependentesDataset;
+  if (!isRate(d.taxaContributiva)) errors.push("taxaContributiva inválida");
+  if (!isRate(d.coeficientes?.servicos)) errors.push("coeficientes.servicos inválido");
+  if (!isRate(d.coeficientes?.vendas)) errors.push("coeficientes.vendas inválido");
+  if (typeof d.contribuicaoMinima !== "number" || d.contribuicaoMinima < 0) errors.push("contribuicaoMinima inválida");
+  if (typeof d.ias !== "number" || d.ias <= 0) errors.push("ias inválido");
+  if (typeof d.baseMaximaMultiploIas !== "number" || d.baseMaximaMultiploIas <= 0) errors.push("baseMaximaMultiploIas inválido");
+  if (typeof d.isencaoPrimeirosMeses !== "number" || d.isencaoPrimeirosMeses < 0) errors.push("isencaoPrimeirosMeses inválido");
+  if (!isRate(d.retencao?.taxa)) errors.push("retencao.taxa inválida");
+  if (typeof d.retencao?.dispensaAte !== "number" || d.retencao.dispensaAte < 0) errors.push("retencao.dispensaAte inválido");
+}
+
 export function validateDataset(id: DatasetId, value: unknown): string[] {
   const errors: string[] = [];
   if (!value || typeof value !== "object") return ["Payload não é um objeto"];
@@ -178,6 +192,7 @@ export function validateDataset(id: DatasetId, value: unknown): string[] {
   if (id === "tsu") validateTsu(value, errors);
   if (id === "iva") validateIva(value, errors);
   if (id === "irc") validateIrc(value, errors);
+  if (id === "independentes") validateIndependentes(value, errors);
 
   return errors;
 }

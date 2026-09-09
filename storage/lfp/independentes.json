@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Trabalhadores independentes — Segurança Social e retenção de IRS",
+    "source": "https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2009-34514575",
+    "sources": [
+      "https://diariodarepublica.pt/dr/legislacao-consolidada/lei/2009-34514575",
+      "https://diariodarepublica.pt/dr/detalhe/portaria/480-a-2025-993056222",
+      "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs101.aspx",
+      "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs101b.aspx"
+    ],
+    "lastVerified": "2026-09-09",
+    "version": 1,
+    "notes": [
+      "Código dos Regimes Contributivos do Sistema Previdencial de Segurança Social (Lei n.º 110/2009): taxa de 21,4% (art. 168.º), rendimento relevante de 70% da prestação de serviços e 20% das vendas (art. 162.º), contribuição mínima de 20 € (art. 163.º), base limitada a 12 × IAS.",
+      "IAS 2026 = 537,13 € (Portaria n.º 480-A/2025/1, de 30 de dezembro).",
+      "Retenção na fonte da categoria B a 25% (art. 101.º CIRS); dispensa possível quando o rendimento anual previsto não ultrapassa 15 000 € (art. 101.º-B CIRS, por remissão ao art. 53.º do CIVA).",
+      "Isenção de contribuições nos primeiros 12 meses só no PRIMEIRO enquadramento como independente (art. 145.º), e só se não houver acumulação com trabalho por conta de outrem."
+    ]
+  },
+  "taxaContributiva": 0.214,
+  "coeficientes": { "servicos": 0.7, "vendas": 0.2 },
+  "contribuicaoMinima": 20,
+  "ias": 537.13,
+  "baseMaximaMultiploIas": 12,
+  "isencaoPrimeirosMeses": 12,
+  "retencao": { "taxa": 0.25, "dispensaAte": 15000 }
+}

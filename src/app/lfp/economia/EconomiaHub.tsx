@@ -15,6 +15,7 @@ const TOPICS: Array<{ key: TopicKey; href: string; ready: boolean }> = [
   { key: "juros", href: "/lfp/economia/juros-compostos", ready: true },
   { key: "impostos", href: "/lfp/economia/impostos", ready: true },
   { key: "dias", href: "/lfp/economia/dias-de-trabalho", ready: true },
+  { key: "aumento", href: "/lfp/economia/aumento", ready: true },
   { key: "situas", href: "/lfp/economia/onde-te-situas", ready: false },
 ];
 

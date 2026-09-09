@@ -7,6 +7,9 @@
    deficiency regimes, no non-habitual resident, no other income. */
 
 import type {
+  IndependentesDataset,
+  RecibosVerdesInput,
+  RecibosVerdesResult,
   CustoEmpresaInput,
   CustoEmpresaResult,
   IrcDataset,
@@ -313,5 +316,59 @@ export function irc(input: IrcInput, data: { irc: IrcDataset }): IrcResult {
       },
       { key: "derrama_estadual", base: L, rate: 0, amount: derramaEstadual },
     ],
+  };
+}
+
+/* ── recibos verdes ──────────────────────────────────────── */
+
+/** What an independent worker keeps each month from a given invoicing.
+ *  Monthly simplification of a quarterly regime: the real contribution is
+ *  set from the previous quarter's declaration and applies to the next
+ *  three months — over a steady year the totals are the same. */
+export function recibosVerdes(
+  input: RecibosVerdesInput,
+  data: { independentes: IndependentesDataset }
+): RecibosVerdesResult {
+  const d = data.independentes;
+  const avisos: string[] = [];
+  const fat = clampNonNegative(input.faturacaoMensal);
+  const coef = input.atividade === "vendas" ? d.coeficientes.vendas : d.coeficientes.servicos;
+
+  const baseMax = round2(d.ias * d.baseMaximaMultiploIas);
+  let rendimentoRelevante = round2(fat * coef);
+  if (rendimentoRelevante > baseMax) {
+    rendimentoRelevante = baseMax;
+    avisos.push("aviso.base_maxima");
+  }
+
+  let contribuicaoSS = round2(rendimentoRelevante * d.taxaContributiva);
+  if (fat > 0 && contribuicaoSS < d.contribuicaoMinima) {
+    contribuicaoSS = d.contribuicaoMinima;
+    avisos.push("aviso.contribuicao_minima");
+  }
+  if (input.primeiroAno) {
+    contribuicaoSS = 0;
+    avisos.push("aviso.isencao_primeiro_ano");
+  }
+
+  const anual = fat * 12;
+  let retencaoIrs = 0;
+  if (input.retencaoNaFonte) {
+    retencaoIrs = round2(fat * d.retencao.taxa);
+    if (anual < d.retencao.dispensaAte) avisos.push("aviso.pode_pedir_dispensa");
+  } else if (anual >= d.retencao.dispensaAte && fat > 0) {
+    avisos.push("aviso.retencao_obrigatoria");
+  }
+
+  const liquidoMensal = round2(fat - contribuicaoSS - retencaoIrs);
+  return {
+    faturacaoMensal: fat,
+    rendimentoRelevante,
+    contribuicaoSS,
+    retencaoIrs,
+    liquidoMensal,
+    liquidoAnual: round2(liquidoMensal * 12),
+    taxaContributivaEfetiva: fat > 0 ? contribuicaoSS / fat : 0,
+    avisos,
   };
 }

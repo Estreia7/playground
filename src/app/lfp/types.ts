@@ -133,11 +133,54 @@ export interface IrcDataset {
   derramaEstadual: Array<{ from: number; to: number | null; rate: number }>;
 }
 
+/* ─────────────── Trabalhadores independentes ─────────────── */
+
+export interface IndependentesDataset {
+  meta: DatasetMeta;
+  /** Contribution rate applied to the relevant income (0.214). */
+  taxaContributiva: number;
+  /** Share of invoicing that counts as relevant income, by activity. */
+  coeficientes: { servicos: number; vendas: number };
+  /** EUR/month floor whenever there is declared income. */
+  contribuicaoMinima: number;
+  /** Indexante dos Apoios Sociais, EUR/month, for the base ceiling. */
+  ias: number;
+  baseMaximaMultiploIas: number;
+  /** Months exempt on a FIRST-EVER enrolment as an independent. */
+  isencaoPrimeirosMeses: number;
+  /** IRS withholding on category B: rate, and the annual turnover below
+   *  which the worker may waive it. */
+  retencao: { taxa: number; dispensaAte: number };
+}
+
 export interface TaxData {
   irs: IrsDataset;
   tsu: TsuDataset;
   iva: IvaDataset;
   irc: IrcDataset;
+  independentes: IndependentesDataset;
+}
+
+export interface RecibosVerdesInput {
+  /** Invoiced per month, before IVA. */
+  faturacaoMensal: number;
+  atividade: "servicos" | "vendas";
+  retencaoNaFonte: boolean;
+  /** First-ever enrolment: contributions exempt for the first months. */
+  primeiroAno: boolean;
+}
+
+export interface RecibosVerdesResult {
+  faturacaoMensal: number;
+  rendimentoRelevante: number;
+  contribuicaoSS: number;
+  retencaoIrs: number;
+  /** What lands in the account each month, before the annual IRS settlement. */
+  liquidoMensal: number;
+  liquidoAnual: number;
+  /** Contribution ÷ invoicing — what the 21.4% "really" is on the whole. */
+  taxaContributivaEfetiva: number;
+  avisos: string[];
 }
 
 export type DatasetId = keyof TaxData;

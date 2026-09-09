@@ -27,6 +27,10 @@ export const economiaPt = {
         title: "Dias de trabalho",
         body: "Quantos dias trabalhas para pagar algo — e quantos trabalha um espanhol, um alemão, um polaco.",
       },
+      aumento: {
+        title: "Aumento vs. inflação",
+        body: "Subiram-te 3% num ano de 4% de inflação? Então cortaram-te. A conta real, com o IRS pelo meio.",
+      },
       situas: {
         title: "Onde te situas",
         body: "Ganhas mais do que que percentagem dos portugueses? Com os escalões oficiais, sem falsa precisão.",

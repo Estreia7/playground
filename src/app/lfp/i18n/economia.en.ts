@@ -26,6 +26,10 @@ export const economiaEn: EconomiaDict = {
         title: "Days of work",
         body: "How many days you work to pay for something — and how many a Spaniard, a German, a Pole works.",
       },
+      aumento: {
+        title: "Raise vs. inflation",
+        body: "Got 3% in a year of 4% inflation? Then you got a cut. The real maths, with income tax in the middle.",
+      },
       situas: {
         title: "Where you stand",
         body: "You earn more than what share of Portuguese workers? With the official brackets, without false precision.",

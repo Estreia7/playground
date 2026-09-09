@@ -12,8 +12,8 @@ const TOPICS: Array<{ key: TopicKey; href: string; kind: "explicacao" | "calcula
   { key: "salarioLiquido", href: "/lfp/individual/salario-liquido", kind: "calculadora", ready: true },
   { key: "irs", href: "/lfp/individual/irs", kind: "explicacao", ready: true },
   { key: "tsu", href: "/lfp/individual/tsu", kind: "explicacao", ready: true },
-  { key: "recibosVerdes", href: "/lfp/individual/recibos-verdes", kind: "calculadora", ready: false },
-  { key: "cenarios", href: "/lfp/individual/cenarios", kind: "calculadora", ready: false },
+  { key: "recibosVerdes", href: "/lfp/individual/recibos-verdes", kind: "calculadora", ready: true },
+  { key: "cenarios", href: "/lfp/individual/cenarios", kind: "calculadora", ready: true },
 ];
 
 export default function IndividualHub() {

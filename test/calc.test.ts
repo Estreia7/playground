@@ -369,3 +369,71 @@ test("IRC effective rate stays below the headline rate for a PME", () => {
   const efetivaSemDerrama = r.coletaIrc / r.lucroTributavel;
   assert.ok(efetivaSemDerrama < ircFixture.taxaGeral);
 });
+
+/* ── recibos verdes ─────────────────────────────────────── */
+
+import { recibosVerdes } from "../src/app/lfp/calc.ts";
+
+const indFixture = {
+  meta: { year: 2026, label: "t", source: "https://x", lastVerified: "2026-01-01", version: 1 },
+  taxaContributiva: 0.214,
+  coeficientes: { servicos: 0.7, vendas: 0.2 },
+  contribuicaoMinima: 20,
+  ias: 537.13,
+  baseMaximaMultiploIas: 12,
+  isencaoPrimeirosMeses: 12,
+  retencao: { taxa: 0.25, dispensaAte: 15000 },
+};
+const rv = (faturacaoMensal: number, extra: Partial<Parameters<typeof recibosVerdes>[0]> = {}) =>
+  recibosVerdes(
+    { faturacaoMensal, atividade: "servicos", retencaoNaFonte: true, primeiroAno: false, ...extra },
+    { independentes: indFixture }
+  );
+
+test("recibos verdes: 21.4% on 70% of services, 25% withheld", () => {
+  const r = rv(2000);
+  assert.equal(r.rendimentoRelevante, 1400);
+  assert.equal(r.contribuicaoSS, round2(1400 * 0.214));
+  assert.equal(r.retencaoIrs, 500);
+  assert.equal(r.liquidoMensal, round2(2000 - 299.6 - 500));
+  assert.equal(r.liquidoAnual, round2(r.liquidoMensal * 12));
+  assert.deepEqual(r.avisos, []);
+});
+
+test("recibos verdes: sales use the 20% coefficient", () => {
+  assert.equal(rv(2000, { atividade: "vendas" }).rendimentoRelevante, 400);
+});
+
+test("recibos verdes: minimum contribution and dispensa warning on small invoicing", () => {
+  const r = rv(100, { retencaoNaFonte: false });
+  assert.equal(r.contribuicaoSS, 20);
+  assert.ok(r.avisos.includes("aviso.contribuicao_minima"));
+  assert.ok(!r.avisos.includes("aviso.retencao_obrigatoria"));
+  const withheld = rv(100);
+  assert.ok(withheld.avisos.includes("aviso.pode_pedir_dispensa"));
+});
+
+test("recibos verdes: withholding becomes mandatory above the annual limit", () => {
+  const r = rv(2000, { retencaoNaFonte: false });
+  assert.equal(r.retencaoIrs, 0);
+  assert.ok(r.avisos.includes("aviso.retencao_obrigatoria"));
+});
+
+test("recibos verdes: base is capped at 12 × IAS", () => {
+  const r = rv(20000);
+  assert.equal(r.rendimentoRelevante, round2(537.13 * 12));
+  assert.ok(r.avisos.includes("aviso.base_maxima"));
+});
+
+test("recibos verdes: first-year exemption zeroes the contribution", () => {
+  const r = rv(2000, { primeiroAno: true });
+  assert.equal(r.contribuicaoSS, 0);
+  assert.ok(r.avisos.includes("aviso.isencao_primeiro_ano"));
+});
+
+test("recibos verdes: zero invoicing yields zero everything", () => {
+  const r = rv(0);
+  assert.equal(r.contribuicaoSS, 0);
+  assert.equal(r.liquidoMensal, 0);
+  assert.equal(r.taxaContributivaEfetiva, 0);
+});
