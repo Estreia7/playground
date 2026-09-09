@@ -28,15 +28,6 @@ export function Shell({
       <header className="border-b border-[var(--lfp-line)]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-3">
           <nav aria-label="Navegação" className="flex min-w-0 items-center gap-2 text-sm">
-            <Link
-              href="/"
-              className="lfp-focus inline-flex min-h-11 shrink-0 items-center text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
-            >
-              {c.nav.playground}
-            </Link>
-            <span aria-hidden="true" className="text-[var(--lfp-line-strong)]">
-              /
-            </span>
             {/* Negative margin keeps the visual gap while the padding widens
                 the hit area — three letters are too narrow on their own. */}
             <Link

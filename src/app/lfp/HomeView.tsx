@@ -57,10 +57,10 @@ export default function HomeView() {
       <header className="border-b border-[var(--lfp-line)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
           <Link
-            href="/"
-            className="lfp-focus inline-flex min-h-11 items-center text-sm text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
+            href="/lfp"
+            className="lfp-display lfp-focus -mx-2 inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-base font-semibold"
           >
-            {t.chrome.nav.playground}
+            LFP
           </Link>
           <div className="flex items-center gap-4">
             <span className="lfp-eyebrow hidden md:inline">{t.chrome.nav.eyebrow}</span>

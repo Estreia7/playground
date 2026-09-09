@@ -6,7 +6,6 @@
 
 export const chromePt = {
   nav: {
-    playground: "← Playground",
     eyebrow: "Informação pública · sem valor legal",
     langLabel: "Idioma",
   },

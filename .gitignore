@@ -41,6 +41,12 @@ yarn-error.log*
 # monte-scan stored documents
 /storage/monte-scan
 
+# LFP contribution tickets hold e-mail addresses — never committed.
+# The datasets next to them (storage/lfp/*.json) ARE source content and stay tracked.
+/storage/lfp/tickets.json
+/storage/lfp/tickets.bak.json
+/storage/lfp/history/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -4,7 +4,6 @@ import type { ChromeDict } from "./chrome.pt";
    pointing at this file and this property. */
 export const chromeEn: ChromeDict = {
   nav: {
-    playground: "← Playground",
     eyebrow: "Public information · no legal standing",
     langLabel: "Language",
   },

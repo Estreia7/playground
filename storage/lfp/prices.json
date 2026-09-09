@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Cesto de preços para «dias de trabalho»",
+    "source": "https://github.com/Estreia7/playground/tree/master/storage/lfp",
+    "lastVerified": "2026-09-04",
+    "version": 1,
+    "notes": [
+      "Não existe fonte oficial para preços de produtos. Cada item aqui é um preço lido numa loja oficial, com o URL de onde foi lido e a data em que foi capturado — e a página mostra ambos.",
+      "Editável no admin. Itens sem URL https, sem data de captura ou com preço não positivo são rejeitados ao guardar e escondidos do site.",
+      "Vazio até o primeiro preço ser capturado à mão. A página dos dias de trabalho pede o preço ao utilizador entretanto."
+    ]
+  },
+  "items": []
+}
