@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Comprar casa — IMT, Imposto do Selo, IMI e registos",
+    "source": "https://info.portaldasfinancas.gov.pt/pt/atualidades/instrucoesadmin/Paginas/Oficio-circulado-40129-2026.aspx",
+    "sources": [
+      "https://info.portaldasfinancas.gov.pt/pt/atualidades/instrucoesadmin/Paginas/Oficio-circulado-40129-2026.aspx",
+      "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cimi/Pages/cimi112.aspx",
+      "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/selo/Pages/tabela-geral-do-imposto-do-selo.aspx",
+      "https://justica.gov.pt/Servicos/Casa-Pronta"
+    ],
+    "lastVerified": "2026-09-09",
+    "version": 1,
+    "notes": [
+      "Tabelas práticas de IMT em vigor desde 1 de janeiro de 2026 (Ofício-circulado n.º 40129/2026, de 6/1, da AT), após a atualização de 2% dos escalões pela Lei n.º 73-A/2025 (OE 2026). Tabela I: habitação própria e permanente; Tabela II: HPP até 35 anos (IMT Jovem); Tabela III: outra habitação. Só Continente.",
+      "Imposto do Selo: 0,8% sobre a aquisição (verba 1.1 da Tabela Geral) e 0,6% sobre o crédito com prazo igual ou superior a 5 anos (verba 17.1.4).",
+      "IMI: taxa entre 0,3% e 0,45% fixada por cada município (art. 112.º CIMI); a maioria aplica 0,3%. Isenção de 3 anos para habitação própria e permanente com VPT até 125 000 € e rendimento do agregado até 153 300 € (art. 46.º EBF).",
+      "Registos: preços do serviço Casa Pronta (IRN) — 375 € só com compra, 700 € com compra e hipoteca.",
+      "Custos bancários (abertura de processo, avaliação, formalização) são preço de mercado, não lei: marcados como estimativa."
+    ]
+  },
+  "imt": {
+    "continente": {
+      "hpp": [
+        { "upTo": 106346, "rate": 0, "parcela": 0 },
+        { "upTo": 145470, "rate": 0.02, "parcela": 2126.92 },
+        { "upTo": 198347, "rate": 0.05, "parcela": 6491.02 },
+        { "upTo": 330539, "rate": 0.07, "parcela": 10457.96 },
+        { "upTo": 660982, "rate": 0.08, "parcela": 13763.35 },
+        { "upTo": 1150853, "rate": 0.06, "parcela": 0 },
+        { "upTo": null, "rate": 0.075, "parcela": 0 }
+      ],
+      "hpp_jovem": [
+        { "upTo": 330539, "rate": 0, "parcela": 0 },
+        { "upTo": 660982, "rate": 0.08, "parcela": 26443.12 },
+        { "upTo": 1150853, "rate": 0.06, "parcela": 0 },
+        { "upTo": null, "rate": 0.075, "parcela": 0 }
+      ],
+      "outra": [
+        { "upTo": 106346, "rate": 0.01, "parcela": 0 },
+        { "upTo": 145470, "rate": 0.02, "parcela": 1063.46 },
+        { "upTo": 198347, "rate": 0.05, "parcela": 5427.56 },
+        { "upTo": 330539, "rate": 0.07, "parcela": 9394.5 },
+        { "upTo": 633931, "rate": 0.08, "parcela": 12699.89 },
+        { "upTo": 1150853, "rate": 0.06, "parcela": 0 },
+        { "upTo": null, "rate": 0.075, "parcela": 0 }
+      ]
+    },
+    "madeira": {},
+    "acores": {}
+  },
+  "seloCompra": 0.008,
+  "seloCredito": 0.006,
+  "imi": { "min": 0.003, "max": 0.0045, "default": 0.003, "isencaoAnos": 3, "isencaoVptMax": 125000 },
+  "registos": { "semCredito": 375, "comCredito": 700 },
+  "custosBanco": { "estimativaMin": 500, "estimativaMax": 800, "estimativaDefault": 650, "isEstimate": true }
+}

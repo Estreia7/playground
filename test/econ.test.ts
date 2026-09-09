@@ -167,3 +167,58 @@ test("wagePercentile handles the open top bracket and normalises shares", () => 
 function round(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
+
+/* ── life projection ─────────────────────────────────────── */
+
+import { projectLife } from "../src/app/lfp/econ.ts";
+
+test("projectLife: retires at the right age, real income is flat with zero real growth", () => {
+  const r = projectLife({
+    idade: 30,
+    liquidoMensal: 1000,
+    crescimentoReal: 0,
+    inflacao: 0.02,
+    poupancaMensal: 0,
+    rendimentoPoupanca: 0,
+    idadeReforma: 66.75,
+    pensaoPct: 0.7,
+    idadeFinal: 80,
+  });
+  assert.equal(r.series[0].idade, 30);
+  assert.equal(r.series[r.series.length - 1].idade, 80);
+  assert.equal(r.anosAteReforma, 37);
+  assert.equal(r.series[37].retired, true);
+  assert.equal(r.series[36].retired, false);
+  // Nominal grows with inflation, real stays put.
+  assert.equal(r.series[36].incomeReal, 1000);
+  assert.ok(r.series[36].incomeNominal > 2000);
+  assert.equal(r.ultimoLiquidoReal, 1000);
+  assert.equal(r.pensaoReal, 700);
+  assert.equal(r.gapMensalReal, 300);
+  assert.equal(r.poupancaNominal, 0);
+  assert.equal(r.anosCobertos, 0);
+});
+
+test("projectLife: savings cover the gap for a computable number of years", () => {
+  const r = projectLife({
+    idade: 60,
+    liquidoMensal: 1000,
+    crescimentoReal: 0,
+    inflacao: 0,
+    poupancaMensal: 100,
+    rendimentoPoupanca: 0,
+    idadeReforma: 65,
+    pensaoPct: 0.5,
+    idadeFinal: 70,
+  });
+  // 5 years × 12 × €100 = €6 000 saved; the gap is €500/month = €6 000/year.
+  assert.equal(r.poupancaNominal, 6000);
+  assert.equal(r.gapMensalReal, 500);
+  assert.equal(r.anosCobertos, 1);
+});
+
+test("projectLife: no gap when the pension matches the salary", () => {
+  const r = projectLife({ idade: 60, liquidoMensal: 1000, crescimentoReal: 0, inflacao: 0, poupancaMensal: 0, rendimentoPoupanca: 0, idadeReforma: 65, pensaoPct: 1, idadeFinal: 70 });
+  assert.equal(r.gapMensalReal, 0);
+  assert.equal(r.anosCobertos, null);
+});

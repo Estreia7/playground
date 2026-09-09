@@ -153,12 +153,97 @@ export interface IndependentesDataset {
   retencao: { taxa: number; dispensaAte: number };
 }
 
+/* ─────────────── Habitação (IMT, selo, IMI, registos) ─────────────── */
+
+/** One row of an IMT practical table: tax = valor × rate − parcela.
+ *  Flat-rate rows simply carry parcela 0. */
+export interface ImtRow {
+  upTo: number | null;
+  rate: number;
+  parcela: number;
+}
+
+export type ImtFinalidade = "hpp" | "hpp_jovem" | "outra";
+
+export interface HabitacaoDataset {
+  meta: DatasetMeta;
+  imt: Record<Regiao, Partial<Record<ImtFinalidade, ImtRow[]>>>;
+  seloCompra: number;
+  /** Stamp duty on the loan, for terms of five years or more. */
+  seloCredito: number;
+  imi: { min: number; max: number; default: number; isencaoAnos: number; isencaoVptMax: number };
+  /** Casa Pronta fixed fees (IRN): one act, or purchase plus mortgage. */
+  registos: { semCredito: number; comCredito: number };
+  /** Bank fees (dossier, valuation, formalisation) are a market price. */
+  custosBanco: { estimativaMin: number; estimativaMax: number; estimativaDefault: number; isEstimate: true };
+}
+
+export interface ReformaDataset {
+  meta: DatasetMeta;
+  idadeNormal: { anos: number; meses: number };
+}
+
 export interface TaxData {
   irs: IrsDataset;
   tsu: TsuDataset;
   iva: IvaDataset;
   irc: IrcDataset;
   independentes: IndependentesDataset;
+  habitacao: HabitacaoDataset;
+  reforma: ReformaDataset;
+}
+
+export interface CasaInput {
+  preco: number;
+  /** Down payment as a fraction of the price. */
+  entradaPct: number;
+  prazoAnos: number;
+  /** Nominal annual rate (TAN) as a fraction. */
+  taxaJuro: number;
+  finalidade: ImtFinalidade;
+  regiao: Regiao;
+  /** Valor patrimonial tributário — the IMI base. Usually below the price. */
+  vpt: number;
+  taxaImi: number;
+  custosBanco?: number;
+}
+
+export interface CasaResult {
+  preco: number;
+  entrada: number;
+  emprestimo: number;
+  imt: number;
+  seloCompra: number;
+  seloCredito: number;
+  registos: number;
+  custosBanco: number;
+  /** Cash needed on the day: down payment + taxes + fees. */
+  totalInicial: number;
+  prestacao: number;
+  jurosTotais: number;
+  imiAnual: number;
+  imiIsencaoAnos: number;
+  imiTotal: number;
+  /** Everything paid over the term: price + taxes + interest + IMI + fees. */
+  custoTotal: number;
+  custoMensalTudo: number;
+  /** Total cost ÷ price. */
+  multiplicador: number;
+}
+
+export interface CestoItem {
+  key: string;
+  tipo: IvaTipo;
+  /** Price paid, IVA included. */
+  amount: number;
+}
+
+export interface CestoResult {
+  total: number;
+  semIva: number;
+  iva: number;
+  pesoIva: number;
+  porTipo: Record<IvaTipo, { comIva: number; semIva: number; iva: number; rate: number }>;
 }
 
 export interface RecibosVerdesInput {

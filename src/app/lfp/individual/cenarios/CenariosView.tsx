@@ -113,7 +113,7 @@ export default function CenariosView() {
 
       {ra && rb && (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
-          <form onSubmit={(e) => e.preventDefault()} className="lfp-panel space-y-6 p-5 lg:sticky lg:top-6" aria-label={c.formAria}>
+          <form onSubmit={(e) => e.preventDefault()} className="lfp-panel space-y-6 p-5" aria-label={c.formAria}>
             <ScenarioForm label={c.a} value={a} onChange={setA} fields={c.fields} />
             <div className="border-t border-[var(--lfp-line)]" />
             <ScenarioForm label={c.b} value={b} onChange={setB} fields={c.fields} />

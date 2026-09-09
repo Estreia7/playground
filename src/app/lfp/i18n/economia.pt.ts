@@ -31,6 +31,18 @@ export const economiaPt = {
         title: "Aumento vs. inflação",
         body: "Subiram-te 3% num ano de 4% de inflação? Então cortaram-te. A conta real, com o IRS pelo meio.",
       },
+      casa: {
+        title: "Custo real de uma casa",
+        body: "IMT, selo, registos, trinta anos de juros e de IMI. O que a casa custa mesmo, no dia e no fim.",
+      },
+      cesto: {
+        title: "Recibo de IVA",
+        body: "Um carrinho de supermercado dividido por taxa: quanto do que pagas é imposto.",
+      },
+      vida: {
+        title: "Linha da vida",
+        body: "Do salário de hoje à reforma, em euros de hoje e de amanhã. Uma projeção, com o nome certo.",
+      },
       situas: {
         title: "Onde te situas",
         body: "Ganhas mais do que que percentagem dos portugueses? Com os escalões oficiais, sem falsa precisão.",

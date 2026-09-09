@@ -2,8 +2,10 @@ import { promises as fs } from "fs";
 import path from "path";
 import type {
   DatasetId,
+  HabitacaoDataset,
   IndependentesDataset,
   IrcDataset,
+  ReformaDataset,
   IrsDataset,
   IvaDataset,
   TaxData,
@@ -18,7 +20,7 @@ import type {
 const STORAGE_DIR = path.join(process.cwd(), "storage", "lfp");
 const HISTORY_DIR = path.join(STORAGE_DIR, "history");
 
-export const DATASET_IDS = ["irs", "tsu", "iva", "irc", "independentes"] as const;
+export const DATASET_IDS = ["irs", "tsu", "iva", "irc", "independentes", "habitacao", "reforma"] as const;
 
 export function isDatasetId(v: string): v is DatasetId {
   return (DATASET_IDS as readonly string[]).includes(v);
@@ -183,6 +185,42 @@ function validateIndependentes(v: unknown, errors: string[]) {
   if (typeof d.retencao?.dispensaAte !== "number" || d.retencao.dispensaAte < 0) errors.push("retencao.dispensaAte inválido");
 }
 
+function validateHabitacao(v: unknown, errors: string[]) {
+  const d = v as HabitacaoDataset;
+  const cont = d.imt?.continente;
+  if (!cont || !Array.isArray(cont.hpp) || cont.hpp.length === 0) {
+    errors.push("imt.continente.hpp em falta");
+  } else {
+    Object.entries(cont).forEach(([fin, rows]) => {
+      let prev = -Infinity;
+      (rows ?? []).forEach((r, i) => {
+        const where = `imt.continente.${fin}[${i}]`;
+        if (!isRate(r.rate)) errors.push(`${where}.rate inválida`);
+        if (typeof r.parcela !== "number" || r.parcela < 0) errors.push(`${where}.parcela inválida`);
+        if (r.upTo !== null) {
+          if (typeof r.upTo !== "number" || r.upTo <= prev) errors.push(`${where}.upTo fora de ordem crescente`);
+          else prev = r.upTo;
+        }
+      });
+      if (rows && rows.length && rows[rows.length - 1].upTo !== null) errors.push(`imt.continente.${fin}: a última linha tem de ter upTo = null`);
+    });
+  }
+  if (!isRate(d.seloCompra)) errors.push("seloCompra inválido");
+  if (!isRate(d.seloCredito)) errors.push("seloCredito inválido");
+  if (!isRate(d.imi?.min) || !isRate(d.imi?.max) || !isRate(d.imi?.default)) errors.push("imi.min/max/default inválidos");
+  if (typeof d.imi?.isencaoAnos !== "number" || typeof d.imi?.isencaoVptMax !== "number") errors.push("imi.isencaoAnos/isencaoVptMax em falta");
+  if (typeof d.registos?.semCredito !== "number" || typeof d.registos?.comCredito !== "number") errors.push("registos em falta");
+  if (typeof d.custosBanco?.estimativaDefault !== "number" || d.custosBanco.isEstimate !== true) errors.push("custosBanco.estimativaDefault/isEstimate em falta");
+}
+
+function validateReforma(v: unknown, errors: string[]) {
+  const d = v as ReformaDataset;
+  const a = d.idadeNormal?.anos;
+  const m = d.idadeNormal?.meses;
+  if (typeof a !== "number" || a < 50 || a > 80) errors.push("idadeNormal.anos inválido");
+  if (typeof m !== "number" || m < 0 || m > 11) errors.push("idadeNormal.meses inválido");
+}
+
 export function validateDataset(id: DatasetId, value: unknown): string[] {
   const errors: string[] = [];
   if (!value || typeof value !== "object") return ["Payload não é um objeto"];
@@ -193,6 +231,8 @@ export function validateDataset(id: DatasetId, value: unknown): string[] {
   if (id === "iva") validateIva(value, errors);
   if (id === "irc") validateIrc(value, errors);
   if (id === "independentes") validateIndependentes(value, errors);
+  if (id === "habitacao") validateHabitacao(value, errors);
+  if (id === "reforma") validateReforma(value, errors);
 
   return errors;
 }

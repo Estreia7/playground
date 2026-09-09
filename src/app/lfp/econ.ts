@@ -188,3 +188,125 @@ export function wagePercentile(gross: number, brackets: WageBracket[]): Percenti
   // Below the first bracket's floor.
   return { low: 0, high: 0, estimate: 0, bracketIndex: -1 };
 }
+
+/* ── life projection ─────────────────────────────────────── */
+
+export interface LifeInput {
+  idade: number;
+  liquidoMensal: number;
+  /** Real (above-inflation) yearly wage growth, as a fraction. */
+  crescimentoReal: number;
+  inflacao: number;
+  poupancaMensal: number;
+  /** Nominal yearly return on savings. */
+  rendimentoPoupanca: number;
+  /** Decimal years, e.g. 66.75 for 66 years and 9 months. */
+  idadeReforma: number;
+  /** Pension as a fraction of the last net salary — an assumption. */
+  pensaoPct: number;
+  idadeFinal?: number;
+}
+
+export interface LifePoint {
+  idade: number;
+  ano: number;
+  incomeNominal: number;
+  incomeReal: number;
+  savingsNominal: number;
+  savingsReal: number;
+  retired: boolean;
+}
+
+export interface LifeResult {
+  series: LifePoint[];
+  anosAteReforma: number;
+  ultimoLiquidoNominal: number;
+  ultimoLiquidoReal: number;
+  pensaoNominal: number;
+  pensaoReal: number;
+  /** Monthly gap between the last salary and the pension, in today's money. */
+  gapMensalReal: number;
+  poupancaNominal: number;
+  poupancaReal: number;
+  /** Years the savings cover the gap; null when there is no gap. */
+  anosCobertos: number | null;
+}
+
+/** A PROJECTION, not a calculation: constant rates, no taxes on returns,
+ *  no career breaks. Everything is shown both nominal and in today's money
+ *  so a 2056 number cannot masquerade as a 2026 one. */
+export function projectLife(input: LifeInput): LifeResult {
+  const idade = Math.max(0, Math.floor(input.idade));
+  const idadeFinal = Math.max(idade, Math.floor(input.idadeFinal ?? 85));
+  const g = input.crescimentoReal;
+  const pi = input.inflacao;
+  const rm = input.rendimentoPoupanca / 12;
+  const series: LifePoint[] = [];
+
+  let income = Math.max(0, input.liquidoMensal);
+  let savings = 0;
+  let lastWorking = income;
+  let pension = 0;
+  let anosAteReforma = 0;
+  let retiredAt = -1;
+
+  for (let y = 0; idade + y <= idadeFinal; y++) {
+    const age = idade + y;
+    const retired = age >= input.idadeReforma;
+    if (y > 0) {
+      if (!retired) {
+        income = income * (1 + g) * (1 + pi);
+        lastWorking = income;
+      } else if (retiredAt >= 0) {
+        pension = pension * (1 + pi);
+      }
+    }
+    if (retired && retiredAt < 0) {
+      retiredAt = y;
+      anosAteReforma = y;
+      // The pension starts the year after the last salary, so it carries one
+      // more year of inflation — keeps "pct of the last salary" true in real terms.
+      pension = lastWorking * input.pensaoPct * (y > 0 ? 1 + pi : 1);
+    }
+    for (let m = 0; m < 12; m++) {
+      savings = savings * (1 + rm) + (retired ? 0 : Math.max(0, input.poupancaMensal));
+    }
+    const deflator = Math.pow(1 + pi, y);
+    const shown = retired ? pension : income;
+    series.push({
+      idade: age,
+      ano: y,
+      incomeNominal: round2(shown),
+      incomeReal: round2(shown / deflator),
+      savingsNominal: round2(savings),
+      savingsReal: round2(savings / deflator),
+      retired,
+    });
+  }
+
+  // Savings at the moment of retirement (or at the end, if never retired).
+  const at = retiredAt >= 0 ? series[retiredAt] : series[series.length - 1];
+  // The last salary is deflated to the year it was earned; the pension to
+  // the year it starts. Both then read in today's euros.
+  const lastWorkYear = retiredAt > 0 ? retiredAt - 1 : retiredAt === 0 ? 0 : series.length - 1;
+  const ultimoLiquidoNominal = round2(lastWorking);
+  const ultimoLiquidoReal = round2(lastWorking / Math.pow(1 + pi, lastWorkYear));
+  const pensaoNominal = round2(retiredAt >= 0 ? lastWorking * input.pensaoPct * (retiredAt > 0 ? 1 + pi : 1) : 0);
+  const pensaoReal = round2(pensaoNominal / Math.pow(1 + pi, at.ano));
+  const gapMensalReal = round2(Math.max(0, ultimoLiquidoReal - pensaoReal));
+  const poupancaReal = at.savingsReal;
+
+  return {
+    series,
+    anosAteReforma,
+    ultimoLiquidoNominal,
+    ultimoLiquidoReal,
+    pensaoNominal,
+    pensaoReal,
+    gapMensalReal,
+    poupancaNominal: at.savingsNominal,
+    poupancaReal,
+    anosCobertos:
+      gapMensalReal > 0 ? Math.round((poupancaReal / (gapMensalReal * 12)) * 10) / 10 : null,
+  };
+}

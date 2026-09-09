@@ -16,6 +16,9 @@ const TOPICS: Array<{ key: TopicKey; href: string; ready: boolean }> = [
   { key: "impostos", href: "/lfp/economia/impostos", ready: true },
   { key: "dias", href: "/lfp/economia/dias-de-trabalho", ready: true },
   { key: "aumento", href: "/lfp/economia/aumento", ready: true },
+  { key: "casa", href: "/lfp/economia/casa", ready: true },
+  { key: "cesto", href: "/lfp/economia/recibo-de-iva", ready: true },
+  { key: "vida", href: "/lfp/economia/vida", ready: true },
   { key: "situas", href: "/lfp/economia/onde-te-situas", ready: false },
 ];
 

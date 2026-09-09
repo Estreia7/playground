@@ -437,3 +437,119 @@ test("recibos verdes: zero invoicing yields zero everything", () => {
   assert.equal(r.liquidoMensal, 0);
   assert.equal(r.taxaContributivaEfetiva, 0);
 });
+
+/* ── casa e cesto de IVA ────────────────────────────────── */
+
+import { cestoIva, custoCasa, imt, prestacao } from "../src/app/lfp/calc.ts";
+
+const habFixture = {
+  meta: { year: 2026, label: "t", source: "https://x", lastVerified: "2026-01-01", version: 1 },
+  imt: {
+    continente: {
+      hpp: [
+        { upTo: 106346, rate: 0, parcela: 0 },
+        { upTo: 145470, rate: 0.02, parcela: 2126.92 },
+        { upTo: 198347, rate: 0.05, parcela: 6491.02 },
+        { upTo: 330539, rate: 0.07, parcela: 10457.96 },
+        { upTo: 660982, rate: 0.08, parcela: 13763.35 },
+        { upTo: 1150853, rate: 0.06, parcela: 0 },
+        { upTo: null, rate: 0.075, parcela: 0 },
+      ],
+      hpp_jovem: [
+        { upTo: 330539, rate: 0, parcela: 0 },
+        { upTo: 660982, rate: 0.08, parcela: 26443.12 },
+        { upTo: null, rate: 0.075, parcela: 0 },
+      ],
+    },
+    madeira: {},
+    acores: {},
+  },
+  seloCompra: 0.008,
+  seloCredito: 0.006,
+  imi: { min: 0.003, max: 0.0045, default: 0.003, isencaoAnos: 3, isencaoVptMax: 125000 },
+  registos: { semCredito: 375, comCredito: 700 },
+  custosBanco: { estimativaMin: 500, estimativaMax: 800, estimativaDefault: 650, isEstimate: true as const },
+};
+const hpp = habFixture.imt.continente.hpp;
+
+test("IMT: exempt below the first threshold, continuous at every bracket edge", () => {
+  assert.equal(imt(100000, hpp), 0);
+  assert.equal(imt(106346, hpp), 0);
+  // Marginal-with-parcela tables are continuous: the same value on either
+  // side of a boundary yields the same tax.
+  assert.equal(imt(145470, hpp), round2(145470 * 0.02 - 2126.92));
+  assert.equal(imt(145470, hpp), round2(145470 * 0.05 - 6491.02));
+  assert.equal(imt(330539, hpp), round2(330539 * 0.07 - 10457.96));
+  assert.equal(imt(330539, hpp), round2(330539 * 0.08 - 13763.35));
+});
+
+test("IMT: flat top brackets and the youth table", () => {
+  assert.equal(imt(1000000, hpp), 60000);
+  assert.equal(imt(2000000, hpp), 150000);
+  assert.equal(imt(300000, habFixture.imt.continente.hpp_jovem), 0);
+  assert.equal(imt(400000, habFixture.imt.continente.hpp_jovem), round2(400000 * 0.08 - 26443.12));
+});
+
+test("prestação: annuity formula, and even split at zero rate", () => {
+  assert.equal(prestacao(120000, 0, 10), 1000);
+  // €200k over 30 years at 3%: the textbook €843.21.
+  assert.equal(prestacao(200000, 0.03, 30), 843.21);
+  assert.equal(prestacao(0, 0.03, 30), 0);
+});
+
+test("custoCasa: components add up and IMI exemption applies to a small VPT", () => {
+  const r = custoCasa(
+    { preco: 250000, entradaPct: 0.1, prazoAnos: 30, taxaJuro: 0.03, finalidade: "hpp", regiao: "continente", vpt: 120000, taxaImi: 0.003 },
+    { habitacao: habFixture }
+  );
+  assert.equal(r.entrada, 25000);
+  assert.equal(r.emprestimo, 225000);
+  assert.equal(r.imt, round2(250000 * 0.07 - 10457.96));
+  assert.equal(r.seloCompra, 2000);
+  assert.equal(r.seloCredito, 1350);
+  assert.equal(r.registos, 700);
+  assert.equal(r.custosBanco, 650);
+  assert.equal(r.totalInicial, round2(25000 + r.imt + 2000 + 1350 + 700 + 650));
+  assert.equal(r.imiAnual, 360);
+  assert.equal(r.imiIsencaoAnos, 3);
+  assert.equal(r.imiTotal, 360 * 27);
+  assert.equal(r.custoTotal, round2(250000 + r.imt + 2000 + 1350 + 700 + 650 + r.jurosTotais + r.imiTotal));
+  assert.ok(r.multiplicador > 1.3 && r.multiplicador < 1.7);
+});
+
+test("custoCasa: cash purchase has no credit stamp duty, single registration act, no bank fees", () => {
+  const r = custoCasa(
+    { preco: 100000, entradaPct: 1, prazoAnos: 30, taxaJuro: 0.03, finalidade: "hpp", regiao: "continente", vpt: 70000, taxaImi: 0.003 },
+    { habitacao: habFixture }
+  );
+  assert.equal(r.emprestimo, 0);
+  assert.equal(r.seloCredito, 0);
+  assert.equal(r.registos, 375);
+  assert.equal(r.custosBanco, 0);
+  assert.equal(r.prestacao, 0);
+  assert.equal(r.jurosTotais, 0);
+});
+
+test("cestoIva: splits by rate and the IVA weight is the inclusive share", () => {
+  const r = cestoIva(
+    [
+      { key: "pao", tipo: "reduzida", amount: 10.6 },
+      { key: "vinho", tipo: "intermedia", amount: 11.3 },
+      { key: "tv", tipo: "normal", amount: 123 },
+    ],
+    { iva: ivaFixture }
+  );
+  assert.equal(r.porTipo.reduzida.semIva, 10);
+  assert.equal(r.porTipo.intermedia.semIva, 10);
+  assert.equal(r.porTipo.normal.semIva, 100);
+  assert.equal(r.semIva, 120);
+  assert.equal(r.iva, round2(0.6 + 1.3 + 23));
+  assert.equal(r.total, 144.9);
+  assert.equal(round2(r.pesoIva), round2(24.9 / 144.9));
+});
+
+test("cestoIva: empty basket is all zeros", () => {
+  const r = cestoIva([], { iva: ivaFixture });
+  assert.equal(r.total, 0);
+  assert.equal(r.pesoIva, 0);
+});

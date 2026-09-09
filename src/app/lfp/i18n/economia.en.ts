@@ -30,6 +30,18 @@ export const economiaEn: EconomiaDict = {
         title: "Raise vs. inflation",
         body: "Got 3% in a year of 4% inflation? Then you got a cut. The real maths, with income tax in the middle.",
       },
+      casa: {
+        title: "Real cost of a house",
+        body: "Transfer tax, stamp duty, registration, thirty years of interest and property tax. What a house really costs, on the day and at the end.",
+      },
+      cesto: {
+        title: "VAT receipt",
+        body: "A supermarket trolley split by rate: how much of what you pay is tax.",
+      },
+      vida: {
+        title: "Life timeline",
+        body: "From today's salary to retirement, in today's euros and tomorrow's. A projection, called by its name.",
+      },
       situas: {
         title: "Where you stand",
         body: "You earn more than what share of Portuguese workers? With the official brackets, without false precision.",

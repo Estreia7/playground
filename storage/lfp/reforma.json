@@ -1,0 +1,14 @@
+{
+  "meta": {
+    "year": 2026,
+    "label": "Idade normal de acesso à pensão de velhice",
+    "source": "https://diariodarepublica.pt/dr/detalhe/portaria/358-2024-901536090",
+    "lastVerified": "2026-09-09",
+    "version": 1,
+    "notes": [
+      "Portaria n.º 358/2024/1, de 30 de dezembro: idade normal de acesso à pensão de velhice em 2026 fixada em 66 anos e 9 meses, a partir da esperança média de vida aos 65 anos publicada pelo INE.",
+      "A idade é revista todos os anos; quem se reforma daqui a décadas terá outra. O valor da pensão depende da carreira contributiva inteira e não se calcula aqui — a Segurança Social Direta simula-a."
+    ]
+  },
+  "idadeNormal": { "anos": 66, "meses": 9 }
+}

@@ -7,11 +7,15 @@
    deficiency regimes, no non-habitual resident, no other income. */
 
 import type {
-  IndependentesDataset,
-  RecibosVerdesInput,
-  RecibosVerdesResult,
+  CasaInput,
+  CasaResult,
+  CestoItem,
+  CestoResult,
   CustoEmpresaInput,
   CustoEmpresaResult,
+  HabitacaoDataset,
+  ImtRow,
+  IndependentesDataset,
   IrcDataset,
   IrcInput,
   IrcResult,
@@ -19,6 +23,9 @@ import type {
   IvaDataset,
   IvaInput,
   IvaResult,
+  RecibosVerdesInput,
+  RecibosVerdesResult,
+  Regiao,
   RetencaoRow,
   SalarioLiquidoInput,
   SalarioLiquidoResult,
@@ -371,4 +378,101 @@ export function recibosVerdes(
     taxaContributivaEfetiva: fat > 0 ? contribuicaoSS / fat : 0,
     avisos,
   };
+}
+
+/* ── casa: IMT, selo, IMI, prestação ────────────────────── */
+
+/** IMT from a practical table: valor × rate − parcela on the row the value
+ *  falls in. Exempt and flat rows are just rows with parcela 0. */
+export function imt(valor: number, rows: ImtRow[]): number {
+  const v = clampNonNegative(valor);
+  const row = rows.find((r) => r.upTo === null || v <= r.upTo);
+  if (!row) return 0;
+  return clampNonNegative(round2(v * row.rate - row.parcela));
+}
+
+/** Fixed-rate annuity payment. Zero-rate loans divide evenly. */
+export function prestacao(emprestimo: number, taxaAnual: number, anos: number): number {
+  const n = Math.max(1, Math.round(anos * 12));
+  const L = clampNonNegative(emprestimo);
+  const r = taxaAnual / 12;
+  if (L === 0) return 0;
+  if (r <= 0) return round2(L / n);
+  return round2((L * r) / (1 - Math.pow(1 + r, -n)));
+}
+
+export function custoCasa(input: CasaInput, data: { habitacao: HabitacaoDataset }): CasaResult {
+  const d = data.habitacao;
+  const preco = clampNonNegative(input.preco);
+  const entrada = round2(preco * Math.min(1, Math.max(0, input.entradaPct)));
+  const emprestimo = round2(preco - entrada);
+  const anos = Math.max(1, Math.round(input.prazoAnos));
+
+  const table = d.imt[input.regiao]?.[input.finalidade] ?? d.imt.continente?.hpp ?? [];
+  const imtVal = imt(preco, table);
+  const seloCompra = round2(preco * d.seloCompra);
+  const seloCredito = emprestimo > 0 ? round2(emprestimo * d.seloCredito) : 0;
+  const registos = emprestimo > 0 ? d.registos.comCredito : d.registos.semCredito;
+  const custosBanco = emprestimo > 0 ? (input.custosBanco ?? d.custosBanco.estimativaDefault) : 0;
+
+  const prest = prestacao(emprestimo, input.taxaJuro, anos);
+  const jurosTotais = round2(Math.max(0, prest * anos * 12 - emprestimo));
+
+  const vpt = clampNonNegative(input.vpt);
+  const imiAnual = round2(vpt * input.taxaImi);
+  const imiIsencaoAnos =
+    input.finalidade !== "outra" && vpt <= d.imi.isencaoVptMax ? Math.min(anos, d.imi.isencaoAnos) : 0;
+  const imiTotal = round2(imiAnual * (anos - imiIsencaoAnos));
+
+  const totalInicial = round2(entrada + imtVal + seloCompra + seloCredito + registos + custosBanco);
+  const custoTotal = round2(
+    preco + imtVal + seloCompra + seloCredito + registos + custosBanco + jurosTotais + imiTotal
+  );
+
+  return {
+    preco,
+    entrada,
+    emprestimo,
+    imt: imtVal,
+    seloCompra,
+    seloCredito,
+    registos,
+    custosBanco,
+    totalInicial,
+    prestacao: prest,
+    jurosTotais,
+    imiAnual,
+    imiIsencaoAnos,
+    imiTotal,
+    custoTotal,
+    custoMensalTudo: round2(custoTotal / (anos * 12)),
+    multiplicador: preco > 0 ? custoTotal / preco : 0,
+  };
+}
+
+/* ── cesto de IVA ────────────────────────────────────────── */
+
+/** Splits a basket of IVA-inclusive prices by rate. */
+export function cestoIva(
+  items: CestoItem[],
+  data: { iva: IvaDataset },
+  regiao: Regiao = "continente"
+): CestoResult {
+  const rates = data.iva.rates[regiao] ?? data.iva.rates.continente;
+  const porTipo = {} as CestoResult["porTipo"];
+  for (const tipo of ["normal", "intermedia", "reduzida"] as const) {
+    porTipo[tipo] = { comIva: 0, semIva: 0, iva: 0, rate: rates[tipo] };
+  }
+  for (const it of items) {
+    const amount = clampNonNegative(it.amount);
+    const bucket = porTipo[it.tipo] ?? porTipo.normal;
+    const semIva = round2(amount / (1 + bucket.rate));
+    bucket.comIva = round2(bucket.comIva + amount);
+    bucket.semIva = round2(bucket.semIva + semIva);
+    bucket.iva = round2(bucket.iva + (amount - semIva));
+  }
+  const total = round2(porTipo.normal.comIva + porTipo.intermedia.comIva + porTipo.reduzida.comIva);
+  const semIva = round2(porTipo.normal.semIva + porTipo.intermedia.semIva + porTipo.reduzida.semIva);
+  const ivaVal = round2(total - semIva);
+  return { total, semIva, iva: ivaVal, pesoIva: total > 0 ? ivaVal / total : 0, porTipo };
 }

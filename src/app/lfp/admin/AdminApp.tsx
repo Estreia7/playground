@@ -16,7 +16,7 @@ import { useLfpLang } from "../useLfpLang";
 type Tab = "estado" | "tickets" | "dados" | "quiz" | "precos";
 const TABS: Tab[] = ["estado", "tickets", "dados", "quiz", "precos"];
 
-const TAX_IDS = ["irs", "tsu", "iva", "irc", "independentes"] as const;
+const TAX_IDS = ["irs", "tsu", "iva", "irc", "independentes", "habitacao", "reforma"] as const;
 type TaxId = (typeof TAX_IDS)[number];
 
 type TicketStatus = "pending_email" | "pending" | "accepted" | "rejected" | "applied";
