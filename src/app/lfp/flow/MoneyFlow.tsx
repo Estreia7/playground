@@ -117,16 +117,23 @@ function Particles({
 
   return (
     <g ref={groupRef} aria-hidden="true">
-      {dots.map(({ key, lane, phase, tone }) => {
+      {dots.map(({ key, lane, phase }) => {
         const p = pointOnCubic(lane.curve, phase);
+        const r = Math.max(2.2, Math.min(lane.width * 0.22, 5));
+        // A coin, not a dot: a pale disc with a rim, so it reads as money
+        // moving along the channel rather than a loading indicator. Tinted
+        // from the ground rather than the lane tone — a solid dot in the
+        // lane's own colour disappears into it.
         return (
           <circle
             key={key}
             cx={p.x}
             cy={p.y}
-            r={Math.max(2.2, Math.min(lane.width * 0.22, 5))}
-            fill={`var(--lfp-tone-${tone})`}
-            opacity={0.85}
+            r={r}
+            fill="var(--lfp-cal-tile)"
+            stroke="var(--lfp-ouro)"
+            strokeWidth={Math.max(0.8, r * 0.32)}
+            opacity={0.92}
           />
         );
       })}
@@ -134,63 +141,130 @@ function Particles({
   );
 }
 
+/** A leather billfold, three-quarters closed, with notes showing above the
+ *  flap. Drawn in layers back-to-front — notes, body, flap, clasp — so the
+ *  overlaps read as depth without a single gradient or filter: at this size
+ *  a flat shape with one darker facet is sharper than any shading. */
 function Wallet({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} aria-hidden="true">
-      <rect
-        x={-52}
-        y={-40}
-        width={104}
-        height={80}
-        rx={12}
+      {/* Notes, fanned, peeking above the flap. Cool cobalt tints rather
+          than green: the green in this diagram means "money you keep" and
+          must not be spent on decoration. */}
+      <g>
+        <rect x={-30} y={-46} width={62} height={26} rx={2} fill="var(--lfp-cal-tile)" stroke="var(--lfp-cobalt)" strokeWidth={1.2} transform="rotate(-7 0 -34)" />
+        <rect x={-24} y={-49} width={62} height={26} rx={2} fill="var(--lfp-cal-tile)" stroke="var(--lfp-cobalt)" strokeWidth={1.2} transform="rotate(-2 0 -34)" />
+        <line x1={-10} y1={-36} x2={24} y2={-36} stroke="var(--lfp-cobalt)" strokeWidth={1} opacity={0.4} />
+      </g>
+
+      {/* Body. The lower facet is the leather catching less light — one
+          flat darker shape, no gradient. */}
+      <path
+        d="M -50 -30 h 100 a 8 8 0 0 1 8 8 v 44 a 8 8 0 0 1 -8 8 h -100 a 8 8 0 0 1 -8 -8 v -44 a 8 8 0 0 1 8 -8 z"
         fill="var(--lfp-cal-tile)"
         stroke="var(--lfp-cobalt)"
         strokeWidth={2.5}
       />
-      <rect
-        x={-44}
-        y={-32}
-        width={88}
-        height={64}
-        rx={8}
-        fill="none"
+      <path d="M -58 6 h 116 v 16 a 8 8 0 0 1 -8 8 h -100 a 8 8 0 0 1 -8 -8 z" fill="var(--lfp-cobalt)" opacity={0.09} />
+
+      {/* Flap, overlapping the body — the seam is what makes it a wallet
+          rather than a box. */}
+      <path
+        d="M -58 -22 a 8 8 0 0 1 8 -8 h 100 a 8 8 0 0 1 8 8 v 12 h -116 z"
+        fill="var(--lfp-cal-tile)"
         stroke="var(--lfp-cobalt)"
-        strokeWidth={1}
-        opacity={0.35}
+        strokeWidth={2.5}
+        strokeLinejoin="round"
       />
+      <line x1={-58} y1={-10} x2={58} y2={-10} stroke="var(--lfp-cobalt)" strokeWidth={2.5} />
+      {/* Stitching, the detail that reads as leather at any size. */}
+      <path d="M -50 -2 h 100" stroke="var(--lfp-cobalt)" strokeWidth={1} strokeDasharray="3 4" opacity={0.4} />
+
       {/* Clasp */}
-      <rect x={18} y={-9} width={30} height={18} rx={9} fill="var(--lfp-cobalt)" opacity={0.9} />
-      <circle cx={33} cy={0} r={3.4} fill="var(--lfp-cal-tile)" />
+      <rect x={-9} y={-16} width={18} height={13} rx={3} fill="var(--lfp-cal-tile)" stroke="var(--lfp-cobalt)" strokeWidth={1.8} />
+      <circle cx={0} cy={-9.5} r={2.4} fill="var(--lfp-ouro)" />
     </g>
   );
 }
 
-/** The State as a flat Pombaline arcade — reads as "instituição" without
- *  pretending to be one specific building. */
+/** The State as a Pombaline elevation: a ground-floor arcade under two
+ *  storeys of windows, framed by pilasters and capped with a cornice — the
+ *  Baixa vocabulary rebuilt after 1755, which reads as "instituição"
+ *  without pretending to be one particular ministry.
+ *
+ *  Every measurement is derived from a module (M) rather than typed in, so
+ *  the bays stay evenly spaced and the storeys stay aligned. That is what
+ *  separates architecture from a row of blobs. */
 function Arcade({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
-  const arches = [-36, -12, 12, 36];
+  const M = 22;              // bay module
+  const BAYS = 5;
+  const halfW = (BAYS * M) / 2;
+  const bays = Array.from({ length: BAYS }, (_, i) => -halfW + M / 2 + i * M);
+  const groundY = 44;        // pavement line
+  const archTop = 6;         // springing line of the arcade
+  const floor1 = -8;
+  const floor2 = -30;
+  const corniceY = -46;
+
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`} aria-hidden="true">
-      <rect
-        x={-58}
-        y={-44}
-        width={116}
-        height={88}
-        rx={6}
-        fill="var(--lfp-cal-tile)"
-        stroke="var(--lfp-cobalt)"
-        strokeWidth={2.5}
-      />
-      {/* Cornice */}
-      <rect x={-64} y={-52} width={128} height={12} rx={3} fill="var(--lfp-cobalt)" />
-      {arches.map((ax) => (
+      {/* Body */}
+      <rect x={-halfW} y={corniceY} width={halfW * 2} height={groundY - corniceY} fill="var(--lfp-cal-tile)" stroke="var(--lfp-cobalt)" strokeWidth={2.5} />
+
+      {/* Storey bands: shallow lines, not heavy bars — the Baixa facades
+          are quiet, and a thick band here would read as a toy. */}
+      <line x1={-halfW} y1={floor1} x2={halfW} y2={floor1} stroke="var(--lfp-cobalt)" strokeWidth={1} opacity={0.35} />
+      <line x1={-halfW} y1={floor2} x2={halfW} y2={floor2} stroke="var(--lfp-cobalt)" strokeWidth={1} opacity={0.35} />
+
+      {/* Upper windows, two storeys, aligned to the same bays as the arches. */}
+      {[floor2, floor1].map((fy) =>
+        bays.map((bx) => (
+          <rect
+            key={`${fy}-${bx}`}
+            x={bx - 5}
+            y={fy - 13}
+            width={10}
+            height={12}
+            rx={1}
+            fill="var(--lfp-cobalt)"
+            opacity={0.55}
+          />
+        ))
+      )}
+
+      {/* Ground-floor arcade: round arches on piers, the signature of the
+          Pombaline street level where the shops were. Open (cal ground)
+          rather than solid, so the building has depth instead of weight. */}
+      {bays.map((bx) => (
         <path
-          key={ax}
-          d={`M ${ax - 8} 40 L ${ax - 8} 8 A 8 8 0 0 1 ${ax + 8} 8 L ${ax + 8} 40 Z`}
-          fill="var(--lfp-cobalt)"
-          opacity={0.82}
+          key={`arch-${bx}`}
+          d={`M ${bx - 8} ${groundY} L ${bx - 8} ${archTop} A 8 8 0 0 1 ${bx + 8} ${archTop} L ${bx + 8} ${groundY} Z`}
+          fill="var(--lfp-cal)"
+          stroke="var(--lfp-cobalt)"
+          strokeWidth={1.6}
         />
       ))}
+      {/* Shadow inside each arch — one flat shape, the depth cue. */}
+      {bays.map((bx) => (
+        <path
+          key={`shade-${bx}`}
+          d={`M ${bx - 8} ${groundY} L ${bx - 8} ${archTop} A 8 8 0 0 1 ${bx} ${archTop - 8} L ${bx} ${groundY} Z`}
+          fill="var(--lfp-cobalt)"
+          opacity={0.13}
+        />
+      ))}
+
+      {/* Pilasters at the corners, tying the storeys together vertically. */}
+      {[-halfW + 3, halfW - 3].map((px) => (
+        <line key={px} x1={px} y1={corniceY} x2={px} y2={groundY} stroke="var(--lfp-cobalt)" strokeWidth={1} opacity={0.3} />
+      ))}
+
+      {/* Cornice: a moulding of two courses, overhanging the facade. */}
+      <rect x={-halfW - 7} y={corniceY - 9} width={halfW * 2 + 14} height={6} rx={1} fill="var(--lfp-cobalt)" />
+      <rect x={-halfW - 3} y={corniceY - 3} width={halfW * 2 + 6} height={3} fill="var(--lfp-cobalt)" opacity={0.55} />
+
+      {/* Pavement — the calçada the whole Baixa stands on. */}
+      <line x1={-halfW - 10} y1={groundY} x2={halfW + 10} y2={groundY} stroke="var(--lfp-cobalt)" strokeWidth={2} />
     </g>
   );
 }
@@ -276,6 +350,26 @@ export function MoneyFlow({
           <rect width={40} height={40} fill="none" />
           <path d="M 0 20 H 40 M 20 0 V 40" stroke="var(--lfp-cobalt)" strokeWidth={0.8} />
         </pattern>
+
+        {/* A lane is lit along its upper edge and shaded along its lower one
+            — what turns a flat stroke into a ribbon with a surface.
+            `objectBoundingBox` (the default) maps the gradient to each
+            path's own box, so on a lane that runs mostly sideways the ramp
+            comes out as vertical banding instead of a top light. Anchoring
+            it to the STAGE in user space makes the light come from one
+            place for every lane, which is what a real light does. */}
+        <linearGradient
+          id={`lfp-sheen-${uid}`}
+          gradientUnits="userSpaceOnUse"
+          x1={0}
+          y1={0}
+          x2={0}
+          y2={stage.height}
+        >
+          <stop offset="0%" stopColor="var(--lfp-cal-tile)" stopOpacity={0.5} />
+          <stop offset="50%" stopColor="var(--lfp-cal-tile)" stopOpacity={0.05} />
+          <stop offset="100%" stopColor="var(--lfp-cobalt-deep)" stopOpacity={0.18} />
+        </linearGradient>
       </defs>
 
       <g aria-hidden="true">
@@ -315,7 +409,7 @@ export function MoneyFlow({
                 d={lane.d}
                 fill="none"
                 stroke={`var(--lfp-tone-${stream.tone})`}
-                strokeLinecap="round"
+                strokeLinecap="butt"
                 initial={false}
                 animate={{
                   strokeWidth: active ? lane.width * 1.15 : lane.width,
@@ -327,12 +421,38 @@ export function MoneyFlow({
                     : { type: "spring", stiffness: 120, damping: 18 }
                 }
               />
+              {/* Surface: highlight above, shade below. Clipped to the band
+                  by reusing the same path and stroke width. */}
+              <motion.path
+                d={lane.d}
+                fill="none"
+                stroke={`url(#lfp-sheen-${uid})`}
+                strokeLinecap="butt"
+                initial={false}
+                animate={{ strokeWidth: active ? lane.width * 1.15 : lane.width, opacity: dimmed ? 0.2 : 1 }}
+                transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 120, damping: 18 }}
+                style={{ pointerEvents: "none" }}
+              />
+              {/* A thin travelling line along the lane's spine. It was a
+                  band 45% of the lane's width, which on a thick lane drew
+                  20px slabs that read as tally marks rather than movement;
+                  a hairline reads as current in the channel. */}
               <path
                 className="lfp-lane-rigging"
                 d={lane.d}
-                strokeWidth={Math.max(1, lane.width * 0.45)}
-                strokeDasharray="2 10"
-                opacity={dimmed ? 0.15 : 0.5}
+                strokeWidth={Math.max(1, Math.min(lane.width * 0.12, 3))}
+                strokeDasharray="3 13"
+                opacity={dimmed ? 0.12 : 0.42}
+              />
+              {/* Terminus: an arrowhead the width of its own lane, turned to
+                  face the pole. Without it a thick band stops in mid-air
+                  and the eye never sees the money arrive. */}
+              <path
+                d={`M 0 ${-lane.width / 2} L ${Math.min(lane.width * 0.5, 14)} 0 L 0 ${lane.width / 2} Z`}
+                transform={`translate(${lane.end.x} ${lane.end.y}) rotate(${lane.end.angle})`}
+                fill={`var(--lfp-tone-${stream.tone})`}
+                opacity={dimmed ? 0.25 : lane.opacity}
+                style={{ pointerEvents: "none" }}
               />
             </g>
           );
@@ -399,11 +519,13 @@ export function MoneyFlow({
       <Wallet x={oPos.x} y={oPos.y} scale={poleScale} />
       <Arcade x={dPos.x} y={dPos.y} scale={poleScale} />
 
-      {/* Pole labels */}
+      {/* Pole labels. Vertically the wallet now carries notes above its
+          body, so the stack above it starts higher — the amount sat on top
+          of the notes at the old offset. */}
       <g className="lfp-num" fontSize={13} textAnchor="middle">
         <text
           x={oPos.x}
-          y={oPos.y + (stage.layout === "v" ? -56 : 64)}
+          y={oPos.y + (stage.layout === "v" ? -78 : 64)}
           fill="var(--lfp-cobalt-deep)"
           fontWeight={600}
         >
@@ -412,7 +534,7 @@ export function MoneyFlow({
         {showChips && (
           <text
             x={oPos.x}
-            y={oPos.y + (stage.layout === "v" ? -38 : 82)}
+            y={oPos.y + (stage.layout === "v" ? -60 : 82)}
             fill="var(--lfp-verde)"
             fontSize={15}
             fontWeight={600}

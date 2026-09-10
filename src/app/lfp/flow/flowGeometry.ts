@@ -13,7 +13,9 @@ export interface StageBox {
 }
 
 export const STAGE_H: StageBox = { width: 960, height: 340, layout: "h" };
-export const STAGE_V: StageBox = { width: 360, height: 440, layout: "v" };
+/* Taller than the 440 it started at: the wallet carries notes above its
+   body now, and the label stack above it was reaching the very top edge. */
+export const STAGE_V: StageBox = { width: 360, height: 470, layout: "v" };
 
 export interface LaneGeometry {
   id: string;
@@ -26,6 +28,9 @@ export interface LaneGeometry {
   share: number;
   /** Where the amount chip sits. */
   midpoint: { x: number; y: number };
+  /** The lane's last point and the direction it is travelling there, so the
+   *  caller can draw a terminus that faces the pole instead of a blunt cut. */
+  end: { x: number; y: number; angle: number };
   particleCount: number;
   /** Phase offsets 0..1, deterministic. */
   particleDelays: number[];
@@ -80,18 +85,27 @@ function cubicPath(c: Cubic): string {
 }
 
 /** Half-extent of a pole glyph, so lanes can stop at its edge instead of
- *  running through the middle of it. */
+ *  running through the middle of it. The wallet is 116 units wide and the
+ *  arcade 110, so 58 is the half-width of the larger; the extra gap below
+ *  keeps a round stroke cap from overlapping the outline. */
 export const POLE_RADIUS = 58;
+
+/** Clear air between the end of a lane and the pole it feeds. Without it a
+ *  thick lane's round cap sits on top of the glyph's stroke and the pole
+ *  looks skewered rather than fed. */
+export const POLE_GAP = 10;
 
 /** Where the poles sit inside the stage, in viewBox units.
  *  A third anchor — `source` — is the point the money leaves from: the gross
  *  salary enters at the centre and splits toward the two poles. */
 export function poleAnchors(stage: StageBox) {
   if (stage.layout === "v") {
+    // 110 from the top, not 92: the wallet's notes and the two label lines
+    // above it need the clearance.
     return {
-      origin: { x: stage.width / 2, y: 92 },
-      destination: { x: stage.width / 2, y: stage.height - 92 },
-      span: stage.height - 184,
+      origin: { x: stage.width / 2, y: 110 },
+      destination: { x: stage.width / 2, y: stage.height - 96 },
+      span: stage.height - 206,
     };
   }
   return {
@@ -147,8 +161,9 @@ export function computeLanes(
 
     let curve: Cubic;
     if (vertical) {
-      // Stop at the pole's edge rather than its centre.
-      const endY = pole.y + (s.direction === "toPeople" ? POLE_RADIUS * 0.8 : -POLE_RADIUS * 0.8);
+      // Stop clear of the pole's edge rather than at its centre.
+      const reach = POLE_RADIUS * 0.8 + POLE_GAP;
+      const endY = pole.y + (s.direction === "toPeople" ? reach : -reach);
       curve = {
         x0: hub.x,
         y0: hub.y,
@@ -160,7 +175,7 @@ export function computeLanes(
         y3: endY,
       };
     } else {
-      const endX = pole.x + (s.direction === "toPeople" ? POLE_RADIUS : -POLE_RADIUS);
+      const endX = pole.x + (s.direction === "toPeople" ? POLE_RADIUS + POLE_GAP : -(POLE_RADIUS + POLE_GAP));
       curve = {
         x0: hub.x,
         y0: hub.y,
@@ -184,6 +199,12 @@ export function computeLanes(
       (_, k) => (k / particleCount + jitter) % 1
     );
 
+    // Direction at the very end of the curve, from the last short chord —
+    // exact enough for orienting a cap and cheaper than differentiating.
+    const tipA = pointOnCubic(curve, 0.97);
+    const tip = pointOnCubic(curve, 1);
+    const angle = (Math.atan2(tip.y - tipA.y, tip.x - tipA.x) * 180) / Math.PI;
+
     return {
       id: s.id,
       d: cubicPath(curve),
@@ -191,6 +212,7 @@ export function computeLanes(
       opacity: 0.9,
       share,
       midpoint: pointOnCubic(curve, 0.55),
+      end: { x: tip.x, y: tip.y, angle },
       particleCount,
       particleDelays,
       curve,
