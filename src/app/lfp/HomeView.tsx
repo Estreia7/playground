@@ -25,6 +25,15 @@ const NO_SUB = {
   diasMes: 22,
 };
 
+/* Keyed by route rather than added to the dictionary: the illustration is
+   decoration, and copy files should hold copy. Decorative, so alt="" —
+   the door's own heading already names it. */
+const DOOR_IMAGE: Record<string, string> = {
+  "/lfp/individual": "/lfp/door-individual.webp",
+  "/lfp/empresarial": "/lfp/door-empresarial.webp",
+  "/lfp/economia": "/lfp/door-economia.webp",
+};
+
 export default function HomeView() {
   const { data, meta, loading, error } = useLfpData();
   const { t, lang } = useLfpLang();
@@ -229,8 +238,19 @@ export default function HomeView() {
             <Link
               key={d.href}
               href={d.href}
-              className="lfp-tile lfp-focus lfp-press group p-6 transition-colors hover:border-[var(--lfp-cobalt)]"
+              className="lfp-tile lfp-focus lfp-press group overflow-hidden transition-colors hover:border-[var(--lfp-cobalt)]"
             >
+              {DOOR_IMAGE[d.href] && (
+                <Image
+                  src={DOOR_IMAGE[d.href]}
+                  alt=""
+                  width={1200}
+                  height={800}
+                  sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                  className="h-44 w-full border-b border-[var(--lfp-line)] object-cover object-[center_35%] transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+              )}
+              <div className="p-6">
               <p className="lfp-eyebrow">{d.eyebrow}</p>
               <h2 className="lfp-display mt-2 text-2xl font-semibold">{d.title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-[var(--lfp-mist)]">{d.body}</p>
@@ -245,6 +265,7 @@ export default function HomeView() {
                   </li>
                 ))}
               </ul>
+              </div>
             </Link>
           ))}
         </section>
@@ -252,16 +273,26 @@ export default function HomeView() {
         <section className="mt-4 mb-16">
           <Link
             href="/lfp/quiz"
-            className="lfp-tile lfp-focus lfp-press flex flex-wrap items-center justify-between gap-4 p-6 transition-colors hover:border-[var(--lfp-cobalt)]"
+            className="lfp-tile lfp-focus lfp-press group flex flex-wrap items-center justify-between gap-4 overflow-hidden p-6 transition-colors hover:border-[var(--lfp-cobalt)] sm:flex-nowrap sm:py-0 sm:pr-0"
           >
-            <div>
+            <div className="sm:py-6">
               <p className="lfp-eyebrow">{h.quizEyebrow}</p>
               <h2 className="lfp-display mt-1 text-2xl font-semibold">{h.quizTitle}</h2>
               <p className="mt-1.5 text-sm text-[var(--lfp-mist)]">{h.quizBody}</p>
             </div>
-            <span className="lfp-num rounded-full border border-[var(--lfp-cobalt)] px-4 py-2 text-sm font-semibold text-[var(--lfp-cobalt)]">
+            <span className="lfp-num shrink-0 rounded-full border border-[var(--lfp-cobalt)] px-4 py-2 text-sm font-semibold text-[var(--lfp-cobalt)] sm:ml-auto">
               {h.quizCta}
             </span>
+            {/* Hidden on small screens: below `sm` the card stacks and the
+                illustration would push the call to action off the fold. */}
+            <Image
+              src="/lfp/quiz.webp"
+              alt=""
+              width={1200}
+              height={800}
+              sizes="240px"
+              className="hidden h-32 w-60 shrink-0 self-stretch border-l border-[var(--lfp-line)] object-cover transition-transform duration-500 group-hover:scale-[1.03] sm:block sm:h-auto"
+            />
           </Link>
         </section>
       </main>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { tr } from "../i18n";
 import { ChoiceGroup } from "../ui/Inputs";
@@ -151,7 +152,16 @@ export default function ContribuirView() {
           </form>
         )}
 
-        <aside className="lfp-tile p-6">
+        <aside className="lfp-tile overflow-hidden">
+          <Image
+            src="/lfp/contribuir.webp"
+            alt=""
+            width={1200}
+            height={800}
+            sizes="(min-width: 1024px) 22rem, 100vw"
+            className="h-36 w-full border-b border-[var(--lfp-line)] object-cover object-[center_40%]"
+          />
+          <div className="p-6">
           <p className="lfp-eyebrow">{c.howTitle}</p>
           <ol className="mt-3 space-y-3">
             {c.how.map((step, i) => (
@@ -163,6 +173,7 @@ export default function ContribuirView() {
               </li>
             ))}
           </ol>
+          </div>
         </aside>
       </div>
     </Shell>
