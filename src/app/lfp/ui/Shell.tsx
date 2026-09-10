@@ -49,9 +49,11 @@ export function Shell({
             />
             <span className="lfp-display text-base font-semibold">LFP</span>
           </Link>
-          <Nav />
-          <div className="ml-auto flex items-center gap-3">
-            <span className="lfp-eyebrow hidden lg:inline">{c.nav.eyebrow}</span>
+          {/* Centred on the page axis, matching the landing page. */}
+          <div className="md:absolute md:left-1/2 md:-translate-x-1/2">
+            <Nav />
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             <LangToggle />
           </div>
         </div>

@@ -188,6 +188,65 @@
    Layer 1 of 2. MoneyFlow also calls framer-motion's useReducedMotion()
    in JS, because CSS alone cannot stop a rAF-driven animation. */
 
+/* ── Navigation ─────────────────────────────────────────────── */
+
+/* An underline that grows from the centre on hover or when the section is
+   open. A pseudo-element rather than a border, so nothing in the layout
+   moves as it appears — a border would shift the label by a pixel. */
+.lfp-nav-trigger {
+  position: relative;
+}
+
+.lfp-nav-trigger::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lfp-nav-trigger:hover::after,
+.lfp-nav-trigger[aria-expanded="true"]::after {
+  transform: scaleX(1);
+}
+
+/* The current section keeps a permanent, quieter rule, so you can always
+   see where you are even with nothing hovered. */
+.lfp-nav-trigger[aria-current="true"]::after {
+  transform: scaleX(1);
+  opacity: 0.45;
+}
+
+/* The panel drops in rather than appearing: a short fade plus a few pixels
+   of travel is enough to say "this came from the button above". */
+.lfp-nav-panel {
+  animation: lfp-nav-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+
+@keyframes lfp-nav-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+/* Each row wakes as the pointer crosses it. The slide is small on purpose:
+   a menu that lurches is harder to aim at than one that stays put. */
+.lfp-nav-link {
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.lfp-nav-link:hover {
+  transform: translateX(2px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lfp-compass,
   .lfp-lane-rigging {
@@ -195,5 +254,20 @@
   }
   .lfp-press {
     transition: none;
+  }
+  /* The underline still appears, it just stops growing; the panel still
+     opens, it just does not travel. The information never depends on the
+     motion. */
+  .lfp-nav-trigger::after {
+    transition: none;
+  }
+  .lfp-nav-panel {
+    animation: none;
+  }
+  .lfp-nav-link {
+    transition: none;
+  }
+  .lfp-nav-link:hover {
+    transform: none;
   }
 }

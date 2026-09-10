@@ -141,7 +141,7 @@ export function Nav() {
   const isCurrent = (href: string) => pathname === href;
 
   const linkClass = (href: string) =>
-    `lfp-focus block rounded-md px-3 py-2 text-sm transition-colors ${
+    `lfp-nav-link lfp-focus block rounded-md px-3 py-2 text-sm ${
       isCurrent(href)
         ? "bg-[var(--lfp-cobalt-faint)] font-medium text-[var(--lfp-cobalt-deep)]"
         : "text-[var(--lfp-mist)] hover:bg-[var(--lfp-cobalt-faint)] hover:text-[var(--lfp-cobalt-deep)]"
@@ -164,7 +164,7 @@ export function Nav() {
                 aria-controls={panelId}
                 aria-current={current === s.key ? "true" : undefined}
                 onClick={() => setOpen((o) => (o === s.key ? null : s.key))}
-                className={`lfp-focus inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm transition-colors ${
+                className={`lfp-nav-trigger lfp-focus inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm transition-colors ${
                   current === s.key
                     ? "font-semibold text-[var(--lfp-cobalt-deep)]"
                     : "text-[var(--lfp-mist)] hover:text-[var(--lfp-cobalt)]"
@@ -181,7 +181,7 @@ export function Nav() {
               {isOpen && (
                 <div
                   id={panelId}
-                  className="lfp-panel absolute left-0 top-full z-30 mt-1 w-64 p-1.5 shadow-lg"
+                  className="lfp-nav-panel lfp-panel absolute left-0 top-full z-30 mt-1 w-64 p-1.5 shadow-lg"
                 >
                   <ul>
                     {s.items.map((it) => (

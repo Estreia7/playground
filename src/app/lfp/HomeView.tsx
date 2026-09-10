@@ -12,6 +12,7 @@ import { useLfpData } from "./useLfpData";
 import { useLfpLang } from "./useLfpLang";
 import { UnverifiedBanner, YearChip } from "./ui/DataHonesty";
 import { LangToggle } from "./ui/LangToggle";
+import { Nav } from "./ui/Nav";
 import type { SalarioLiquidoInput } from "./types";
 
 /** Preset salaries: minimum wage, roughly the national median, and two above.
@@ -64,21 +65,44 @@ export default function HomeView() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-[var(--lfp-line)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
+      <header className="sticky top-0 z-20 border-b border-[var(--lfp-line)] bg-[var(--lfp-cal)]/95 backdrop-blur">
+        {/* `relative` anchors the mobile nav sheet, which spans the header. */}
+        <div className="relative mx-auto flex max-w-6xl items-center gap-4 px-6 py-2.5">
           <Link
             href="/lfp"
-            className="lfp-focus -mx-2 inline-flex min-h-11 items-center gap-2 px-2"
+            className="lfp-focus -mx-2 inline-flex min-h-11 shrink-0 items-center gap-2 px-2"
           >
             <Image src="/lfp-icon-512.png" alt="" width={28} height={28} priority className="h-7 w-7 shrink-0" />
             <span className="lfp-display text-base font-semibold">LFP</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <span className="lfp-eyebrow hidden md:inline">{t.chrome.nav.eyebrow}</span>
+          {/* Centred between the wordmark and the controls: absolute on wide
+              screens so the menu sits on the page's axis rather than
+              wherever the two flanks happen to leave it. Below `md` the Nav
+              collapses to its own button and sits inline. */}
+          <div className="md:absolute md:left-1/2 md:-translate-x-1/2">
+            <Nav />
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             <LangToggle />
           </div>
         </div>
       </header>
+
+      {/* A band of azulejo under the header. Faint and short on purpose:
+          full strength it fights the headline, which is why it is not the
+          hero background. `aria-hidden` — it carries no information. */}
+      <div aria-hidden="true" className="relative h-16 overflow-hidden border-b border-[var(--lfp-line)] sm:h-20">
+        <Image
+          src="/lfp/hero-tiles.webp"
+          alt=""
+          width={1600}
+          height={900}
+          priority
+          className="h-full w-full object-cover opacity-[0.14]"
+        />
+        {/* Fades into the page so the band has no hard bottom edge. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--lfp-cal)]" />
+      </div>
 
       <main className="mx-auto max-w-6xl px-6">
         {/* The one place the full logo has room to be itself. It sits beside
@@ -296,6 +320,20 @@ export default function HomeView() {
           </Link>
         </section>
       </main>
+
+      {/* The same band closing the page, mirrored so the two are not a
+          repeated print, and fading the other way. */}
+      <div aria-hidden="true" className="relative h-16 overflow-hidden sm:h-20">
+        <Image
+          src="/lfp/hero-tiles.webp"
+          alt=""
+          width={1600}
+          height={900}
+          loading="lazy"
+          className="h-full w-full scale-x-[-1] object-cover opacity-[0.14]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-transparent to-[var(--lfp-cal)]" />
+      </div>
 
       <footer className="border-t border-[var(--lfp-line)]">
         <div className="mx-auto max-w-6xl px-6 py-5 text-xs leading-relaxed text-[var(--lfp-mist)]">
