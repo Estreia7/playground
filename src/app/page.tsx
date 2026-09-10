@@ -7,7 +7,7 @@ const experiments = [
       "Como funciona o dinheiro em Portugal: IRS, IVA, IRC e Segurança Social explicados, calculadoras animadas, inflação e comparação internacional.",
     href: "/lfp",
     status: "wip" as const,
-    image: "/lfp-cover.svg",
+    image: "/lfp-cover.png",
   },
   {
     title: "Papelaria da Vila",

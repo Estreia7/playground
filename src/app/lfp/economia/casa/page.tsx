@@ -4,7 +4,7 @@ import CasaView from "./CasaView";
 export const metadata: Metadata = {
   title: "Custo real de uma casa",
   description:
-    "IMT, Imposto do Selo, registos, trinta anos de juros e de IMI: o que uma casa custa mesmo, no dia da escritura e no fim do crédito. Tabelas de 2026.",
+    "Uma casa de 250.000 € custa perto de 390.000 €. IMT, selo, registos e trinta anos de juros, na mesma conta.",
 };
 
 export default function CasaPage() {

@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: {
     default: "Economia",
-    template: "%s · Economia · LFP",
+    // Two segments, not three: "Página · Economia · LFP" runs past what a
+    // shared link shows, and the branch adds nothing a reader needs there.
+    template: "%s · LFP",
   },
   description:
-    "Inflação, poder de compra, para onde vão os impostos e como Portugal se compara com outros países — com dados oficiais do Eurostat e o ano à vista.",
+    "Inflação, poder de compra e para onde vão os impostos — com dados oficiais do Eurostat e o ano à vista.",
 };
 
 export default function EconomiaLayout({ children }: { children: React.ReactNode }) {

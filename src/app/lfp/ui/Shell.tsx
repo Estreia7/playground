@@ -4,6 +4,7 @@
    language toggle, and the persistent-but-discreet disclaimer. Kept plain so
    the content — and the one bold element per page — carries the personality. */
 
+import Image from "next/image";
 import Link from "next/link";
 import { LangToggle } from "./LangToggle";
 import { Nav } from "./Nav";
@@ -29,13 +30,24 @@ export function Shell({
       <header className="sticky top-0 z-20 border-b border-[var(--lfp-line)] bg-[var(--lfp-cal)]/95 backdrop-blur">
         {/* `relative` anchors the mobile nav sheet, which spans the header. */}
         <div className="relative mx-auto flex max-w-6xl items-center gap-3 px-6 py-2.5">
-          {/* Negative margin keeps the visual gap while the padding widens
-              the hit area — three letters are too narrow on their own. */}
+          {/* The emblem alone in the header: the full logo stacks two lines
+              of lettering under it, which would need a header three times
+              this tall to stay legible. The wordmark stays as text.
+              The negative margin keeps the visual gap while the padding
+              widens the hit area. */}
           <Link
             href="/lfp"
-            className="lfp-display lfp-focus -mx-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-base font-semibold"
+            className="lfp-focus -mx-2 inline-flex min-h-11 shrink-0 items-center gap-2 px-2"
           >
-            LFP
+            <Image
+              src="/lfp-icon-512.png"
+              alt=""
+              width={28}
+              height={28}
+              priority
+              className="h-7 w-7 shrink-0"
+            />
+            <span className="lfp-display text-base font-semibold">LFP</span>
           </Link>
           <Nav />
           <div className="ml-auto flex items-center gap-3">

@@ -5,7 +5,7 @@ type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefi
 
 const TITLE = "Salário líquido";
 const DESCRIPTION =
-  "Calcula o teu salário líquido em 2026: IRS retido na fonte, Segurança Social, subsídio de refeição e dependentes. Vê para onde vai cada euro.";
+  "Do bruto ao que entra mesmo na conta: IRS, Segurança Social e subsídio de refeição, com as tabelas de 2026.";
 
 /** The share link carries the salary, so the page it opens unfurls the same
  *  card the sender saw. Only the input is read; the card recomputes. */

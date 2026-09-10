@@ -4,7 +4,7 @@ import VidaView from "./VidaView";
 export const metadata: Metadata = {
   title: "Linha da vida",
   description:
-    "Do salário de hoje à reforma: uma projeção em euros de hoje e de amanhã, com a idade normal de reforma de 2026 e a pensão como hipótese explícita.",
+    "Do salário de hoje à reforma: quanto vais receber, e quanto falta. Uma projeção honesta, em euros de hoje.",
 };
 
 export default function VidaPage() {

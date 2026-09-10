@@ -5,7 +5,7 @@ type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefi
 
 const TITLE = "Máquina do tempo da inflação";
 const DESCRIPTION =
-  "Quanto vale hoje o dinheiro de 1999, 2010 ou 2020? Inflação em Portugal com o índice de preços do Eurostat desde 1996.";
+  "Quanto vale hoje o dinheiro de 1999? A inflação em Portugal desde 1996, com os números do Eurostat.";
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const sp = await searchParams;

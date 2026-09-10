@@ -31,8 +31,21 @@ export const metadata: Metadata = {
     default: "LFP — Literacia Financeira Portuguesa",
     template: "%s · LFP",
   },
+  // WhatsApp shows about two lines under the title and cuts the rest
+  // mid-word, so the hook has to land inside ~120 characters.
   description:
-    "Aprende como funciona o dinheiro em Portugal: IRS, IVA, IRC, Segurança Social, inflação e poder de compra. Explicado de forma simples, com calculadoras e dados públicos.",
+    "IRS, IVA, Segurança Social e inflação explicados em português simples — com calculadoras e fontes públicas.",
+  // 1200×630, the ratio WhatsApp and Facebook need to render a LARGE
+  // preview image; a square falls back to a small thumbnail beside the
+  // text. Result pages override this with their own generated card
+  // carrying the actual numbers — this is the fallback for the rest.
+  openGraph: {
+    type: "website",
+    locale: "pt_PT",
+    siteName: "LFP — Literacia Financeira Portuguesa",
+    images: [{ url: "/lfp-og.png", width: 1200, height: 630, alt: "Literacia Financeira Portuguesa" }],
+  },
+  twitter: { card: "summary_large_image", images: ["/lfp-og.png"] },
 };
 
 export default function LfpLayout({ children }: { children: React.ReactNode }) {

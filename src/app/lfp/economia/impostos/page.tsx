@@ -4,7 +4,7 @@ import ImpostosView from "./ImpostosView";
 export const metadata: Metadata = {
   title: "Recibo do contribuinte",
   description:
-    "Dos euros que entregas ao Estado todos os meses em IRS e Segurança Social, quantos vão para pensões, saúde, educação? O teu recibo, com a despesa pública do Eurostat.",
+    "Dos impostos que pagas todos os meses, quanto vai para pensões, saúde e educação? O teu recibo do contribuinte.",
 };
 
 export default function ImpostosPage() {

@@ -5,7 +5,7 @@ type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefi
 
 const TITLE = "Quiz de literacia financeira";
 const DESCRIPTION =
-  "Testa o que sabes sobre IRS, Segurança Social, IVA, IRC e economia: escolha múltipla, resposta imediata, e a fonte de cada resposta. As perguntas que erras voltam.";
+  "Quão boa é a tua literacia financeira? Escolha múltipla sobre IRS, IVA e economia, com a fonte de cada resposta.";
 const MODES = ["geral", "irs", "tsu", "iva", "irc", "economia"];
 
 /** A shared result link carries mode, correct and total; the page itself

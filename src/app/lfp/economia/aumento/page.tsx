@@ -4,7 +4,7 @@ import AumentoView from "./AumentoView";
 export const metadata: Metadata = {
   title: "Aumento vs. inflação",
   description:
-    "O teu aumento foi mesmo um aumento? Compara-o com a inflação em Portugal e vê o que sobra em poder de compra — e quanto fica no IRS.",
+    "3% de aumento num ano de 4% de inflação é um corte. Vê o que sobra mesmo, depois dos preços e do IRS.",
 };
 
 export default function AumentoPage() {

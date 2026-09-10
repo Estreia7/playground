@@ -4,7 +4,7 @@ import IvaTool from "./IvaTool";
 export const metadata: Metadata = {
   title: "IVA",
   description:
-    "Calcula o IVA nas duas direções — com e sem IVA — para qualquer taxa e região, e vê o erro clássico ao tirar o IVA de um preço.",
+    "Tirar o IVA não é tirar 23%. Calcula nos dois sentidos e vê o erro que quase toda a gente faz.",
 };
 
 export default function IvaPage() {

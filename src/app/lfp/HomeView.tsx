@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { MoneyFlow } from "./flow/MoneyFlow";
@@ -58,9 +59,10 @@ export default function HomeView() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
           <Link
             href="/lfp"
-            className="lfp-display lfp-focus -mx-2 inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-base font-semibold"
+            className="lfp-focus -mx-2 inline-flex min-h-11 items-center gap-2 px-2"
           >
-            LFP
+            <Image src="/lfp-icon-512.png" alt="" width={28} height={28} priority className="h-7 w-7 shrink-0" />
+            <span className="lfp-display text-base font-semibold">LFP</span>
           </Link>
           <div className="flex items-center gap-4">
             <span className="lfp-eyebrow hidden md:inline">{t.chrome.nav.eyebrow}</span>
@@ -70,14 +72,27 @@ export default function HomeView() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6">
-        <section className="pt-14 pb-4 sm:pt-20">
-          <p className="lfp-eyebrow mb-4">{h.eyebrow}</p>
-          <h1 className="lfp-display max-w-3xl text-[2.5rem] font-semibold sm:text-6xl">
-            {h.title}
-          </h1>
-          <p className="mt-5 max-w-xl text-[1.0625rem] leading-relaxed text-[var(--lfp-mist)]">
-            {h.lede}
-          </p>
+        {/* The one place the full logo has room to be itself. It sits beside
+            the hero on wide screens and is dropped below `lg`, where the
+            headline needs the whole width — decorative, so nothing is lost. */}
+        <section className="grid items-center gap-8 pt-14 pb-4 sm:pt-20 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div>
+            <p className="lfp-eyebrow mb-4">{h.eyebrow}</p>
+            <h1 className="lfp-display max-w-3xl text-[2.5rem] font-semibold sm:text-6xl">
+              {h.title}
+            </h1>
+            <p className="mt-5 max-w-xl text-[1.0625rem] leading-relaxed text-[var(--lfp-mist)]">
+              {h.lede}
+            </p>
+          </div>
+          <Image
+            src="/lfp-logo-600.png"
+            alt=""
+            width={220}
+            height={220}
+            priority
+            className="hidden h-[220px] w-[220px] shrink-0 lg:block"
+          />
         </section>
 
         {meta && (

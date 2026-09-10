@@ -4,7 +4,7 @@ import JurosView from "./JurosView";
 export const metadata: Metadata = {
   title: "Juros compostos",
   description:
-    "O que 100 € por mês se tornam em 10, 20 ou 30 anos. Calculadora de juros compostos com a curva do crescimento e a conta linha a linha.",
+    "100 € por mês durante 30 anos tornam-se cerca de 83.000 €. Vê a curva — e porque o tempo vale mais que a taxa.",
 };
 
 export default function JurosPage() {

@@ -4,7 +4,7 @@ import OrcamentoView from "./OrcamentoView";
 export const metadata: Metadata = {
   title: "Orçamento familiar",
   description:
-    "Compara a estrutura do teu orçamento com a das famílias portuguesas do mesmo escalão de rendimento, com o Inquérito às Despesas das Famílias.",
+    "O teu orçamento ao lado do das famílias do mesmo rendimento. Onde gastas mais, categoria a categoria.",
 };
 
 export default function OrcamentoPage() {

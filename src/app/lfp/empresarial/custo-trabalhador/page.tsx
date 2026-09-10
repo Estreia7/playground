@@ -4,7 +4,7 @@ import CustoTrabalhadorCalculator from "./CustoTrabalhadorCalculator";
 export const metadata: Metadata = {
   title: "Custo de um trabalhador",
   description:
-    "Quanto custa mesmo um trabalhador à empresa em 2026: salário bruto, Segurança Social patronal, seguro de acidentes — e a fatia entre o que a empresa paga e o que o trabalhador recebe.",
+    "Um salário de 1.000 € custa quase 1.300 € à empresa. Vê a conta completa: Segurança Social patronal, seguros, subsídios.",
 };
 
 export default function CustoTrabalhadorPage() {

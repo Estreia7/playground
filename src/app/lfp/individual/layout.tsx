@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: {
     default: "Individual",
-    template: "%s · Individual · LFP",
+    // Two segments, not three: the branch name runs past what a shared
+    // link shows and adds nothing the reader needs there.
+    template: "%s · LFP",
   },
   description:
-    "O que sai do teu salário e para onde vai: IRS, Segurança Social, salário líquido e recibos verdes, explicados com calculadoras.",
+    "O que sai do teu salário e para onde vai: IRS, Segurança Social e o líquido que fica mesmo contigo.",
 };
 
 export default function IndividualLayout({ children }: { children: React.ReactNode }) {

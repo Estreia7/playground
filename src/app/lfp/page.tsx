@@ -3,8 +3,10 @@ import HomeView from "./HomeView";
 
 export const metadata: Metadata = {
   title: "LFP — Literacia Financeira Portuguesa",
+  // Kept inside ~120 characters: WhatsApp cuts the rest mid-word, and this
+  // is the link people actually paste into a group chat.
   description:
-    "Aprende como funciona o dinheiro em Portugal: IRS, IVA, IRC, Segurança Social, inflação e poder de compra. Calculadoras e explicações simples, com fontes públicas.",
+    "IRS, IVA, Segurança Social e inflação explicados em português simples — com calculadoras e fontes públicas.",
 };
 
 export default function LfpPage() {

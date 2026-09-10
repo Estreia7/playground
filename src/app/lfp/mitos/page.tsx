@@ -4,7 +4,7 @@ import MitosView from "./MitosView";
 export const metadata: Metadata = {
   title: "Mitos fiscais",
   description:
-    "«Subir de escalão faz-me ganhar menos», «o IVA pagam-no as empresas», «uma casa custa o preço». Verdade ou mito? Cada resposta com a fonte oficial.",
+    "«Subir de escalão faz-me ganhar menos.» Verdade ou mito? Treze ideias feitas, cada uma com a fonte oficial.",
 };
 
 export default function MitosPage() {

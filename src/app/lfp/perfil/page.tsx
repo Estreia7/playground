@@ -4,7 +4,7 @@ import PerfilView from "./PerfilView";
 export const metadata: Metadata = {
   title: "O teu progresso",
   description:
-    "Dias seguidos, domínio por tema, patentes conquistadas e perguntas para rever. Tudo guardado no teu browser.",
+    "Dias seguidos, temas dominados e perguntas para rever. Tudo guardado no teu browser, sem conta.",
   robots: { index: false },
 };
 

@@ -5,7 +5,7 @@ type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefi
 
 const TITLE = "Dias de trabalho";
 const DESCRIPTION =
-  "Quantos dias de salário líquido custa um telemóvel, uma renda ou um carro em Portugal — e em mais dezanove países europeus, em poder de compra ou euros nominais.";
+  "Quantos dias trabalhas para pagar um telemóvel? E um alemão, um espanhol, um polaco? Vinte países comparados.";
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const sp = await searchParams;

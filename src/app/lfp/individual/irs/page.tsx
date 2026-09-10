@@ -4,7 +4,7 @@ import IrsExplainer from "./IrsExplainer";
 export const metadata: Metadata = {
   title: "IRS explicado",
   description:
-    "O que é o IRS, porque é progressivo, como funciona a retenção na fonte e porque subir de escalão nunca te faz ganhar menos — com as tabelas de 2026 e o teu salário.",
+    "Porque é que subir de escalão nunca te faz ganhar menos — o IRS explicado por fatias, com as tabelas de 2026.",
 };
 
 export default function IrsPage() {
