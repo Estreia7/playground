@@ -8,7 +8,7 @@ import type { EconData, EconId } from "@/app/lfp/types";
 
 const ECON_DIR = path.join(process.cwd(), "storage", "lfp", "econ");
 
-export const ECON_IDS = ["inflation", "cofog", "wages", "distribution"] as const;
+export const ECON_IDS = ["inflation", "cofog", "wages", "distribution", "budget"] as const;
 
 export function isEconId(v: string): v is EconId {
   return (ECON_IDS as readonly string[]).includes(v);

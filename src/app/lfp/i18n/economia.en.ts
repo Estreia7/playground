@@ -42,6 +42,10 @@ export const economiaEn: EconomiaDict = {
         title: "Life timeline",
         body: "From today's salary to retirement, in today's euros and tomorrow's. A projection, called by its name.",
       },
+      orcamento: {
+        title: "Household budget",
+        body: "Your budget next to that of households in the same income band, category by category.",
+      },
       situas: {
         title: "Where you stand",
         body: "You earn more than what share of Portuguese workers? With the official brackets, without false precision.",

@@ -440,11 +440,92 @@ async function syncDistribution() {
   console.log(`  ${year}: D1 ${p.D1_E_EUR} · mediana ${p.MED_E_EUR} · média ${p.MEAN_E_EUR} · D9 ${p.D9_E_EUR}`);
 }
 
+/** How Portuguese households actually split their spending, by COICOP
+ *  division and INCOME QUINTILE — the yardstick the budget page compares a
+ *  reader's own numbers against.
+ *
+ *  Eurostat's Household Budget Survey rather than the INE release: the INE
+ *  press release quantifies only the three largest divisions (housing
+ *  39.3%, food 12.9%, transport 12.1%), while Eurostat carries all twelve
+ *  from the same survey, in per-mille shares.
+ *
+ *  There is no "all households" row — the survey publishes quintiles only.
+ *  That is better for this page anyway: a household in the first quintile
+ *  spends a very different share on food than one in the fifth, and
+ *  comparing someone against a blended national average would flatter or
+ *  scold them for being poorer or richer than the mean. */
+async function syncBudget() {
+  const divisions = Array.from({ length: 12 }, (_, i) => `CP${String(i + 1).padStart(2, "0")}`);
+  const quintiles = ["QU1", "QU2", "QU3", "QU4", "QU5"];
+  const url =
+    `${EUROSTAT}/hbs_str_t223?format=JSON&lang=EN&geo=PT&` +
+    quintiles.map((q) => `quant_inc=${q}`).join("&") +
+    "&sinceTimePeriod=2010";
+  console.log("budget ←", url.slice(0, 140) + "…");
+  const ds = await getJson(url);
+  const rows = jsonStatRows(ds);
+  if (INSPECT) { console.log("  dims:", ds.id, "rows:", rows.length); console.log("  sample:", rows.slice(0, 2)); }
+
+  const byYear = {};
+  const labels = {};
+  for (const r of rows) {
+    if (!Number.isFinite(r.value) || !divisions.includes(r.dims.coicop)) continue;
+    labels[r.dims.coicop] = r.labels.coicop;
+    ((byYear[Number(r.dims.time)] ??= {})[r.dims.quant_inc] ??= {})[r.dims.coicop] = r.value;
+  }
+  const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
+  const year = years.find((y) =>
+    quintiles.every((q) => byYear[y][q] && divisions.every((d) => Number.isFinite(byYear[y][q][d])))
+  );
+  if (!year) throw new Error("budget: no year has all twelve divisions for all five quintiles");
+
+  // Per mille → share of one. Divisions sum to 1000‰ by construction, so a
+  // total far off that means the wrong slice was fetched.
+  const out = quintiles.map((q) => {
+    const total = divisions.reduce((s, d) => s + byYear[year][q][d], 0);
+    if (Math.abs(total - 1000) > 20) {
+      throw new Error(`budget: ${q} divisions sum to ${total}‰, expected ~1000`);
+    }
+    return {
+      quintile: q,
+      divisions: divisions.map((d) => ({
+        code: d,
+        share: Math.round((byYear[year][q][d] / total) * 10000) / 10000,
+      })),
+    };
+  });
+
+  await write("budget", {
+    meta: {
+      year,
+      label: "Estrutura da despesa das famílias por divisão COICOP e quintil de rendimento (Eurostat, Inquérito às Despesas das Famílias)",
+      source: "https://ec.europa.eu/eurostat/databrowser/view/hbs_str_t223/default/table",
+      sourceUrl: url,
+      datasetCode: "hbs_str_t223",
+      license: EUROSTAT_LICENSE,
+      retrievedAt: today,
+      lastVerified: today,
+      version: 1,
+      notes: [
+        "Estrutura média da despesa, em proporção do total. As proporções são a referência; os euros vêm do teu próprio orçamento.",
+        "Por quintil de rendimento, não uma média nacional: uma família do 1.º quintil gasta uma fatia muito maior em alimentação do que uma do 5.º, e comparar toda a gente com a mesma média não diria nada de útil.",
+        "O Inquérito às Despesas das Famílias é quinquenal. Dentro de cada quintil há famílias de dimensões diferentes — a tua estrutura pode ser legitimamente diferente da média.",
+        "«Habitação» inclui renda (ou renda imputada a quem tem casa própria), água, eletricidade e gás. É sempre a maior fatia.",
+      ],
+    },
+    unit: "share",
+    divisionLabels: divisions.map((d) => ({ code: d, label: labels[d] })),
+    quintiles: out,
+  });
+  const q3 = out[2].divisions.slice().sort((a, b) => b.share - a.share).slice(0, 3);
+  console.log(`  ${year}: 3.º quintil → ${q3.map((x) => `${x.code} ${(x.share * 100).toFixed(1)}%`).join(" · ")}`);
+}
+
 /* ── run ─────────────────────────────────────────────────── */
 
-const tasks = { inflation: syncInflation, cofog: syncCofog, wages: syncWages, distribution: syncDistribution, "wages-oecd": syncWagesOecd };
+const tasks = { inflation: syncInflation, cofog: syncCofog, wages: syncWages, distribution: syncDistribution, budget: syncBudget, "wages-oecd": syncWagesOecd };
 // "all" excludes the OECD task until that endpoint is dependable.
-const run = which === "all" ? ["inflation", "cofog", "wages", "distribution"] : [which];
+const run = which === "all" ? ["inflation", "cofog", "wages", "distribution", "budget"] : [which];
 let failed = 0;
 for (const name of run) {
   try {

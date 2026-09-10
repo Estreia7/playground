@@ -43,6 +43,10 @@ export const economiaPt = {
         title: "Linha da vida",
         body: "Do salário de hoje à reforma, em euros de hoje e de amanhã. Uma projeção, com o nome certo.",
       },
+      orcamento: {
+        title: "Orçamento familiar",
+        body: "O teu orçamento ao lado do das famílias do mesmo escalão de rendimento, categoria a categoria.",
+      },
       situas: {
         title: "Onde te situas",
         body: "Ganhas mais do que que percentagem dos portugueses? Com os escalões oficiais, sem falsa precisão.",

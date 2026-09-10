@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { LangToggle } from "./LangToggle";
+import { Nav } from "./Nav";
 import { useLfpLang } from "../useLfpLang";
 
 export interface Crumb {
@@ -25,48 +26,55 @@ export function Shell({
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-[var(--lfp-line)]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-3">
-          <nav aria-label="Navegação" className="flex min-w-0 items-center gap-2 text-sm">
-            {/* Negative margin keeps the visual gap while the padding widens
-                the hit area — three letters are too narrow on their own. */}
-            <Link
-              href="/lfp"
-              className="lfp-display lfp-focus -mx-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center px-2 text-base font-semibold"
-            >
-              LFP
-            </Link>
-            {crumbs.map((crumb) => (
-              <span key={crumb.label} className="flex min-w-0 items-center gap-2">
-                <span aria-hidden="true" className="text-[var(--lfp-line-strong)]">
-                  /
-                </span>
-                {crumb.href ? (
-                  <Link
-                    href={crumb.href}
-                    className="lfp-focus inline-flex min-h-11 min-w-11 items-center truncate text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
-                  >
-                    {crumb.label}
-                  </Link>
-                ) : (
-                  <span aria-current="page" className="truncate font-medium">
-                    {crumb.label}
-                  </span>
-                )}
-              </span>
-            ))}
-          </nav>
-          <div className="flex items-center gap-4">
-            <span className="lfp-eyebrow hidden md:inline">{c.nav.eyebrow}</span>
-            <Link
-              href="/lfp/perfil"
-              className="lfp-focus inline-flex min-h-11 items-center text-sm text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
-            >
-              {t.quiz.nav.perfil}
-            </Link>
+      <header className="sticky top-0 z-20 border-b border-[var(--lfp-line)] bg-[var(--lfp-cal)]/95 backdrop-blur">
+        {/* `relative` anchors the mobile nav sheet, which spans the header. */}
+        <div className="relative mx-auto flex max-w-6xl items-center gap-3 px-6 py-2.5">
+          {/* Negative margin keeps the visual gap while the padding widens
+              the hit area — three letters are too narrow on their own. */}
+          <Link
+            href="/lfp"
+            className="lfp-display lfp-focus -mx-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-base font-semibold"
+          >
+            LFP
+          </Link>
+          <Nav />
+          <div className="ml-auto flex items-center gap-3">
+            <span className="lfp-eyebrow hidden lg:inline">{c.nav.eyebrow}</span>
             <LangToggle />
           </div>
         </div>
+
+        {/* The trail stays, one line down: the nav says where you can go,
+            the breadcrumb says where you are. */}
+        {crumbs.length > 0 && (
+          <div className="border-t border-[var(--lfp-line)]">
+            <nav
+              aria-label={c.nav.trailLabel}
+              className="mx-auto flex max-w-6xl items-center gap-2 overflow-x-auto px-6 text-xs"
+            >
+              <Link href="/lfp" className="lfp-focus inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded px-2 text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]">
+                {c.nav.home}
+              </Link>
+              {crumbs.map((crumb) => (
+                <span key={crumb.label} className="flex min-w-0 items-center gap-2">
+                  <span aria-hidden="true" className="text-[var(--lfp-line-strong)]">/</span>
+                  {crumb.href ? (
+                    <Link
+                      href={crumb.href}
+                      className="lfp-focus inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded px-2 text-[var(--lfp-mist)] transition-colors hover:text-[var(--lfp-cobalt)]"
+                    >
+                      {crumb.label}
+                    </Link>
+                  ) : (
+                    <span aria-current="page" className="inline-flex min-h-11 items-center truncate px-1 font-medium">
+                      {crumb.label}
+                    </span>
+                  )}
+                </span>
+              ))}
+            </nav>
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pb-16">{children}</main>

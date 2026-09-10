@@ -380,3 +380,79 @@ export function wageStanding(gross: number, points: DistributionPoint[]): Standi
   }
   return null;
 }
+
+/* ── household budget ────────────────────────────────────── */
+
+export interface BudgetLine {
+  code: string;
+  amount: number;
+}
+
+export interface BudgetComparison {
+  code: string;
+  amount: number;
+  /** Share of this household's total spending. */
+  share: number;
+  /** Share the reference quintile spends on the same division. */
+  reference: number;
+  /** share − reference, in percentage points of the total. */
+  diff: number;
+  /** What this line would be at the reference share, for the same total. */
+  referenceAmount: number;
+}
+
+export interface BudgetResult {
+  total: number;
+  /** Income minus total spending. Negative means spending beyond income. */
+  balance: number;
+  /** Saved share of income; negative when overspending. */
+  savingsRate: number;
+  lines: BudgetComparison[];
+  /** Divisions furthest above the reference, largest gap first. */
+  overspending: BudgetComparison[];
+}
+
+/**
+ * A household budget against the spending structure of its income quintile.
+ *
+ * Shares are of TOTAL SPENDING, not of income: the survey measures how
+ * expenditure divides up, so comparing a share of income against a share of
+ * expenditure would penalise anyone who saves. Savings are reported
+ * separately, from income minus total.
+ *
+ * A division the reader leaves empty still appears, with a zero share, so
+ * spending nothing on health reads as a real difference rather than a gap.
+ */
+export function compareBudget(
+  lines: BudgetLine[],
+  reference: Array<{ code: string; share: number }>,
+  monthlyIncome: number
+): BudgetResult {
+  const amounts = new Map<string, number>();
+  for (const l of lines) {
+    amounts.set(l.code, (amounts.get(l.code) ?? 0) + Math.max(0, l.amount));
+  }
+  const total = round2([...amounts.values()].reduce((a, b) => a + b, 0));
+  const income = Math.max(0, monthlyIncome);
+
+  const compared: BudgetComparison[] = reference.map((r) => {
+    const amount = round2(amounts.get(r.code) ?? 0);
+    const share = total > 0 ? amount / total : 0;
+    return {
+      code: r.code,
+      amount,
+      share,
+      reference: r.share,
+      diff: share - r.share,
+      referenceAmount: round2(total * r.share),
+    };
+  });
+
+  return {
+    total,
+    balance: round2(income - total),
+    savingsRate: income > 0 ? (income - total) / income : 0,
+    lines: compared,
+    overspending: compared.filter((c) => c.diff > 0).sort((a, b) => b.diff - a.diff),
+  };
+}

@@ -420,11 +420,24 @@ export interface WageDistribution {
   mean: number;
 }
 
+/** Household spending structure by COICOP division and income quintile.
+ *  Shares, not euros: the reader's own budget supplies the euros. */
+export interface BudgetStructure {
+  meta: EconMeta;
+  unit: "share";
+  divisionLabels: Array<{ code: string; label: string }>;
+  quintiles: Array<{
+    quintile: string;
+    divisions: Array<{ code: string; share: number }>;
+  }>;
+}
+
 export interface EconData {
   inflation: InflationSeries;
   cofog: CofogBreakdown;
   wages: CountryWages;
   distribution: WageDistribution;
+  budget: BudgetStructure;
 }
 
 export type EconId = keyof EconData;

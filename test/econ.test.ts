@@ -288,3 +288,91 @@ test("the published distribution dataset is ordered and complete", () => {
   // The mean sits above the median in every real wage distribution.
   assert.ok(d.mean > d.points[1].value);
 });
+
+/* ── household budget ────────────────────────────────────── */
+
+import { compareBudget } from "../src/app/lfp/econ.ts";
+
+const ref = [
+  { code: "CP01", share: 0.15 },
+  { code: "CP04", share: 0.4 },
+  { code: "CP07", share: 0.12 },
+  { code: "CP06", share: 0.05 },
+];
+
+test("compareBudget splits shares of total spending, not of income", () => {
+  const r = compareBudget(
+    [
+      { code: "CP01", amount: 300 },
+      { code: "CP04", amount: 600 },
+      { code: "CP07", amount: 100 },
+    ],
+    ref,
+    2000
+  );
+  assert.equal(r.total, 1000);
+  // Saving 50% must not make every share look half the size.
+  assert.equal(r.lines.find((l) => l.code === "CP04")!.share, 0.6);
+  assert.equal(r.balance, 1000);
+  assert.equal(r.savingsRate, 0.5);
+});
+
+test("compareBudget reports the gap against the reference and what it would be", () => {
+  const r = compareBudget([{ code: "CP04", amount: 500 }, { code: "CP01", amount: 500 }], ref, 1000);
+  const housing = r.lines.find((l) => l.code === "CP04")!;
+  assert.equal(housing.share, 0.5);
+  assert.equal(housing.reference, 0.4);
+  assert.ok(Math.abs(housing.diff - 0.1) < 1e-9);
+  assert.equal(housing.referenceAmount, 400);
+});
+
+test("compareBudget keeps untouched divisions, with a zero share", () => {
+  const r = compareBudget([{ code: "CP04", amount: 1000 }], ref, 1000);
+  const health = r.lines.find((l) => l.code === "CP06")!;
+  assert.equal(health.amount, 0);
+  assert.equal(health.share, 0);
+  assert.ok(health.diff < 0);
+  assert.equal(r.lines.length, ref.length);
+});
+
+test("compareBudget ranks overspending by the size of the gap", () => {
+  const r = compareBudget(
+    [{ code: "CP04", amount: 600 }, { code: "CP07", amount: 300 }, { code: "CP01", amount: 100 }],
+    ref,
+    1000
+  );
+  assert.deepEqual(r.overspending.map((o) => o.code), ["CP04", "CP07"]);
+});
+
+test("compareBudget flags spending beyond income and survives zeros", () => {
+  const over = compareBudget([{ code: "CP04", amount: 1200 }], ref, 1000);
+  assert.equal(over.balance, -200);
+  assert.ok(over.savingsRate < 0);
+
+  const empty = compareBudget([], ref, 0);
+  assert.equal(empty.total, 0);
+  assert.equal(empty.savingsRate, 0);
+  assert.ok(empty.lines.every((l) => l.share === 0));
+});
+
+test("the published budget dataset covers every quintile and sums to one", () => {
+  const d = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), "storage", "lfp", "econ", "budget.json"), "utf8")
+  ) as {
+    divisionLabels: Array<{ code: string; label: string }>;
+    quintiles: Array<{ quintile: string; divisions: Array<{ code: string; share: number }> }>;
+  };
+  assert.equal(d.quintiles.length, 5);
+  assert.equal(d.divisionLabels.length, 12);
+  for (const q of d.quintiles) {
+    assert.equal(q.divisions.length, 12);
+    const sum = q.divisions.reduce((acc, x) => acc + x.share, 0);
+    assert.ok(Math.abs(sum - 1) < 0.005, `${q.quintile} sums to ${sum}`);
+  }
+  // Housing is the biggest slice in every quintile — if it isn't, the
+  // wrong dimension was fetched.
+  for (const q of d.quintiles) {
+    const top = q.divisions.slice().sort((x, y) => y.share - x.share)[0];
+    assert.equal(top.code, "CP04", `${q.quintile} top division is ${top.code}`);
+  }
+});
