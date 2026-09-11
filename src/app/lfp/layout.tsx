@@ -46,6 +46,18 @@ export const metadata: Metadata = {
     images: [{ url: "/lfp-og.png", width: 1200, height: 630, alt: "Literacia Financeira Portuguesa" }],
   },
   twitter: { card: "summary_large_image", images: ["/lfp-og.png"] },
+  // Declared explicitly rather than left to the icon.ico convention alone:
+  // the playground's own /favicon.ico is still emitted on every route and
+  // came FIRST in the head, so which one a browser picked was up to its
+  // own heuristics. Listing the LFP icon here puts it ahead of the
+  // inherited one, and the emblem is what shows in the tab.
+  icons: {
+    icon: [
+      { url: "/lfp/icon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: "/lfp-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/lfp/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function LfpLayout({ children }: { children: React.ReactNode }) {

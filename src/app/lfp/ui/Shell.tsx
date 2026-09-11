@@ -42,10 +42,10 @@ export function Shell({
             <Image
               src="/lfp-icon-512.png"
               alt=""
-              width={28}
-              height={28}
+              width={40}
+              height={40}
               priority
-              className="h-7 w-7 shrink-0"
+              className="h-10 w-10 shrink-0"
             />
             <span className="lfp-display text-base font-semibold">LFP</span>
           </Link>

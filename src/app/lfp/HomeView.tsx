@@ -72,7 +72,7 @@ export default function HomeView() {
             href="/lfp"
             className="lfp-focus -mx-2 inline-flex min-h-11 shrink-0 items-center gap-2 px-2"
           >
-            <Image src="/lfp-icon-512.png" alt="" width={28} height={28} priority className="h-7 w-7 shrink-0" />
+            <Image src="/lfp-icon-512.png" alt="" width={40} height={40} priority className="h-10 w-10 shrink-0" />
             <span className="lfp-display text-base font-semibold">LFP</span>
           </Link>
           {/* Centred between the wordmark and the controls: absolute on wide
