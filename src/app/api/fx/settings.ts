@@ -75,6 +75,9 @@ export function validateSettings(input: unknown): string[] {
   }
   const s = input as Partial<FxSettings>;
 
+  /* Only judge fields the payload actually carries. A settings form may send
+     one section at a time, and reporting every absent field as "must be a
+     number" would bury the one real problem under a dozen invented ones. */
   const num = (
     value: unknown,
     label: string,
@@ -82,6 +85,7 @@ export function validateSettings(input: unknown): string[] {
     max: number,
     integer = false,
   ): void => {
+    if (value === undefined) return;
     if (typeof value !== "number" || !Number.isFinite(value)) {
       issues.push(label + " must be a number.");
       return;
@@ -134,9 +138,12 @@ export function validateSettings(input: unknown): string[] {
     num(sim.stopAtr, "Stop distance in ATR", 0.1, 10);
     num(sim.targetAtr, "Target distance in ATR", 0.1, 20);
 
+    // Only meaningful when the caller actually sent the weights.
+    const sentWeights =
+      sim.shapeWeight !== undefined || sim.rsiWeight !== undefined || sim.macdWeight !== undefined;
     const weightSum =
       (sim.shapeWeight ?? 0) + (sim.rsiWeight ?? 0) + (sim.macdWeight ?? 0);
-    if (weightSum <= 0) {
+    if (sentWeights && weightSum <= 0) {
       issues.push("At least one of the similarity weights must be above zero.");
     }
   }
@@ -149,12 +156,20 @@ export function validateSettings(input: unknown): string[] {
     num(w.htf, "Higher-timeframe weight", 0, 100);
     num(w.volatility, "Conditions weight", 0, 100);
 
+    // A partial weights update is merged over the stored values, so the total
+    // is only checked when every component was supplied.
+    const complete =
+      w.similarity !== undefined &&
+      w.momentum !== undefined &&
+      w.candle !== undefined &&
+      w.htf !== undefined &&
+      w.volatility !== undefined;
     const total =
       (w.similarity ?? 0) + (w.momentum ?? 0) + (w.candle ?? 0) + (w.htf ?? 0) + (w.volatility ?? 0);
-    if (total <= 0) {
+    if (complete && total <= 0) {
       issues.push("The score weights cannot all be zero.");
     }
-    if (total > 100) {
+    if (complete && total > 100) {
       issues.push(
         "The score weights add up to " + total + "; they must total 100 or less so the score stays on a 0-100 scale.",
       );

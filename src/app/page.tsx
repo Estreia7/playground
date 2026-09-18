@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const experiments = [
   {
+    title: "FX Lab — EUR/USD pattern finder",
+    description:
+      "Finds trade candidates by asking what the market did the last time it looked like this, with RSI, MACD and candlestick evidence behind every score. Paper account included.",
+    href: "/fx",
+    status: "wip" as const,
+    image: "/fx-cover.svg",
+  },
+  {
     title: "LFP — Literacia Financeira Portuguesa",
     description:
       "Como funciona o dinheiro em Portugal: IRS, IVA, IRC e Segurança Social explicados, calculadoras animadas, inflação e comparação internacional.",

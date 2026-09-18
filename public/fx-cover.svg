@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400" role="img" aria-label="FX Lab: a candlestick chart with an RSI strip beneath it">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161c24"/>
+      <stop offset="1" stop-color="#0f1419"/>
+    </linearGradient>
+    <linearGradient id="ghost" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f5b82e" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#f5b82e" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#f5b82e" stop-opacity="0.25"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="400" fill="url(#sky)"/>
+
+  <!-- Grid: quiet, just enough to read the chart against -->
+  <g stroke="#1f2832" stroke-width="1">
+    <line x1="0" y1="80" x2="800" y2="80"/>
+    <line x1="0" y1="150" x2="800" y2="150"/>
+    <line x1="0" y1="220" x2="800" y2="220"/>
+    <line x1="0" y1="290" x2="800" y2="290"/>
+  </g>
+
+  <!-- Candles. A downtrend that turns: the shape the tool is built to catch. -->
+  <g stroke-width="2">
+    <!-- falling -->
+    <g stroke="#e5484d" fill="#e5484d">
+      <line x1="60"  y1="92"  x2="60"  y2="138"/><rect x="55"  y="100" width="10" height="30"/>
+      <line x1="90"  y1="104" x2="90"  y2="156"/><rect x="85"  y="114" width="10" height="34"/>
+      <line x1="120" y1="118" x2="120" y2="172"/><rect x="115" y="128" width="10" height="36"/>
+      <line x1="150" y1="134" x2="150" y2="192"/><rect x="145" y="146" width="10" height="38"/>
+      <line x1="180" y1="152" x2="180" y2="210"/><rect x="175" y="162" width="10" height="40"/>
+      <line x1="210" y1="170" x2="210" y2="232"/><rect x="205" y="182" width="10" height="42"/>
+    </g>
+
+    <!-- the hammer: long lower wick, the rejection this tool flags -->
+    <g stroke="#2fbf71" fill="#2fbf71">
+      <line x1="240" y1="196" x2="240" y2="278"/><rect x="235" y="200" width="10" height="18"/>
+      <line x1="270" y1="182" x2="270" y2="238"/><rect x="265" y="188" width="10" height="34"/>
+      <line x1="300" y1="164" x2="300" y2="220"/><rect x="295" y="172" width="10" height="36"/>
+      <line x1="330" y1="146" x2="330" y2="202"/><rect x="325" y="154" width="10" height="38"/>
+      <line x1="360" y1="128" x2="360" y2="186"/><rect x="355" y="138" width="10" height="36"/>
+      <line x1="390" y1="112" x2="390" y2="168"/><rect x="385" y="122" width="10" height="34"/>
+      <line x1="420" y1="98"  x2="420" y2="152"/><rect x="415" y="106" width="10" height="34"/>
+    </g>
+  </g>
+
+  <!-- The ghost: an analog's forward path, projected past the last bar. -->
+  <path d="M 430 112 C 470 96, 510 118, 550 86 S 620 60, 680 72"
+        fill="none" stroke="url(#ghost)" stroke-width="2.5" stroke-dasharray="7 5"/>
+  <circle cx="680" cy="72" r="4" fill="#f5b82e"/>
+
+  <!-- Marker under the turn -->
+  <path d="M 240 296 l 7 12 l -14 0 Z" fill="#f5b82e"/>
+
+  <!-- RSI strip: the oscillator rising out of oversold -->
+  <g transform="translate(0,318)">
+    <line x1="40" y1="46" x2="760" y2="46" stroke="#26303b" stroke-width="1" stroke-dasharray="3 3"/>
+    <line x1="40" y1="14" x2="760" y2="14" stroke="#26303b" stroke-width="1" stroke-dasharray="3 3"/>
+    <path d="M 60 20 C 120 34, 180 50, 240 52 C 300 48, 360 30, 420 22 C 500 16, 600 24, 760 18"
+          fill="none" stroke="#f5b82e" stroke-width="2"/>
+  </g>
+</svg>

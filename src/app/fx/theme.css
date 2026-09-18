@@ -1,0 +1,345 @@
+/* FX Lab — scoped to .fx so nothing leaks into the rest of the playground.
+
+   Dark by default, because the chart is the hero and a bright page around a
+   dark chart fights it. The palette comes from the trading floor rather than
+   the crypto dashboard: ink and slate for the surfaces, one amber accent for
+   scores and alerts (the phosphor of an old quote terminal), and green/red
+   reserved exclusively for direction. Nothing else in the interface is allowed
+   to be green or red, so those two colours always mean long and short. */
+
+.fx {
+  /* Surfaces, darkest to lightest. */
+  --fx-ink: #0f1419;
+  --fx-panel: #161c24;
+  --fx-raised: #1c242e;
+  --fx-rule: #26303b;
+  --fx-rule-soft: #1f2832;
+
+  /* Text. */
+  --fx-text: #e6ebf0;
+  --fx-muted: #8a97a6;
+  --fx-faint: #5d6874;
+
+  /* Direction. Never used for anything else. */
+  --fx-long: #2fbf71;
+  --fx-long-dim: #1d7a48;
+  --fx-short: #e5484d;
+  --fx-short-dim: #93282c;
+
+  /* The single accent. */
+  --fx-tape: #f5b82e;
+  --fx-tape-dim: #6b5216;
+
+  --fx-radius: 6px;
+  --fx-radius-lg: 10px;
+
+  font-family: var(--font-fx-body), system-ui, -apple-system, sans-serif;
+  background: var(--fx-ink);
+  color: var(--fx-text);
+  min-height: 100dvh;
+  /* Tabular figures everywhere: a price that shifts its digits as it ticks is
+     unreadable, and this interface is almost entirely numbers. */
+  font-variant-numeric: tabular-nums;
+}
+
+.fx ::selection {
+  background: var(--fx-tape-dim);
+  color: var(--fx-text);
+}
+
+/* Numbers use the mono face. Applied by class rather than globally so prose
+   keeps the proportional face. */
+.fx .mono {
+  font-family: var(--font-fx-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx .display {
+  font-family: var(--font-fx-display), var(--font-fx-body), sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Focus is always visible: this is a keyboard-heavy tool. */
+.fx :focus-visible {
+  outline: 2px solid var(--fx-tape);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Panels */
+.fx .panel {
+  background: var(--fx-panel);
+  border: 1px solid var(--fx-rule);
+  border-radius: var(--fx-radius-lg);
+}
+
+.fx .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--fx-rule);
+}
+
+.fx .eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fx-muted);
+}
+
+/* Controls */
+.fx .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--fx-rule);
+  border-radius: var(--fx-radius);
+  background: var(--fx-raised);
+  color: var(--fx-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.fx .btn:hover:not(:disabled) {
+  background: #232d38;
+  border-color: #33404e;
+}
+
+.fx .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fx .btn-accent {
+  background: var(--fx-tape);
+  border-color: var(--fx-tape);
+  color: #1a1408;
+  font-weight: 600;
+}
+
+.fx .btn-accent:hover:not(:disabled) {
+  background: #ffc63f;
+  border-color: #ffc63f;
+}
+
+.fx .btn-long {
+  background: var(--fx-long-dim);
+  border-color: var(--fx-long);
+  color: #eafff2;
+}
+
+.fx .btn-short {
+  background: var(--fx-short-dim);
+  border-color: var(--fx-short);
+  color: #ffeced;
+}
+
+.fx input[type="text"],
+.fx input[type="password"],
+.fx input[type="number"],
+.fx textarea,
+.fx select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  background: var(--fx-ink);
+  border: 1px solid var(--fx-rule);
+  border-radius: var(--fx-radius);
+  color: var(--fx-text);
+  font-size: 13px;
+  font-family: var(--font-fx-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx input::placeholder,
+.fx textarea::placeholder {
+  color: var(--fx-faint);
+}
+
+/* Remove the spinner: these are price fields, and a stepper that moves a
+   price by 1.0 is worse than useless. */
+.fx input[type="number"]::-webkit-outer-spin-button,
+.fx input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.fx input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.fx label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fx-muted);
+  margin-bottom: 4px;
+}
+
+/* Tables: dense by design, this is a data tool. */
+.fx table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.fx th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fx-muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--fx-rule);
+  white-space: nowrap;
+}
+
+.fx td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--fx-rule-soft);
+  white-space: nowrap;
+}
+
+.fx tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fx tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fx .num {
+  text-align: right;
+  font-family: var(--font-fx-mono), monospace;
+}
+
+/* Direction is never colour alone: every use pairs it with a word or a glyph. */
+.fx .long { color: var(--fx-long); }
+.fx .short { color: var(--fx-short); }
+.fx .tape { color: var(--fx-tape); }
+.fx .muted { color: var(--fx-muted); }
+.fx .faint { color: var(--fx-faint); }
+
+.fx .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--fx-rule);
+  background: var(--fx-raised);
+  font-size: 11px;
+  color: var(--fx-muted);
+  white-space: nowrap;
+}
+
+.fx .chip-long { border-color: var(--fx-long-dim); color: var(--fx-long); }
+.fx .chip-short { border-color: var(--fx-short-dim); color: var(--fx-short); }
+.fx .chip-tape { border-color: var(--fx-tape-dim); color: var(--fx-tape); }
+
+.fx .thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fx-rule) transparent;
+}
+.fx .thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.fx .thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--fx-rule);
+  border-radius: 999px;
+}
+.fx .thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* The tape pulse marks a live connection. Motion is small and slow: a
+   dashboard that blinks at you is exhausting to watch for an hour. */
+@keyframes fx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.fx .live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--fx-long);
+  animation: fx-pulse 2.4s ease-in-out infinite;
+}
+
+.fx .live-dot.stale { background: var(--fx-tape); }
+.fx .live-dot.closed { background: var(--fx-faint); animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fx *,
+  .fx *::before,
+  .fx *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Responsive.
+
+   The terminal is a two-column layout on a desktop: chart on the left, the
+   ranked candidates beside it. Below 1100px there is not enough width for both
+   to be readable, so they stack — chart first, because that is what you came
+   to look at, then the candidates underneath at full width.
+
+   The rail narrows to icons rather than collapsing into a menu. Six
+   destinations is few enough to keep visible, and a hidden nav on a tool you
+   switch tabs in constantly would be a poor trade. */
+@media (max-width: 1100px) {
+  .fx .fx-terminal-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .fx .fx-rail {
+    width: 56px;
+  }
+  .fx .fx-rail-label {
+    display: none;
+  }
+  .fx .fx-rail button {
+    width: 46px;
+    min-height: 44px;
+  }
+  .fx .fx-main {
+    padding: 10px;
+  }
+  .fx .panel-head {
+    padding: 9px 12px;
+  }
+  .fx table {
+    font-size: 12px;
+  }
+  .fx td,
+  .fx th {
+    padding: 7px 8px;
+  }
+}
+
+/* Panels that hold a table scroll it rather than the page: a horizontal
+   scrollbar on the whole document makes every other column unreadable. */
+@media (max-width: 560px) {
+  .fx .fx-two-col {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Stacked layout: the candidates list stops being its own scroll region and
+   lets the page scroll instead, which is what a phone expects. */
+@media (max-width: 1100px) {
+  .fx .fx-candidates {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+}
