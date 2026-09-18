@@ -50,3 +50,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# FX Lab runtime data (candles, alerts, paper account) — downloaded, not source.
+/storage/fx
