@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const experiments = [
   {
+    title: "Padel — torneios e ranking",
+    description:
+      "Americano, Mexicano or fixed teams for any number of players: the draw, big score entry built for the phone at the court, and a club ranking that updates after every tournament.",
+    href: "/padel",
+    status: "live" as const,
+    image: "/padel-cover.svg",
+  },
+  {
     title: "FX Lab — EUR/USD pattern finder",
     description:
       "Finds trade candidates by asking what the market did the last time it looked like this, with RSI, MACD and candlestick evidence behind every score. Paper account included.",
