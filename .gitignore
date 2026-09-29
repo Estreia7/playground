@@ -53,3 +53,6 @@ next-env.d.ts
 
 # FX Lab runtime data (candles, alerts, paper account) — downloaded, not source.
 /storage/fx
+
+# Padel club data (players, tournaments, scores) — runtime data, not source.
+/storage/padel

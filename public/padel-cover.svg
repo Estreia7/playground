@@ -1,0 +1,21 @@
+<svg width="800" height="320" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="320" fill="#09090b"/>
+  <!-- court, seen from above -->
+  <g transform="translate(230 40)">
+    <rect x="0" y="0" width="340" height="240" rx="6" fill="#1e3a5f"/>
+    <rect x="12" y="12" width="316" height="216" rx="2" stroke="#e4e4e7" stroke-opacity="0.8" stroke-width="3"/>
+    <line x1="170" y1="4" x2="170" y2="236" stroke="#fafafa" stroke-width="5"/>
+    <line x1="70" y1="12" x2="70" y2="228" stroke="#e4e4e7" stroke-opacity="0.8" stroke-width="3"/>
+    <line x1="270" y1="12" x2="270" y2="228" stroke="#e4e4e7" stroke-opacity="0.8" stroke-width="3"/>
+    <line x1="70" y1="120" x2="270" y2="120" stroke="#e4e4e7" stroke-opacity="0.8" stroke-width="3"/>
+    <circle cx="232" cy="78" r="13" fill="#d9f99d"/>
+    <path d="M221 72 q11 6 22 0" stroke="#65a30d" stroke-width="2" fill="none"/>
+  </g>
+  <!-- mini standings -->
+  <g transform="translate(600 92)" font-family="ui-sans-serif, system-ui" font-weight="700">
+    <rect width="170" height="136" rx="12" fill="#18181b" stroke="#27272a"/>
+    <text x="16" y="36" fill="#a1a1aa" font-size="16">1</text><text x="40" y="36" fill="#fafafa" font-size="16">Ana</text><text x="150" y="36" fill="#bef264" font-size="16" text-anchor="end">112</text>
+    <text x="16" y="74" fill="#a1a1aa" font-size="16">2</text><text x="40" y="74" fill="#fafafa" font-size="16">Rui</text><text x="150" y="74" fill="#bef264" font-size="16" text-anchor="end">104</text>
+    <text x="16" y="112" fill="#a1a1aa" font-size="16">3</text><text x="40" y="112" fill="#fafafa" font-size="16">Inês</text><text x="150" y="112" fill="#bef264" font-size="16" text-anchor="end">97</text>
+  </g>
+</svg>
