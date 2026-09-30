@@ -1,118 +1,137 @@
-// Extract the price a guest actually pays for a given check_in/check_out
-// window, divided later by nights to get the effective nightly rate.
+// The price a guest pays for one stay, always at the refundable rate.
 //
-// Strategy:
-//   1. Navigate to the listing URL with ?check_in=YYYY-MM-DD&check_out=...
-//      &adults=2&currency=... (currency from env).
-//   2. Wait for the booking widget to render (or for the "not available"
-//      banner).
-//   3. If the widget contains "Those dates are not available" / similar →
-//      return null so the caller skips this window.
-//   4. Otherwise, read the displayed total. Prefer the "Total" row that
-//      appears after clicking the "€X total" link (it's the authoritative
-//      number that includes cleaning + service fees), but fall back to the
-//      inline "€X total" text in the widget if the popup doesn't open.
+// The listing page is opened with check_in / check_out in the address. As it
+// loads, it asks Airbnb for its sections (StaysPdpSections), and the booking
+// section of that answer carries the price, the rate options when there is
+// more than one, and a plain yes/no on whether the stay can be booked. We read
+// that answer (lib/bookItPrice.js) rather than the widget's text.
 //
-// We treat what we extract as THE PRICE THE GUEST PAYS. We never strip
-// fees back out — guests pay cleaning, so cleaning belongs in the total.
+// Reading the text is what went wrong before. When a listing offers a
+// discounted non-refundable rate, the widget's headline "€X total" is that
+// discounted price, and the refundable one is further down. The old reader took
+// the first "€X total" on the page, so those listings were stored at the
+// non-refundable rate.
+//
+// If the answer never arrives (a changed API, a slow page), the widget text is
+// still read as a fallback, and even then the "Refundable · €X total" line is
+// preferred over the headline.
+//
+// Returns
+//   { ok: true, totalPrice, nights, currency, rate }
+//   { ok: false, reason: 'unavailable' | 'dates-changed' | 'no-price', message? }
+// We never strip fees: guests pay cleaning, so cleaning belongs in the price.
 
 const logger = require('../lib/logger');
 const { randomDelay } = require('../lib/delay');
+const { findBookIt, readBookItPrice, parseMoney } = require('../lib/bookItPrice');
 
-// Phrases that indicate the booking widget rendered an error rather than
-// a price. We look for these in the widget itself (not the whole body) so
-// generic terms like "not available" elsewhere on the page don't confuse us.
+const SECTIONS_OP = /\/api\/v3\/StaysPdpSections\//;
+
+// Widget phrases that mean "this stay can't be booked", for the text fallback.
 const NOT_AVAILABLE_PHRASES = [
   'those dates are not available',
   'dates not available',
   'minimum stay',
+  'maximum stay',
   'unavailable',
 ];
 
 async function extractPrice(page, sample) {
-  if (process.env.SCRAPER_STUB === '1') {
-    return stubPrice(sample);
-  }
+  if (process.env.SCRAPER_STUB === '1') return stubPrice(sample);
 
   const listingUrl = currentListingUrl(page);
   if (!listingUrl) throw new Error('extractPrice: page has no listing URL');
+  const currency = process.env.CURRENCY || 'EUR';
 
-  const url = buildBookingUrl(listingUrl, sample);
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-
-  // Wait for the booking widget area to render. Airbnb labels it inconsistently
-  // across A/B test buckets, so we accept several markers.
-  await page
-    .waitForSelector(
-      '[data-section-id="BOOK_IT_SIDEBAR"], [data-testid="book-it-section"], [data-section-id="BOOK_IT_MOBILE"], main',
-      { timeout: 25_000 }
-    )
-    .catch(() => {});
-
-  await randomDelay(1200, 2200);
-
-  // Two strategies, in order:
-  //   (a) Read "€X total" directly from the booking widget area.
-  //   (b) If that fails, click the "X total" link to open the breakdown
-  //       popup and read the "Total" row.
-  let total = await readInlineTotal(page);
-
-  if (total == null) {
-    const opened = await openBreakdown(page);
-    if (opened) {
-      await randomDelay(800, 1400);
-      total = await readBreakdownTotal(page);
+  // Collect the sections answers the page receives during this navigation,
+  // keeping only those whose request asked for exactly our dates. The
+  // breakdown's night count already guards against a different length; this
+  // guards against the same length on different dates, which the numbers alone
+  // could never reveal.
+  const answers = [];
+  const wanted = [`"checkIn":"${sample.start}"`, `"checkOut":"${sample.end}"`];
+  const onResponse = async (res) => {
+    if (!SECTIONS_OP.test(res.url())) return;
+    const req = res.request();
+    const asked = `${req.postData() || ''}${decodeURIComponent(req.url())}`.replace(/\s+/g, '');
+    if (!wanted.every((w) => asked.includes(w))) return;
+    try {
+      answers.push(await res.json());
+    } catch {
+      // unreadable body; the text fallback will cover it
     }
-  }
-
-  if (total == null) {
-    // Last-chance check: are we looking at an error widget?
-    const widgetText = await readWidgetText(page);
-    if (widgetText && NOT_AVAILABLE_PHRASES.some((p) => widgetText.toLowerCase().includes(p))) {
-      logger.info(`extractPrice: dates unavailable for ${sample.start}..${sample.end} (${widgetText.slice(0, 80)})`);
-    } else {
-      logger.warn(`extractPrice: could not read price for ${sample.start}..${sample.end}`);
-    }
-    return null;
-  }
-
-  return {
-    totalPrice: total,
-    currency: process.env.CURRENCY || 'EUR',
-    nights: sample.nights,
   };
+  page.on('response', onResponse);
+
+  try {
+    await page.goto(buildBookingUrl(listingUrl, sample), { waitUntil: 'domcontentloaded', timeout: 45_000 });
+
+    // Wait for a sections answer carrying a booking section, up to 20s.
+    let section = null;
+    const until = Date.now() + 20_000;
+    while (Date.now() < until) {
+      section = answers.map(findBookIt).filter(Boolean).pop() || null;
+      if (section) break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    if (section) {
+      const r = readBookItPrice(section, sample.nights);
+      if (r.ok) {
+        return { ok: true, totalPrice: r.total, nights: sample.nights, currency, rate: r.rate };
+      }
+      if (r.reason === 'unavailable') {
+        logger.info(`extractPrice: ${sample.start}..${sample.end} not bookable (${r.message || 'no reason given'})`);
+        return { ok: false, reason: 'unavailable', message: r.message };
+      }
+      if (r.reason === 'dates-changed') {
+        logger.warn(`extractPrice: asked for ${sample.nights} nights from ${sample.start}, Airbnb priced ${r.nights}`);
+        return { ok: false, reason: 'dates-changed', message: `priced ${r.nights} nights` };
+      }
+      // 'no-price': fall through to the widget text.
+    } else {
+      logger.warn(`extractPrice: no booking data for ${sample.start}..${sample.end}, reading the widget instead`);
+    }
+
+    await page
+      .waitForSelector('[data-section-id="BOOK_IT_SIDEBAR"], [data-testid="book-it-section"], [data-section-id="BOOK_IT_MOBILE"]', {
+        timeout: 10_000,
+      })
+      .catch(() => {});
+    await randomDelay(800, 1400);
+    return readFromWidget(await readWidgetText(page), sample, currency);
+  } finally {
+    page.off('response', onResponse);
+  }
 }
 
-async function openBreakdown(page) {
-  try {
-    return await page.evaluate(() => {
-      const candidates = Array.from(
-        document.querySelectorAll(
-          'button, a, [role="button"], [data-testid*="price"], [data-testid*="total"]'
-        )
-      );
-      const link = candidates.find((el) => {
-        const t = (el.innerText || '').trim().toLowerCase();
-        return t.length > 0 && t.length < 60 && /total/.test(t) && /[€$£]\s*[\d.,]+/.test(t);
-      });
-      if (link) {
-        link.click();
-        return true;
-      }
-      return false;
-    });
-  } catch {
-    return false;
+/** The text fallback. Scoped to the booking widget, never the whole page, and
+    the refundable line wins over the headline when both are present. */
+function readFromWidget(text, sample, currency) {
+  if (!text) return { ok: false, reason: 'no-price' };
+  const lower = text.toLowerCase();
+  if (!/[€$£]\s*\d/.test(text) && NOT_AVAILABLE_PHRASES.some((p) => lower.includes(p))) {
+    return { ok: false, reason: 'unavailable', message: text.split('\n').find((l) => NOT_AVAILABLE_PHRASES.some((p) => l.toLowerCase().includes(p))) };
   }
+
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const refundable = lines.find((l) => /^refundable\b/i.test(l) && /total/i.test(l));
+  if (refundable) {
+    const total = parseMoney(refundable.replace(/^refundable\s*·?\s*/i, ''));
+    if (total) return { ok: true, totalPrice: total, nights: sample.nights, currency, rate: 'refundable-text' };
+  }
+
+  // One rate: the headline "€X total" (rounded to the euro, the best the
+  // text offers).
+  const headline = lines.find((l) => /^[€$£]\s*[\d.,]+\s+total$/i.test(l));
+  const total = parseMoney(headline);
+  if (total) return { ok: true, totalPrice: total, nights: sample.nights, currency, rate: 'single-text' };
+  return { ok: false, reason: 'no-price' };
 }
 
 async function readWidgetText(page) {
   return page.evaluate(() => {
-    const sels = [
-      '[data-section-id="BOOK_IT_SIDEBAR"]',
-      '[data-testid="book-it-section"]',
-      '[data-section-id="BOOK_IT_MOBILE"]',
-    ];
+    const sels = ['[data-section-id="BOOK_IT_SIDEBAR"]', '[data-testid="book-it-section"]', '[data-section-id="BOOK_IT_MOBILE"]'];
     for (const s of sels) {
       const el = document.querySelector(s);
       if (el) return el.innerText || '';
@@ -121,71 +140,9 @@ async function readWidgetText(page) {
   });
 }
 
-async function readBreakdownTotal(page) {
-  return page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('div, li, tr'));
-    for (const r of rows) {
-      const t = (r.innerText || '').trim();
-      if (!t) continue;
-      // The breakdown popup has a final row literally labelled "Total" with
-      // the €X.XX amount in the same row.
-      const m = t.match(/^total[^\d€$£]*([€$£]\s*[\d.,]+)/i);
-      if (m) {
-        const n = parsePrice(m[1]);
-        if (n) return n;
-      }
-    }
-    return null;
-  });
-}
-
-async function readInlineTotal(page) {
-  return page.evaluate(() => {
-    const text = document.body?.innerText || '';
-    // Examples: "€ 1,299 total", "€1,299 total for 6 nights"
-    const m =
-      text.match(/([€$£]\s*[\d.,]+)\s+total/i) ||
-      text.match(/total\s+([€$£]\s*[\d.,]+)/i);
-    if (!m) return null;
-    const raw = m[1].replace(/[^\d.,]/g, '');
-    // Heuristic: if both . and , are present, the last one is the decimal sep.
-    let normalised = raw;
-    if (raw.includes(',') && raw.includes('.')) {
-      if (raw.lastIndexOf(',') > raw.lastIndexOf('.')) {
-        normalised = raw.replace(/\./g, '').replace(',', '.');
-      } else {
-        normalised = raw.replace(/,/g, '');
-      }
-    } else if (raw.includes(',')) {
-      const decimals = raw.split(',').pop();
-      normalised = decimals.length === 2 ? raw.replace(',', '.') : raw.replace(/,/g, '');
-    }
-    const n = parseFloat(normalised);
-    return Number.isFinite(n) ? n : null;
-  });
-}
-
-function parsePrice(amountStr) {
-  const raw = amountStr.replace(/[^\d.,]/g, '');
-  let normalised = raw;
-  if (raw.includes(',') && raw.includes('.')) {
-    if (raw.lastIndexOf(',') > raw.lastIndexOf('.')) {
-      normalised = raw.replace(/\./g, '').replace(',', '.');
-    } else {
-      normalised = raw.replace(/,/g, '');
-    }
-  } else if (raw.includes(',')) {
-    const decimals = raw.split(',').pop();
-    normalised = decimals.length === 2 ? raw.replace(',', '.') : raw.replace(/,/g, '');
-  }
-  const n = parseFloat(normalised);
-  return Number.isFinite(n) ? n : null;
-}
-
 function currentListingUrl(page) {
   const u = page.url();
   if (!u || u === 'about:blank') return null;
-  // Strip query string — we'll re-add the params we need.
   try {
     const parsed = new URL(u);
     if (!/\/rooms\/\d+/.test(parsed.pathname)) return null;
@@ -208,9 +165,9 @@ function buildBookingUrl(listingUrl, sample) {
 function stubPrice(sample) {
   const month = parseInt(sample.start.split('-')[1], 10);
   const seasonality = [0.85, 0.85, 0.95, 1.05, 1.15, 1.25, 1.4, 1.45, 1.2, 1.05, 0.95, 1.1];
-  const base = 75 + ((parseInt(sample.start.replace(/-/g, ''), 10) % 40));
+  const base = 75 + (parseInt(sample.start.replace(/-/g, ''), 10) % 40);
   const totalPrice = Math.round(base * seasonality[month - 1] * sample.nights * 100) / 100;
-  return { totalPrice, currency: process.env.CURRENCY || 'EUR', nights: sample.nights };
+  return { ok: true, totalPrice, nights: sample.nights, currency: process.env.CURRENCY || 'EUR', rate: 'stub' };
 }
 
-module.exports = { extractPrice };
+module.exports = { extractPrice, readFromWidget };
