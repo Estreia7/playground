@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { errorText, usePadel } from "../ui/PadelProvider";
 import { Page, Section, Stepper, TopBar } from "../ui/parts";
+import { CreatingOverlay } from "../ui/CreatingOverlay";
 import { maxCourts, suggestedRounds, teamRounds } from "../core/schedule.ts";
 import { LIMITS, type Format } from "../core/types.ts";
 
@@ -25,6 +26,9 @@ export function NewTournament() {
   const [scoring, setScoring] = useState<"points" | "games">("points");
   const [total, setTotal] = useState(24);
   const [saving, setSaving] = useState(false);
+  // Set once the server has the tournament. The loader waits for both this and
+  // its own minimum time before opening it.
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const n = players.length;
@@ -92,12 +96,16 @@ export function NewTournament() {
       players,
     });
     if (r.ok && r.id) {
-      router.push(`/padel/t/${r.id}`);
+      setCreatedId(r.id);
     } else {
       setSaving(false);
       setError(errorText(t, r.ok ? "server" : r.error));
     }
   }
+
+  const openCreated = useCallback(() => {
+    if (createdId) router.push(`/padel/t/${createdId}`);
+  }, [createdId, router]);
 
   // What the choices add up to, in one line.
   let summary = "";
@@ -120,6 +128,14 @@ export function NewTournament() {
 
   return (
     <>
+      {saving && (
+        <CreatingOverlay
+          names={players}
+          subtitle={t(`format.${format}`) + " · " + t("home.players", { n })}
+          ready={createdId !== null}
+          onDone={openCreated}
+        />
+      )}
       <TopBar title={t("new.title")} back="/padel" />
       <Page nav={false}>
         <Section title={t("new.format")}>

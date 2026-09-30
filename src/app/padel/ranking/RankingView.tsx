@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { errorText, usePadel } from "../ui/PadelProvider";
-import { BottomNav, LangToggle, Loading, MEDALS, Page, TopBar } from "../ui/parts";
+import { BottomNav, LangToggle, Loading, Page, Place, TopBar } from "../ui/parts";
+import { EmptyArt, IconPencil, IconTrophy, Medal } from "../ui/art";
+import { TiltCard } from "../ui/TiltCard";
 import { clubRanking, winRate, type RankingLine } from "../core/standings.ts";
 
 export function RankingView() {
@@ -12,13 +14,18 @@ export function RankingView() {
 
   return (
     <>
-      <TopBar title={"🏆 " + t("rank.title")} right={<LangToggle />} />
+      <TopBar title={t("rank.title")} icon={<IconTrophy size={22} className="text-lime-300" />} right={<LangToggle />} />
       <Page>
         {!club ? (
           <Loading />
         ) : lines.length === 0 ? (
-          <p className="py-16 text-center text-zinc-500">{t("rank.empty")}</p>
+          <div className="flex flex-col items-center py-10 text-center">
+            <EmptyArt kind="trophy" />
+            <p className="mt-2 max-w-xs text-zinc-500">{t("rank.empty")}</p>
+          </div>
         ) : (
+          <>
+          {lines.length >= 3 && <Podium lines={lines.slice(0, 3)} />}
           <div className="overflow-hidden rounded-2xl border border-zinc-800">
             <table className="w-full text-base">
               <thead className="bg-zinc-900 text-xs uppercase tracking-wider text-zinc-500">
@@ -26,7 +33,10 @@ export function RankingView() {
                   <th className="w-10 py-2.5 pl-3 text-left font-semibold">#</th>
                   <th className="py-2.5 text-left font-semibold">{t("col.player")}</th>
                   <th className="w-9 py-2.5 text-center font-semibold">{t("col.tournaments")}</th>
-                  <th className="w-9 py-2.5 text-center font-semibold">{t("col.titles")}</th>
+                  <th className="w-9 py-2.5 text-center font-semibold" title={t("rank.titles")}>
+                    <IconTrophy size={16} className="mx-auto" />
+                    <span className="sr-only">{t("rank.titles")}</span>
+                  </th>
                   <th className="w-12 py-2.5 text-center font-semibold">{t("col.winRate")}</th>
                   <th className="w-14 py-2.5 pr-3 text-right font-semibold text-zinc-300">{t("col.points")}</th>
                 </tr>
@@ -38,6 +48,7 @@ export function RankingView() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         <details className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
@@ -65,7 +76,7 @@ function Row({ line: l, place, open, onToggle }: { line: RankingLine; place: num
   return (
     <>
       <tr onClick={onToggle} className={`cursor-pointer active:bg-zinc-900 ${place < 3 ? "bg-zinc-900/40" : ""}`} aria-expanded={open}>
-        <td className="py-3 pl-3 text-lg tabular-nums text-zinc-500">{place < 3 ? MEDALS[place] : place + 1}</td>
+        <td className="py-3 pl-3"><Place place={place + 1} size={24} /></td>
         <td className="py-3 pr-2 font-semibold leading-tight">{name}</td>
         <td className="py-3 text-center tabular-nums text-zinc-400">{l.tournaments}</td>
         <td className="py-3 text-center tabular-nums text-zinc-400">{l.titles || "·"}</td>
@@ -112,12 +123,52 @@ function Row({ line: l, place, open, onToggle }: { line: RankingLine; place: num
               }}
               className="mt-3 min-h-11 rounded-xl bg-zinc-800 px-4 text-sm font-semibold"
             >
-              ✏️ {t("rank.rename")}
+              <span className="inline-flex items-center gap-2"><IconPencil size={16} />{t("rank.rename")}</span>
             </button>
             {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+/* The top three as cards standing at different heights. Each is a tilt card:
+   under a thumb the medal, the name and the points sit at three depths and
+   slide against each other. Second place stands to the left, as on a podium. */
+function Podium({ lines }: { lines: RankingLine[] }) {
+  const { nameOf } = usePadel();
+  const order = [1, 0, 2]; // second, first, third — left to right
+  return (
+    <div className="mb-5 grid grid-cols-3 items-end gap-2">
+      {order.map((i, col) => {
+        const l = lines[i];
+        const first = i === 0;
+        return (
+          <div key={l.playerId} className="pd-rise" style={{ ["--i" as string]: col }}>
+            <TiltCard
+              className="rounded-2xl"
+              faceClassName={
+                first
+                  ? "rounded-2xl border border-lime-300/40 bg-[linear-gradient(180deg,#1d3a1a_0%,#10200f_100%)]"
+                  : "rounded-2xl border border-zinc-800 bg-zinc-900/80"
+              }
+              max={first ? 11 : 9}
+              lift={1.03}
+            >
+              <span className={`flex flex-col items-center px-2 text-center ${first ? "min-h-[156px] pt-5" : "min-h-[128px] pt-4"}`}>
+                <span className="pd-z3 block">
+                  <Medal place={(i + 1) as 1 | 2 | 3} size={first ? 46 : 36} />
+                </span>
+                <span className="pd-z2 mt-2 block w-full truncate text-sm font-bold leading-tight">{nameOf(l.playerId)}</span>
+                <span className={`pd-z1 mt-auto block pb-3 font-bold tabular-nums text-lime-300 ${first ? "text-3xl" : "text-2xl"}`}>
+                  {l.points}
+                </span>
+              </span>
+            </TiltCard>
+          </div>
+        );
+      })}
+    </div>
   );
 }

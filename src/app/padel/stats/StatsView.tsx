@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { usePadel } from "../ui/PadelProvider";
-import { BottomNav, LangToggle, Loading, MEDALS, Page, Section, TopBar } from "../ui/parts";
+import { BottomNav, LangToggle, Loading, Page, Place, Section, TopBar } from "../ui/parts";
+import { EmptyArt, IconBars, IconFlame, IconLink, IconLinkBroken, IconTarget, Medal } from "../ui/art";
+import { TiltCard } from "../ui/TiltCard";
 import {
   highlights,
   playerStats,
@@ -49,12 +51,15 @@ export function StatsView() {
 
   return (
     <>
-      <TopBar title={"📊 " + t("stats.title")} right={<LangToggle />} />
+      <TopBar title={t("stats.title")} icon={<IconBars size={22} className="text-lime-300" />} right={<LangToggle />} />
       <Page>
         {!club ? (
           <Loading />
         ) : eligible.length === 0 ? (
-          <p className="py-16 text-center text-zinc-500">{t("stats.empty")}</p>
+          <div className="flex flex-col items-center py-10 text-center">
+            <EmptyArt kind="bars" />
+            <p className="mt-2 max-w-xs text-zinc-500">{t("stats.empty")}</p>
+          </div>
         ) : !stats ? (
           <Picker
             players={shown}
@@ -194,11 +199,17 @@ function Headline({ stats }: { stats: PlayerStats }) {
         label={t("stats.tournaments")}
         value={String(stats.tournaments)}
         foot={
-          stats.titles > 0
-            ? MEDALS[0] + " " + stats.titles
-            : stats.podiums > 0
-              ? MEDALS[2] + " " + stats.podiums
-              : undefined
+          stats.titles > 0 ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Medal place={1} size={16} />
+              {stats.titles}
+            </span>
+          ) : stats.podiums > 0 ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Medal place={3} size={16} />
+              {stats.podiums}
+            </span>
+          ) : undefined
         }
       />
       <Tile
@@ -246,7 +257,7 @@ function Tile({
 }: {
   label: string;
   value: string;
-  foot?: string;
+  foot?: React.ReactNode;
   /** Colour follows the meaning of the number, never the fact that it is the
       headline one — a poor win rate in lime would read as congratulation. */
   tone?: "plain" | "good" | "bad";
@@ -254,11 +265,18 @@ function Tile({
   const colour =
     tone === "good" ? "text-lime-300" : tone === "bad" ? "text-red-300" : "text-zinc-100";
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
-      <div className={`mt-0.5 text-3xl font-bold tabular-nums ${colour}`}>{value}</div>
-      {foot && <div className="mt-0.5 truncate text-xs tabular-nums text-zinc-500">{foot}</div>}
-    </div>
+    <TiltCard
+      className="rounded-2xl"
+      faceClassName="rounded-2xl border border-zinc-800 bg-zinc-900/50"
+      max={7}
+      lift={1.02}
+    >
+      <span className="block px-4 py-3">
+        <span className="pd-z1 block text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
+        <span className={`pd-z2 mt-0.5 block text-3xl font-bold tabular-nums ${colour}`}>{value}</span>
+        {foot && <span className="pd-z1 mt-0.5 block truncate text-xs tabular-nums text-zinc-500">{foot}</span>}
+      </span>
+    </TiltCard>
   );
 }
 
@@ -273,10 +291,10 @@ function Marks({ marks }: { marks: ReturnType<typeof highlights> }) {
   return (
     <Section title={t("stats.highlights")}>
       <div className="grid gap-2">
-        <Mark label={t("stats.bestPartner")} icon="🤝" highlight={marks.bestPartner} />
-        <Mark label={t("stats.worstPartner")} icon="😬" highlight={marks.worstPartner} />
-        <Mark label={t("stats.favouriteOpponent")} icon="🎯" highlight={marks.favouriteOpponent} />
-        <Mark label={t("stats.nemesis")} icon="👹" highlight={marks.nemesis} />
+        <Mark label={t("stats.bestPartner")} icon={<IconLink size={26} />} highlight={marks.bestPartner} />
+        <Mark label={t("stats.worstPartner")} icon={<IconLinkBroken size={26} />} highlight={marks.worstPartner} />
+        <Mark label={t("stats.favouriteOpponent")} icon={<IconTarget size={26} />} highlight={marks.favouriteOpponent} />
+        <Mark label={t("stats.nemesis")} icon={<IconFlame size={26} />} highlight={marks.nemesis} />
       </div>
     </Section>
   );
@@ -288,7 +306,7 @@ function Mark({
   highlight,
 }: {
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   highlight: Highlight | null;
 }) {
   const { t, nameOf } = usePadel();
@@ -300,32 +318,42 @@ function Mark({
   const thin = highlight.played < 3;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-      <span aria-hidden className="text-2xl leading-none">
-        {icon}
+    <TiltCard
+      className="rounded-2xl"
+      faceClassName="rounded-2xl border border-zinc-800 bg-zinc-900/40"
+      max={5}
+      lift={1.01}
+    >
+      <span className="flex items-center gap-3 px-4 py-3">
+        <span
+          aria-hidden
+          className="pd-z2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-zinc-300"
+        >
+          {icon}
+        </span>
+        <span className="pd-z1 block min-w-0 flex-1">
+          <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
+          <span className="block truncate text-lg font-bold leading-tight">{nameOf(highlight.playerId)}</span>
+          <span className="block text-sm tabular-nums text-zinc-400">
+            {t("stats.highlightLine", { won: highlight.won, played: highlight.played, rate })}
+          </span>
+          {thin && (
+            <span className="mt-0.5 block text-xs text-amber-300/80">
+              {t("stats.smallSample", { n: highlight.played })}
+            </span>
+          )}
+        </span>
+        {/* The rate colours itself. A "best partner" you still lose with is not
+            a success, and painting it green would say otherwise. */}
+        <span
+          className={`pd-z2 shrink-0 text-xl font-bold tabular-nums ${
+            rate >= 50 ? "text-lime-300" : rate < 35 ? "text-red-300" : "text-zinc-300"
+          }`}
+        >
+          {rate}%
+        </span>
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
-        <div className="truncate text-lg font-bold leading-tight">{nameOf(highlight.playerId)}</div>
-        <div className="text-sm tabular-nums text-zinc-400">
-          {t("stats.highlightLine", { won: highlight.won, played: highlight.played, rate })}
-        </div>
-        {thin && (
-          <div className="mt-0.5 text-xs text-amber-300/80">
-            {t("stats.smallSample", { n: highlight.played })}
-          </div>
-        )}
-      </div>
-      {/* The rate colours itself. A "best partner" you still lose with is not
-          a success, and painting it green would say otherwise. */}
-      <span
-        className={`shrink-0 text-xl font-bold tabular-nums ${
-          rate >= 50 ? "text-lime-300" : rate < 35 ? "text-red-300" : "text-zinc-300"
-        }`}
-      >
-        {rate}%
-      </span>
-    </div>
+    </TiltCard>
   );
 }
 
@@ -466,8 +494,8 @@ function History({ stats }: { stats: PlayerStats }) {
             key={line.tournamentId}
             className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3"
           >
-            <span className="w-8 shrink-0 text-center text-xl tabular-nums">
-              {line.place <= 3 ? MEDALS[line.place - 1] : line.place}
+            <span className="flex w-8 shrink-0 justify-center">
+              <Place place={line.place} size={28} />
             </span>
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold leading-tight">

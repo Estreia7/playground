@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePadel } from "./PadelProvider";
+import { IconBars, IconRacket, IconTrophy, Medal } from "./art";
 
 /* Small shared pieces. Everything is sized for a thumb: 48px touch targets,
    16px+ text, numbers in tabular figures so columns of scores line up. */
@@ -25,7 +26,17 @@ export function LangToggle() {
   );
 }
 
-export function TopBar({ title, back, right }: { title: string; back?: string; right?: React.ReactNode }) {
+export function TopBar({
+  title,
+  back,
+  right,
+  icon,
+}: {
+  title: string;
+  back?: string;
+  right?: React.ReactNode;
+  icon?: React.ReactNode;
+}) {
   const { t } = usePadel();
   return (
     <header className="sticky top-0 z-20 border-b border-zinc-900 bg-zinc-950/90 pt-[env(safe-area-inset-top)] backdrop-blur">
@@ -39,6 +50,7 @@ export function TopBar({ title, back, right }: { title: string; back?: string; r
             ‹
           </Link>
         )}
+        {icon}
         <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight">{title}</h1>
         {right}
       </div>
@@ -50,9 +62,9 @@ export function BottomNav() {
   const { t } = usePadel();
   const path = usePathname();
   const items = [
-    { href: "/padel", label: t("nav.tournaments"), icon: "🎾", active: path === "/padel" || path.startsWith("/padel/t") },
-    { href: "/padel/ranking", label: t("nav.ranking"), icon: "🏆", active: path.startsWith("/padel/ranking") },
-    { href: "/padel/stats", label: t("nav.stats"), icon: "📊", active: path.startsWith("/padel/stats") },
+    { href: "/padel", label: t("nav.tournaments"), icon: <IconRacket size={24} />, active: path === "/padel" || path.startsWith("/padel/t") },
+    { href: "/padel/ranking", label: t("nav.ranking"), icon: <IconTrophy size={24} />, active: path.startsWith("/padel/ranking") },
+    { href: "/padel/stats", label: t("nav.stats"), icon: <IconBars size={24} />, active: path.startsWith("/padel/stats") },
   ];
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-900 bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
@@ -65,8 +77,14 @@ export function BottomNav() {
               it.active ? "text-lime-300" : "text-zinc-500"
             }`}
           >
-            <span className="text-xl leading-none" aria-hidden>
+            <span className="relative flex h-7 items-center" aria-hidden>
               {it.icon}
+              {it.active && (
+                <span
+                  key={path}
+                  className="pd-pop absolute -right-1.5 -top-0.5 h-2 w-2 rounded-full bg-lime-300"
+                />
+              )}
             </span>
             {it.label}
           </Link>
@@ -139,4 +157,12 @@ export function Section({ title, aside, children }: { title: string; aside?: Rea
   );
 }
 
-export const MEDALS = ["🥇", "🥈", "🥉"];
+/** A finishing place: a drawn medal for the top three, the number after that. */
+export function Place({ place, size = 26 }: { place: number; size?: number }) {
+  if (place >= 1 && place <= 3) return <Medal place={place as 1 | 2 | 3} size={size} />;
+  return (
+    <span className="inline-flex items-center justify-center tabular-nums text-zinc-500" style={{ width: size, height: size }}>
+      {place}
+    </span>
+  );
+}

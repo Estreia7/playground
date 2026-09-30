@@ -1,0 +1,377 @@
+/* Motion and depth for the padel screens.
+
+   Everything here is opt-in and sits behind `prefers-reduced-motion:
+   no-preference`. Without that query — a failed stylesheet, a reduced-motion
+   setting, an old browser — the page renders complete and still: cards flat,
+   the rally frozen with the ball over the net, lists already in place.
+
+   Colours come from the logo: its navy is the ink, its ball the accent. */
+
+.pd {
+  --pd-navy: #0b1823;
+  --pd-navy-2: #12283a;
+  --pd-ball: #cbed09;
+  --pd-tile: #f3f8e2;
+  --pd-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Tilt cards ────────────────────────────────────────────────
+   The wrapper owns the perspective; the surface owns the rotation; children
+   pick a depth with .pd-z1/2/3. The clipping and the border live on the face,
+   a sibling layer, because overflow:hidden on a preserve-3d element flattens
+   it and the depth would vanish. */
+
+.pd-tilt {
+  display: block;
+}
+
+/* Perspective only reaches direct children, and the surface sits inside a link
+   or button. So the perspective goes on whichever element wraps the surface. */
+.pd-tilt,
+.pd-tilt > a,
+.pd-tilt > button {
+  perspective: 900px;
+}
+
+/* Content sits above the face in paint order, and keeps its depth: every
+   element between the surface and a translateZ child has to preserve 3D. */
+.pd-content {
+  position: relative;
+  display: block;
+  transform-style: preserve-3d;
+}
+
+.pd-tilt__surface {
+  position: relative;
+  display: block;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--s, 1));
+  transition: transform 520ms var(--pd-ease);
+}
+
+.pd-tilt[data-active="true"] .pd-tilt__surface {
+  /* While the pointer is moving the card follows it closely; the long ease is
+     only for coming to rest. */
+  transition: transform 110ms linear;
+}
+
+.pd-tilt__face {
+  position: absolute;
+  inset: 0;
+  /* The radius comes from the classes handed to the face. Setting it here would
+     beat them: this sheet is unlayered, and unlayered CSS outranks Tailwind's
+     utilities whatever the specificity. */
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 14px 30px -18px rgba(0, 0, 0, 0.75),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 520ms var(--pd-ease);
+}
+
+.pd-tilt[data-active="true"] .pd-tilt__face {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 26px 40px -20px rgba(0, 0, 0, 0.85),
+    0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* A soft highlight that follows the pointer, so the surface reads as glossy
+   and the tilt reads as light, not just as a skew. */
+.pd-tilt__glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at var(--gx, 50%) var(--gy, 0%),
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0) 58%
+  );
+  transition: opacity 320ms var(--pd-ease);
+}
+
+.pd-tilt[data-active="true"] .pd-tilt__glare {
+  opacity: 1;
+}
+
+.pd-3d {
+  transform-style: preserve-3d;
+}
+
+.pd-z1 {
+  transform: translateZ(14px);
+}
+.pd-z2 {
+  transform: translateZ(30px);
+}
+.pd-z3 {
+  transform: translateZ(46px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-tilt__surface,
+  .pd-tilt__face,
+  .pd-tilt__glare {
+    transition: none;
+  }
+}
+
+/* ── The rally ─────────────────────────────────────────────────
+   The one authored moment. A ball is hit over the net, bounces on the far
+   side, is hit back and bounces on this side, on a loop.
+
+   Horizontal and vertical motion are separate nested groups because they need
+   different easing: x is constant speed, y rises decelerating and falls
+   accelerating, with a hard turn at each bounce. Crossing the net (25% and
+   75% of the loop) puts the ball about 30px above the tape.
+
+   The resting pose — used without animation — is the ball hanging over the net. */
+
+.pd-ballx {
+  transform: translateX(180px);
+}
+.pd-bally {
+  transform: translateY(48px);
+}
+.pd-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0.5;
+  transform: scale(0.6);
+}
+.pd-racket-l,
+.pd-racket-r {
+  transform-origin: 0 0;
+}
+.pd-racket-l {
+  transform: rotate(-14deg);
+}
+.pd-racket-r {
+  transform: rotate(-14deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pd-ballx {
+    animation: pd-x 3.6s linear infinite;
+  }
+  .pd-bally {
+    animation: pd-y 3.6s linear infinite;
+  }
+  .pd-shadow {
+    animation: pd-shadow 3.6s linear infinite;
+  }
+  .pd-racket-l {
+    animation: pd-swing-l 3.6s linear infinite;
+  }
+  .pd-racket-r {
+    animation: pd-swing-l 3.6s linear infinite;
+    animation-delay: -1.8s;
+  }
+
+  /* Offscreen or in a hidden tab the rally stops, and picks up where it was. */
+  [data-rally="paused"] .pd-ballx,
+  [data-rally="paused"] .pd-bally,
+  [data-rally="paused"] .pd-shadow,
+  [data-rally="paused"] .pd-racket-l,
+  [data-rally="paused"] .pd-racket-r {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes pd-x {
+  0%,
+  100% {
+    transform: translateX(60px);
+  }
+  50% {
+    transform: translateX(300px);
+  }
+}
+
+@keyframes pd-y {
+  0% {
+    transform: translateY(80px);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1);
+  }
+  14% {
+    transform: translateY(44px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0.4);
+  }
+  37% {
+    transform: translateY(114px);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1);
+  }
+  50% {
+    transform: translateY(80px);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1);
+  }
+  64% {
+    transform: translateY(44px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0.4);
+  }
+  87% {
+    transform: translateY(114px);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1);
+  }
+  100% {
+    transform: translateY(80px);
+  }
+}
+
+@keyframes pd-shadow {
+  0%,
+  50%,
+  100% {
+    transform: scale(0.72);
+    opacity: 0.4;
+  }
+  14%,
+  64% {
+    transform: scale(0.45);
+    opacity: 0.25;
+  }
+  37%,
+  87% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+}
+
+/* Each racket meets the ball at the start of its half of the loop, follows
+   through, then draws back ready for the next. */
+@keyframes pd-swing-l {
+  0%,
+  100% {
+    transform: rotate(10deg);
+  }
+  10% {
+    transform: rotate(-20deg);
+  }
+  85% {
+    transform: rotate(-28deg);
+  }
+}
+/* ── Small movement, used sparingly ───────────────────────── */
+
+.pd-float {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pd-float {
+    animation: pd-float 5s ease-in-out infinite;
+  }
+
+  /* Lists come in once, on arrival — never on a refresh. The delay is capped
+     so the tenth card does not make anyone wait. */
+  .pd-rise {
+    animation: pd-rise 560ms var(--pd-ease) both;
+    animation-delay: calc(min(var(--i, 0), 6) * 55ms);
+  }
+
+  .pd-bar {
+    transform-origin: left center;
+    animation: pd-grow 900ms var(--pd-ease) both;
+    animation-delay: 180ms;
+  }
+
+  .pd-pop {
+    animation: pd-pop 380ms var(--pd-ease) both;
+  }
+
+  /* One phrase replaces the next while a tournament is being drawn. */
+  .pd-phrase {
+    animation: pd-phrase 520ms var(--pd-ease) both;
+  }
+
+  .pd-orbit {
+    animation: pd-spin 26s linear infinite;
+  }
+}
+
+@keyframes pd-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(1.5deg);
+  }
+}
+
+@keyframes pd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pd-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes pd-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pd-phrase {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes pd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The loading bar fills across the minimum wait. Its duration is set inline
+   from the same constant the timer uses, so the two cannot drift apart. */
+@keyframes pd-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.pd-fill {
+  transform-origin: left center;
+  transform: scaleX(1);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pd-fill {
+    animation: pd-fill var(--pd-fill-ms, 5400ms) linear both;
+  }
+}
+
+/* Browser surfaces that belong to the palette rather than the default. */
+.pd ::selection {
+  background: rgba(203, 237, 9, 0.35);
+  color: #fff;
+}
+.pd {
+  scrollbar-color: #27272a transparent;
+}

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { errorText, usePadel } from "../../ui/PadelProvider";
-import { Loading, MEDALS, Page, TopBar } from "../../ui/parts";
+import { Loading, Page, Place, TopBar } from "../../ui/parts";
+import { IconTrophy } from "../../ui/art";
 import { average, diff, isScored, progress, roundComplete, standings } from "../../core/standings.ts";
 import type { Match, Round, Tournament } from "../../core/types.ts";
 import { ScoreSheet } from "./ScoreSheet";
@@ -128,7 +129,10 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
             <p className="text-sm uppercase tracking-wider text-lime-300/80">
               {t(champion.ids.length > 1 ? "t.champions" : "t.champion")}
             </p>
-            <p className="mt-1 text-2xl font-bold text-lime-300">🏆 {champion.ids.map(nameOf).join(" / ")}</p>
+            <p className="mt-1 flex items-center justify-center gap-2 text-2xl font-bold text-lime-300">
+              <IconTrophy size={26} className="shrink-0" />
+              <span className="min-w-0 truncate">{champion.ids.map(nameOf).join(" / ")}</span>
+            </p>
           </div>
         )}
 
@@ -332,8 +336,12 @@ function StandingsTable({ tournament: x }: { tournament: Tournament }) {
           <tbody className="divide-y divide-zinc-900">
             {lines.map((l, i) => (
               <tr key={l.key} className={i < 3 && l.played > 0 ? "bg-zinc-900/40" : ""}>
-                <td className="py-3 pl-3 text-lg tabular-nums text-zinc-500">
-                  {i < 3 && l.played > 0 ? MEDALS[i] : i + 1}
+                <td className="py-3 pl-3">
+                  {i < 3 && l.played > 0 ? (
+                    <Place place={i + 1} size={24} />
+                  ) : (
+                    <span className="inline-flex h-6 w-6 items-center justify-center tabular-nums text-zinc-500">{i + 1}</span>
+                  )}
                 </td>
                 <td className="py-3 pr-2 font-semibold leading-tight">{l.ids.map(nameOf).join(" / ")}</td>
                 <td className="py-3 text-center tabular-nums text-zinc-400">{l.played}</td>
