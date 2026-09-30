@@ -1,12 +1,21 @@
 // Process one listing across 12 calendar months, emitting progress events
-// as it goes. Per-month flow:
-//   1. Navigate to the listing with the calendar focused on the month.
-//   2. Click the check-in input so the calendar grid is in the DOM.
-//   3. extractGaps -> identify open gap runs in that month.
-//   4. pickSampleGaps -> up to 3 windows, longest-gap-first.
-//   5. For each sample: extractPrice navigates to a booking URL with
-//      check_in/check_out and reads what the guest actually pays.
-//   6. monthly ADR = average of (totalPaid / nights) across successful samples.
+// as it goes.
+//
+//   1. Load the listing once (for its metadata). While it loads, the page asks
+//      Airbnb for its calendar; that request is caught and replayed for the
+//      job's twelve months (scraper/availability.js). One request tells us, for
+//      every day of the year, whether it is free, whether a stay can start or
+//      end on it, and the minimum stay.
+//   2. Per month: count the free nights. None means "no-availability", and that
+//      is now a fact from Airbnb rather than a failed page read.
+//   3. Pick up to three stays spread across the month that obey the calendar's
+//      rules (lib/stayWindows.js), plus spares.
+//   4. Price each at the refundable rate (scraper/extractPrice.js) until three
+//      succeed or the attempts run out.
+//   5. Monthly ADR = average of (refundable total / nights) across the stays.
+//
+// If the calendar data never arrives, a month falls back to the old path:
+// open the rendered calendar, scan it for gaps, and price those.
 
 const { launchContext } = require('../scraper/browser');
 const { navigateToMonth, openCalendar } = require('../scraper/calendar');
@@ -14,6 +23,8 @@ const { extractGaps } = require('../scraper/extractGaps');
 const { extractPrice } = require('../scraper/extractPrice');
 const { extractMeta } = require('../scraper/extractMeta');
 const { pickSampleGaps } = require('../scraper/pickSampleGaps');
+const { startCalendarCapture, loadAvailability } = require('../scraper/availability');
+const { availableNightsIn, pickStays } = require('../lib/stayWindows');
 const { nextTwelveMonths } = require('../lib/months');
 const { randomDelay } = require('../lib/delay');
 const store = require('../jobs/jobStore');
@@ -21,6 +32,9 @@ const { emit } = require('../jobs/jobManager');
 const logger = require('../lib/logger');
 
 const PER_LISTING_TIMEOUT_MS = 15 * 60 * 1000;
+/** Stays priced per month, and the most attempts spent getting them. */
+const STAYS_PER_MONTH = 3;
+const MAX_ATTEMPTS_PER_MONTH = 5;
 
 async function processListing({ jobId, url, workerId, signal }) {
   const ttlDays = parseInt(process.env.CACHE_TTL_DAYS || '7', 10);
@@ -46,12 +60,27 @@ async function processListing({ jobId, url, workerId, signal }) {
 
     // Listing-level metadata (title, review count/score) — scraped once,
     // before the month loop. Never let a meta failure abort the ADR run.
+    // The calendar request the page makes while loading is caught here too.
+    const capture = startCalendarCapture(page);
     try {
       meta = await extractMeta(page, url, signal);
       emit(jobId, 'listing-meta', { jobId, url, meta });
     } catch (err) {
       if (signal?.aborted) throw err;
       logger.warn(`meta extraction failed for ${url}:`, err.message);
+    }
+
+    let availability = null;
+    try {
+      availability = await loadAvailability(page, capture, months, signal);
+      if (availability) {
+        logger.info(`availability for ${url}: ${availability.covered.length} months via ${availability.source}`);
+      }
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      logger.warn(`availability failed for ${url}, falling back to the calendar scan:`, err.message);
+    } finally {
+      capture.stop();
     }
 
     for (const m of months) {
@@ -61,64 +90,12 @@ async function processListing({ jobId, url, workerId, signal }) {
       emit(jobId, 'progress', { jobId, url, month: m.key, status: 'fetching' });
 
       try {
-        await navigateToMonth(page, url, m.year, m.month, signal);
-        await randomDelay(3000, 6000, signal);
-        await openCalendar(page);
-        await randomDelay(800, 1600, signal);
-
-        const gaps = await extractGaps(page, m);
-        const samples = pickSampleGaps(gaps, 3);
-
-        let adr = null;
-        let notes = '';
-        let successfulSamples = 0;
-
-        if (samples.length === 0) {
-          notes = gaps.length === 0 ? 'no-availability' : 'no-usable-gaps';
-        } else {
-          const rates = [];
-          for (const g of samples) {
-            if (signal?.aborted) throw new Error('Aborted');
-
-            // Try the picked window first; if dates aren't available
-            // (typically a minimum-stay rule), shrink by 1 night once.
-            let started = Date.now();
-            let price = await extractPrice(page, g);
-            recordAttempt({
-              jobId, url, month: m.key, sample: g,
-              outcome: price?.totalPrice > 0 ? 'success' : 'dates-unavailable',
-              totalPrice: price?.totalPrice,
-              durationMs: Date.now() - started,
-            });
-
-            if (!price && g.nights > 2) {
-              const shrunk = { ...g, nights: g.nights - 1, end: addDaysToISO(g.start, g.nights - 1) };
-              await randomDelay(3000, 6000, signal);
-              started = Date.now();
-              price = await extractPrice(page, shrunk);
-              recordAttempt({
-                jobId, url, month: m.key, sample: shrunk,
-                outcome: price?.totalPrice > 0 ? 'success-shrunk' : 'no-price-found',
-                totalPrice: price?.totalPrice,
-                durationMs: Date.now() - started,
-              });
-            }
-            if (price?.totalPrice > 0 && price.nights > 0) {
-              rates.push(price.totalPrice / price.nights);
-              successfulSamples += 1;
-            }
-            await randomDelay(3000, 6000, signal);
-          }
-          if (rates.length > 0) {
-            adr = Math.round((rates.reduce((a, b) => a + b, 0) / rates.length) * 100) / 100;
-          } else {
-            notes = 'no-price-found';
-          }
-        }
-
-        const monthResult = { month: m.key, adr, samples: successfulSamples, notes };
+        const monthResult =
+          availability && availability.covered.includes(m.key)
+            ? await priceMonthFromCalendar({ jobId, url, page, month: m, days: availability.days, signal })
+            : await priceMonthFromPage({ jobId, url, page, month: m, signal });
         results.push(monthResult);
-        emit(jobId, 'progress', { jobId, url, month: m.key, status: 'done', adr });
+        emit(jobId, 'progress', { jobId, url, month: m.key, status: 'done', adr: monthResult.adr });
       } catch (err) {
         if (signal?.aborted) throw err;
         logger.warn(`month ${m.key} failed for ${url}:`, err.message);
@@ -146,6 +123,119 @@ async function processListing({ jobId, url, workerId, signal }) {
   } finally {
     if (session) await session.close().catch(() => {});
   }
+}
+
+/* One month from the calendar data: free nights counted, stays chosen by the
+   calendar's own rules, each priced at the refundable rate. */
+async function priceMonthFromCalendar({ jobId, url, page, month, days, signal }) {
+  const availableNights = availableNightsIn(days, month.key);
+  if (availableNights === 0) {
+    return { month: month.key, adr: null, samples: 0, notes: 'no-availability', availableNights };
+  }
+
+  const candidates = pickStays(days, month.key, { max: STAYS_PER_MONTH, spares: MAX_ATTEMPTS_PER_MONTH });
+  if (candidates.length === 0) {
+    // Free nights exist, but no stay can start in this month under the
+    // listing's rules (check-in on Saturdays only and no free Saturday, say).
+    return { month: month.key, adr: null, samples: 0, notes: 'no-usable-gaps', availableNights };
+  }
+
+  const rates = [];
+  let attempts = 0;
+  for (const stay of candidates) {
+    if (rates.length >= STAYS_PER_MONTH || attempts >= MAX_ATTEMPTS_PER_MONTH) break;
+    if (signal?.aborted) throw new Error('Aborted');
+    attempts += 1;
+
+    const started = Date.now();
+    const price = await extractPrice(page, stay);
+    recordAttempt({
+      jobId,
+      url,
+      month: month.key,
+      sample: stay,
+      outcome: price.ok ? 'success' : price.reason === 'no-price' ? 'no-price-found' : 'dates-unavailable',
+      totalPrice: price.ok ? price.totalPrice : null,
+      durationMs: Date.now() - started,
+    });
+    if (price.ok && price.totalPrice > 0 && price.nights > 0) rates.push(price.totalPrice / price.nights);
+    await randomDelay(3000, 6000, signal);
+  }
+
+  return {
+    month: month.key,
+    adr: rates.length > 0 ? round2(average(rates)) : null,
+    samples: rates.length,
+    notes: rates.length > 0 ? '' : 'no-price-found',
+    availableNights,
+  };
+}
+
+/* The old path, kept as the fallback for when no calendar data arrived: open
+   the rendered calendar, scan it for open runs, price the longest. */
+async function priceMonthFromPage({ jobId, url, page, month, signal }) {
+  await navigateToMonth(page, url, month.year, month.month, signal);
+  await randomDelay(3000, 6000, signal);
+  await openCalendar(page);
+  await randomDelay(800, 1600, signal);
+
+  const gaps = await extractGaps(page, month);
+  const samples = pickSampleGaps(gaps, STAYS_PER_MONTH);
+  if (samples.length === 0) {
+    return { month: month.key, adr: null, samples: 0, notes: gaps.length === 0 ? 'no-availability' : 'no-usable-gaps' };
+  }
+
+  const rates = [];
+  for (const g of samples) {
+    if (signal?.aborted) throw new Error('Aborted');
+
+    // Without the calendar's rules the window may break a minimum stay, so a
+    // refusal earns one retry a night shorter.
+    let started = Date.now();
+    let price = await extractPrice(page, g);
+    recordAttempt({
+      jobId,
+      url,
+      month: month.key,
+      sample: g,
+      outcome: price.ok ? 'success' : 'dates-unavailable',
+      totalPrice: price.ok ? price.totalPrice : null,
+      durationMs: Date.now() - started,
+    });
+
+    if (!price.ok && g.nights > 2) {
+      const shrunk = { ...g, nights: g.nights - 1, end: addDaysToISO(g.start, g.nights - 1) };
+      await randomDelay(3000, 6000, signal);
+      started = Date.now();
+      price = await extractPrice(page, shrunk);
+      recordAttempt({
+        jobId,
+        url,
+        month: month.key,
+        sample: shrunk,
+        outcome: price.ok ? 'success-shrunk' : 'no-price-found',
+        totalPrice: price.ok ? price.totalPrice : null,
+        durationMs: Date.now() - started,
+      });
+    }
+    if (price.ok && price.totalPrice > 0 && price.nights > 0) rates.push(price.totalPrice / price.nights);
+    await randomDelay(3000, 6000, signal);
+  }
+
+  return {
+    month: month.key,
+    adr: rates.length > 0 ? round2(average(rates)) : null,
+    samples: rates.length,
+    notes: rates.length > 0 ? '' : 'no-price-found',
+  };
+}
+
+function average(values) {
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
 }
 
 // Stored results may be either the legacy bare months-array (pre-meta) or the
