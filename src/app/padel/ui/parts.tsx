@@ -52,6 +52,7 @@ export function BottomNav() {
   const items = [
     { href: "/padel", label: t("nav.tournaments"), icon: "🎾", active: path === "/padel" || path.startsWith("/padel/t") },
     { href: "/padel/ranking", label: t("nav.ranking"), icon: "🏆", active: path.startsWith("/padel/ranking") },
+    { href: "/padel/stats", label: t("nav.stats"), icon: "📊", active: path.startsWith("/padel/stats") },
   ];
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-900 bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
