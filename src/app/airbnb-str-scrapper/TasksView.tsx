@@ -13,6 +13,7 @@ export function TasksView({
   current,
   onCancel,
   onDelete,
+  onRedo,
   onNewTask,
   onToggleExclusion,
   onSetOverride,
@@ -23,6 +24,7 @@ export function TasksView({
   current: JobState | null;
   onCancel: (id: string) => void;
   onDelete: (id: string) => void;
+  onRedo: (id: string) => void;
   onNewTask: () => void;
   onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
   onSetOverride: (jobId: string, url: string, monthIndex: number, value: number | null) => void;
@@ -55,13 +57,17 @@ export function TasksView({
                 onSelect={() => onSelect(j.id)}
                 onCancel={() => onCancel(j.id)}
                 onDelete={() => onDelete(j.id)}
+                onRedo={() => onRedo(j.id)}
               />
             ))}
           </AnimatePresence>
         </div>
       </div>
 
-      <div>
+      {/* min-w-0 lets this grid column shrink to the screen, so the wide ADR
+          table scrolls inside its own box instead of pushing the task header —
+          and its Re-run and Delete buttons — off the right edge. */}
+      <div className="min-w-0">
         {!current && (
           <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center">
             <p className="text-sm text-zinc-500">
@@ -76,6 +82,7 @@ export function TasksView({
             job={current}
             onCancel={() => onCancel(current.id)}
             onDelete={() => onDelete(current.id)}
+            onRedo={() => onRedo(current.id)}
             onToggleExclusion={onToggleExclusion}
             onSetOverride={onSetOverride}
           />
@@ -91,12 +98,14 @@ function JobRow({
   onSelect,
   onCancel,
   onDelete,
+  onRedo,
 }: {
   job: JobState;
   selected: boolean;
   onSelect: () => void;
   onCancel: () => void;
   onDelete: () => void;
+  onRedo: () => void;
 }) {
   const active = job.status === "queued" || job.status === "running";
   const totalMonths = job.urls.length * 12;
@@ -134,6 +143,7 @@ function JobRow({
       <div className="mt-1.5 flex items-center justify-between text-[11px] text-zinc-500">
         <span>
           {job.urls.length} URL{job.urls.length === 1 ? "" : "s"} · #{shortId(job.id)}
+          {job.fresh && <FreshBadge />}
         </span>
         <span>{fmtTime(job.createdAt)}</span>
       </div>
@@ -160,6 +170,19 @@ function JobRow({
             role="button"
             onClick={(e) => {
               e.stopPropagation();
+              onRedo();
+            }}
+            title="Scrape these listings again as a new task, ignoring cached results"
+            className="cursor-pointer rounded border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-400 hover:border-orange-600/60 hover:text-orange-400"
+          >
+            re-run
+          </span>
+        )}
+        {!active && (
+          <span
+            role="button"
+            onClick={(e) => {
+              e.stopPropagation();
               onDelete();
             }}
             className="cursor-pointer rounded border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-500 hover:border-red-600/50 hover:text-red-400"
@@ -176,12 +199,14 @@ function JobDetail({
   job,
   onCancel,
   onDelete,
+  onRedo,
   onToggleExclusion,
   onSetOverride,
 }: {
   job: JobState;
   onCancel: () => void;
   onDelete: () => void;
+  onRedo: () => void;
   onToggleExclusion: (jobId: string, url: string, monthIndex: number) => void;
   onSetOverride: (jobId: string, url: string, monthIndex: number, value: number | null) => void;
 }) {
@@ -213,6 +238,7 @@ function JobDetail({
             )}
             <p className="mt-1 text-xs text-zinc-500">
               #{shortId(job.id)} · {job.urls.length} URL{job.urls.length === 1 ? "" : "s"} · submitted {fmtTime(job.createdAt)}
+              {job.fresh && <FreshBadge />}
             </p>
           </div>
           <div className="flex gap-2">
@@ -231,12 +257,22 @@ function JobDetail({
                 Cancel
               </button>
             ) : (
+              <>
+              <button
+                onClick={onRedo}
+                title="Scrape these listings again as a new task, ignoring cached results"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-600/50 bg-orange-600/10 px-3 py-1.5 text-xs text-orange-300 transition-colors hover:bg-orange-600/20"
+              >
+                <RedoIcon />
+                Re-run
+              </button>
               <button
                 onClick={onDelete}
                 className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:border-red-600/50 hover:text-red-400"
               >
                 Delete
               </button>
+              </>
             )}
           </div>
         </div>
@@ -539,6 +575,27 @@ function AdrCell({
         )}
       </span>
     </td>
+  );
+}
+
+/** Marks a task that was a re-run: every listing scraped fresh, no cache. */
+function FreshBadge() {
+  return (
+    <span
+      title="Re-run: every listing was scraped fresh, ignoring cached results"
+      className="ml-1.5 rounded border border-orange-600/40 px-1 py-px align-middle text-[9px] uppercase tracking-wide text-orange-400"
+    >
+      fresh
+    </span>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+      <path d="M20 4v7h-7" />
+    </svg>
   );
 }
 

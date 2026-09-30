@@ -36,9 +36,11 @@ const PER_LISTING_TIMEOUT_MS = 15 * 60 * 1000;
 const STAYS_PER_MONTH = 3;
 const MAX_ATTEMPTS_PER_MONTH = 5;
 
-async function processListing({ jobId, url, workerId, signal }) {
+async function processListing({ jobId, url, workerId, signal, fresh = false }) {
   const ttlDays = parseInt(process.env.CACHE_TTL_DAYS || '7', 10);
-  const cached = store.cacheLookup(url, ttlDays);
+  // A re-run asks for a fresh scrape: the cache is skipped here, and the new
+  // result replaces the cached one when the listing finishes.
+  const cached = fresh ? null : store.cacheLookup(url, ttlDays);
   if (cached) {
     const { meta, months } = normalizeResult(cached.result);
     emit(jobId, 'listing-done', { jobId, url, status: 'cached', meta, months });

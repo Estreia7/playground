@@ -31,6 +31,8 @@ function runMigrations(db) {
     `ALTER TABLE jobs ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE jobs ADD COLUMN location TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE jobs ADD COLUMN type TEXT NOT NULL DEFAULT 'adr'`,
+    // 1 for a re-run: scrape every listing again instead of reusing the cache.
+    `ALTER TABLE jobs ADD COLUMN fresh INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE tracked_hosts ADD COLUMN manual_nif TEXT`,
   ];
   for (const stmt of adds) {

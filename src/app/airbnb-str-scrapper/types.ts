@@ -47,6 +47,8 @@ export type JobState = {
   listings: Record<string, ListingState>;
   name: string;
   location: string;
+  // True for a re-run: every listing was scraped fresh, skipping the cache.
+  fresh?: boolean;
   // Manually hidden ADR cells, keyed "url|monthIndex" (monthIndex 0..11,
   // Jan..Dec). Excluded cells are greyed and dropped from all averages.
   excluded: Set<string>;

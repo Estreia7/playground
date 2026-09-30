@@ -43,6 +43,7 @@ export function useScrapperState() {
           urls: (payload.urls as string[]) || [],
           name: (payload.name as string) || "",
           location: (payload.location as string) || "",
+          fresh: payload.fresh === true,
         });
         return { ...prev, [jobId]: created };
       }
@@ -143,6 +144,7 @@ export function useScrapperState() {
             urls: string[];
             name?: string;
             location?: string;
+            fresh?: boolean;
           }>;
         };
         if (cancelled) return;
@@ -296,6 +298,18 @@ export function useScrapperState() {
     return jobId;
   }, []);
 
+  // Run a finished task again as a new task, skipping the cache. Returns the
+  // new task's id so the caller can open it.
+  const redoJob = useCallback(async (id: string) => {
+    const res = await fetch(`${API_BASE}/jobs/${id}/redo`, { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || body.error || `HTTP ${res.status}`);
+    }
+    const { jobId } = (await res.json()) as { jobId: string };
+    return jobId;
+  }, []);
+
   const cancelJob = useCallback(async (id: string) => {
     await fetch(`${API_BASE}/jobs/${id}/cancel`, { method: "POST" });
   }, []);
@@ -395,6 +409,7 @@ export function useScrapperState() {
     setSelected,
     currentJob,
     submitJob,
+    redoJob,
     cancelJob,
     deleteJob,
     toggleExclusion,

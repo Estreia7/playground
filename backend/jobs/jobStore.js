@@ -41,12 +41,12 @@ function nowSec() {
   return Math.floor(Date.now() / 1000);
 }
 
-function createJob({ id, urls, name = '', location = '', type = 'adr' }) {
+function createJob({ id, urls, name = '', location = '', type = 'adr', fresh = false }) {
   const db = getDb();
   db.prepare(
-    `INSERT INTO jobs (id, created_at, status, urls_json, name, location, type)
-     VALUES (?, ?, 'queued', ?, ?, ?, ?)`
-  ).run(id, nowSec(), JSON.stringify(urls), name, location, type);
+    `INSERT INTO jobs (id, created_at, status, urls_json, name, location, type, fresh)
+     VALUES (?, ?, 'queued', ?, ?, ?, ?, ?)`
+  ).run(id, nowSec(), JSON.stringify(urls), name, location, type, fresh ? 1 : 0);
 }
 
 function getJob(id) {
@@ -77,6 +77,7 @@ function hydrateJob(row) {
     name: row.name || '',
     location: row.location || '',
     type: row.type || 'adr',
+    fresh: row.fresh === 1,
   };
 }
 

@@ -145,6 +145,35 @@ router.get('/metrics', (req, res) => {
   });
 });
 
+// Run a finished task again: same listings, name and location, as a new task.
+// The new task skips the cache, because the reason to re-run is to get fresh
+// prices — reusing results from the last seven days would hand back the very
+// numbers being replaced. The original task is left as it was, so the two can
+// be compared.
+router.post('/jobs/:id/redo', (req, res) => {
+  const source = store.getJob(req.params.id);
+  if (!source) return res.status(404).json({ error: 'not-found' });
+  if (source.type !== 'adr') return res.status(400).json({ error: 'not-an-adr-job' });
+  if (source.status === 'running' || source.status === 'queued') {
+    return res.status(409).json({ error: 'job-active' });
+  }
+
+  const id = nanoid(10);
+  store.createJob({ id, urls: source.urls, name: source.name, location: source.location, fresh: true });
+  emit(id, 'job-created', {
+    jobId: id,
+    urls: source.urls,
+    name: source.name,
+    location: source.location,
+    fresh: true,
+    redoOf: source.id,
+    createdAt: Math.floor(Date.now() / 1000),
+  });
+  scheduler.kick();
+
+  return res.status(201).json({ jobId: id, job: store.getJob(id) });
+});
+
 router.post('/jobs/:id/cancel', (req, res) => {
   const result = scheduler.cancel(req.params.id);
   if (!result.ok) return res.status(409).json({ error: result.reason });

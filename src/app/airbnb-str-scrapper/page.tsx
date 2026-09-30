@@ -19,6 +19,25 @@ export default function ScrapperPage() {
     setView("tasks");
   }
 
+  async function handleRedo(id: string) {
+    const job = state.jobs[id];
+    const n = job?.urls.length ?? 0;
+    const what = n === 1 ? "Its listing" : `All ${n} listings`;
+    if (
+      !confirm(
+        `Re-run this task? ${what} will be scraped again from scratch, ignoring cached results. ` +
+          "It runs as a new task and this one is kept."
+      )
+    )
+      return;
+    try {
+      const newId = await state.redoJob(id);
+      state.setSelected(newId);
+    } catch (err) {
+      alert(`Could not re-run the task: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   async function handleCancel(id: string) {
     if (!confirm("Cancel this task?")) return;
     await state.cancelJob(id);
@@ -65,6 +84,7 @@ export default function ScrapperPage() {
               current={state.currentJob}
               onCancel={handleCancel}
               onDelete={handleDelete}
+              onRedo={handleRedo}
               onNewTask={() => setView("new")}
               onToggleExclusion={state.toggleExclusion}
               onSetOverride={state.setOverride}

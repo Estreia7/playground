@@ -137,6 +137,7 @@ export function emptyJob(j: {
   urls: string[];
   name?: string;
   location?: string;
+  fresh?: boolean;
 }): JobState {
   const listings: Record<string, ListingState> = {};
   for (const u of j.urls) {

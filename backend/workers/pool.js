@@ -18,7 +18,7 @@ async function runJob(job, { signal }) {
       const url = dequeue();
       if (!url) return;
       try {
-        await processListing({ jobId: job.id, url, workerId, signal });
+        await processListing({ jobId: job.id, url, workerId, signal, fresh: job.fresh === true });
       } catch (err) {
         if (signal?.aborted) return;
         errored = true;
