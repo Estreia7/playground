@@ -28,9 +28,14 @@ export interface Tally {
   pointsAgainst: number;
 }
 
+export type Result = "W" | "D" | "L";
+
 /** A partner or an opponent, with the record alongside them. */
 export interface PairTally extends Tally {
   playerId: string;
+  /** How each match with them ended for this player, oldest first. The record
+      says how it went overall; this says how it has been going. */
+  results: Result[];
 }
 
 export interface TournamentLine {
@@ -78,7 +83,9 @@ export interface PlayerStats {
   /** One line per finished tournament, newest first. */
   history: TournamentLine[];
   /** Results of the last matches played, newest first. */
-  recentForm: ("W" | "D" | "L")[];
+  recentForm: Result[];
+  /** Every match, oldest first: the raw material for a form curve. */
+  results: Result[];
 }
 
 function emptyTally(): Tally {
@@ -121,12 +128,12 @@ export function playerStats(club: Club, playerId: string): PlayerStats {
 
   // Match results in the order they were played, oldest first, so the streak
   // arithmetic reads forwards and `recentForm` can simply be reversed.
-  const sequence: ("W" | "D" | "L")[] = [];
+  const sequence: Result[] = [];
 
   const pairLine = (map: Map<string, PairTally>, id: string): PairTally => {
     let line = map.get(id);
     if (!line) {
-      line = { playerId: id, ...emptyTally() };
+      line = { playerId: id, ...emptyTally(), results: [] };
       map.set(id, line);
     }
     return line;
@@ -153,17 +160,22 @@ export function playerStats(club: Club, playerId: string): PlayerStats {
 
         record(total, forPts, againstPts);
         record(perTournament, forPts, againstPts);
-        sequence.push(forPts > againstPts ? "W" : forPts < againstPts ? "L" : "D");
+        const result: Result = forPts > againstPts ? "W" : forPts < againstPts ? "L" : "D";
+        sequence.push(result);
 
         const own = side === "a" ? match.a : match.b;
         const other = side === "a" ? match.b : match.a;
 
         for (const id of own) {
           if (id === playerId) continue;
-          record(pairLine(partners, id), forPts, againstPts);
+          const line = pairLine(partners, id);
+          record(line, forPts, againstPts);
+          line.results.push(result);
         }
         for (const id of other) {
-          record(pairLine(opponents, id), forPts, againstPts);
+          const line = pairLine(opponents, id);
+          record(line, forPts, againstPts);
+          line.results.push(result);
         }
       }
     }
@@ -219,6 +231,7 @@ export function playerStats(club: Club, playerId: string): PlayerStats {
     opponents: [...opponents.values()].sort(byRecord),
     history: history.reverse(),
     recentForm: sequence.slice(-10).reverse(),
+    results: sequence,
   };
 }
 
@@ -228,7 +241,7 @@ export function playerStats(club: Club, playerId: string): PlayerStats {
    wins in a row" means in conversation. `current` is signed: +3 for three
    wins, -2 for two losses, 0 when the last match was drawn or none was
    played. */
-function streakRuns(sequence: ("W" | "D" | "L")[]): {
+function streakRuns(sequence: Result[]): {
   longestWin: number;
   longestLoss: number;
   current: number;

@@ -287,6 +287,35 @@
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .pd-sheet {
+    animation: pd-sheet 380ms var(--pd-ease) both;
+  }
+  .pd-scrim {
+    animation: pd-fade 260ms ease-out both;
+  }
+}
+
+@keyframes pd-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pd-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes pd-float {
   0%,
   100% {
@@ -374,4 +403,104 @@
 }
 .pd {
   scrollbar-color: #27272a transparent;
+}
+
+/* ── Charts ────────────────────────────────────────────────────
+   Growth plays once, when a chart scrolls into view. Every rule is behind the
+   no-preference query, and the from-state exists only inside the animation, so
+   without it — reduced motion, a failed script — a chart is simply drawn.
+
+   Charts start paused (data-in="false") and run when the frame flips to "true".
+   The frame also flips on a timer, so a chart is never left waiting. */
+
+.pd-hit {
+  outline: none;
+  cursor: crosshair;
+}
+.pd-hit:focus-visible {
+  stroke: #bef264;
+  stroke-width: 1.5;
+  rx: 6;
+}
+.pd-colg:hover .pd-colbar,
+.pd-colg:has(.pd-hit:focus-visible) .pd-colbar {
+  filter: brightness(1.15);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Columns rise from their baseline, staggered left to right. */
+  .pd-gy {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: pd-gy 720ms var(--pd-ease) both;
+    animation-delay: calc(var(--i, 0) * 55ms);
+  }
+  .pd-gyd {
+    transform-origin: 50% 0%;
+  }
+
+  /* The line is drawn along its length, the wash beneath it fades in behind. */
+  .pd-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    animation: pd-draw 1300ms var(--pd-ease) both;
+    animation-delay: 120ms;
+  }
+  .pd-wash {
+    animation: pd-fade 1000ms ease-out both;
+    animation-delay: 450ms;
+  }
+  .pd-dotin {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pd-pop 420ms var(--pd-ease) both;
+    animation-delay: 1150ms;
+  }
+  .pd-fadein {
+    animation: pd-fade 500ms ease-out both;
+    animation-delay: calc(var(--i, 0) * 55ms + 520ms);
+  }
+
+  /* Horizontal bars grow from the left. */
+  .pd-hbar {
+    transform-origin: left center;
+    animation: pd-grow 800ms var(--pd-ease) both;
+    animation-delay: calc(var(--i, 0) * 60ms + 100ms);
+  }
+
+  /* The results bar is revealed left to right in one sweep, which keeps the
+     gaps between its segments the width they are meant to be. */
+  .pd-reveal {
+    animation: pd-reveal 950ms var(--pd-ease) both;
+    animation-delay: 80ms;
+  }
+
+  .pd-chart[data-in="false"] :is(.pd-gy, .pd-draw, .pd-wash, .pd-dotin, .pd-fadein, .pd-hbar, .pd-reveal) {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes pd-gy {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes pd-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pd-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }

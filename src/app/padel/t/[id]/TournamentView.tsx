@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { errorText, usePadel } from "../../ui/PadelProvider";
 import { Loading, Page, Place, TopBar } from "../../ui/parts";
-import { IconTrophy } from "../../ui/art";
+import { IconShare, IconTrophy } from "../../ui/art";
+import { SharePanel } from "../../share/SharePanel";
 import { average, diff, isScored, progress, roundComplete, standings } from "../../core/standings.ts";
 import type { Match, Round, Tournament } from "../../core/types.ts";
 import { ScoreSheet } from "./ScoreSheet";
@@ -52,7 +53,20 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
   const [editing, setEditing] = useState<Match | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const shareButton = useRef<HTMLButtonElement>(null);
   const pills = useRef<HTMLDivElement>(null);
+
+  // Arriving from "create" opens the sheet straight away, then clears the flag so
+  // a refresh does not open it again.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("share") === "1") {
+      setSharing(true);
+      url.searchParams.delete("share");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  }, []);
 
   const round = x.rounds.find((r) => r.n === roundN) ?? x.rounds[0];
   const last = x.rounds[x.rounds.length - 1];
@@ -82,7 +96,31 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
 
   return (
     <>
-      <TopBar title={x.name} back="/padel" />
+      <TopBar
+        title={x.name}
+        back="/padel"
+        right={
+          <button
+            ref={shareButton}
+            type="button"
+            onClick={() => setSharing(true)}
+            className="flex min-h-11 items-center gap-2 rounded-xl bg-lime-300 px-3.5 text-sm font-bold text-zinc-950 active:bg-lime-400"
+          >
+            <IconShare size={18} />
+            {t("share.button")}
+          </button>
+        }
+      />
+      {sharing && (
+        <SharePanel
+          tournament={x}
+          onClose={() => {
+            setSharing(false);
+            // Put focus back where it came from.
+            window.setTimeout(() => shareButton.current?.focus(), 0);
+          }}
+        />
+      )}
       <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 border-b border-zinc-900 bg-zinc-950/95 backdrop-blur">
         <div className="mx-auto max-w-xl px-4 py-2">
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-900 p-1" role="tablist">

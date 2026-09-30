@@ -3,9 +3,22 @@
 import { useMemo, useState } from "react";
 import { usePadel } from "../ui/PadelProvider";
 import { BottomNav, LangToggle, Loading, Page, Place, Section, TopBar } from "../ui/parts";
-import { EmptyArt, IconBars, IconFlame, IconLink, IconLinkBroken, IconTarget, Medal } from "../ui/art";
+import { EmptyArt, IconBars, IconBullseye, IconDuoClash, IconDuoStar, IconGhost, Medal } from "../ui/art";
 import { TiltCard } from "../ui/TiltCard";
 import {
+  ChartCard,
+  ColumnChart,
+  FORM_MIN_MATCHES,
+  FORM_WINDOW,
+  FormChart,
+  RateBars,
+  ResultStrip,
+  ResultsBar,
+  niceStep,
+  type Column,
+} from "./charts";
+import {
+  MIN_SHARED_MATCHES,
   highlights,
   playerStats,
   playersWithStats,
@@ -18,10 +31,11 @@ import {
 /* One player's record, in the order the questions get asked.
 
    Pick someone, and the page answers: how have you done, who do you win with,
-   who beats you, and what happened in each tournament. The headline numbers
-   come first because they are what people look for; the partner and opponent
-   tables come last because they are what people argue about, and an argument
-   wants the full table rather than a summary.
+   who beats you, how has it been going lately, and what happened in each
+   tournament. The headline numbers come first because they are what people look
+   for. Then the four names people argue about, then the charts that show the
+   shape of it — a record is easier to believe when it can be seen than when it
+   is only a row of figures.
 
    Everything is derived from match scores at render time, so a corrected score
    shows up here on the next refresh without anything to rebuild. */
@@ -161,18 +175,17 @@ function PlayerReport({ stats, onBack }: { stats: PlayerStats; onBack: () => voi
       ) : (
         <>
           <Headline stats={stats} />
-          <Marks marks={marks} />
-          <Form stats={stats} />
-          <PairTable
-            title={t("stats.partners")}
-            column={t("stats.colWith")}
-            rows={stats.partners}
-          />
-          <PairTable
-            title={t("stats.opponents")}
-            column={t("stats.colAgainst")}
-            rows={stats.opponents}
-          />
+          <Marks marks={marks} stats={stats} />
+          <FormSection stats={stats} />
+          <ByTournament stats={stats} />
+          {/* The card's own title is the heading: a section label above it would
+              say the same word twice. */}
+          <ChartCard title={t("stats.partners")} note={t("stats.c.rateNote", { n: MIN_SHARED_MATCHES })}>
+            <RateBars rows={stats.partners} nameOf={nameOf} minSample={MIN_SHARED_MATCHES} />
+          </ChartCard>
+          <ChartCard title={t("stats.opponents")} note={t("stats.c.rateNote", { n: MIN_SHARED_MATCHES })}>
+            <RateBars rows={stats.opponents} nameOf={nameOf} minSample={MIN_SHARED_MATCHES} />
+          </ChartCard>
           <History stats={stats} />
         </>
       )}
@@ -180,7 +193,7 @@ function PlayerReport({ stats, onBack }: { stats: PlayerStats; onBack: () => voi
   );
 }
 
-/* The four numbers people look for first, then the supporting detail. */
+/* The four numbers people look for first, then the whole record as one bar. */
 function Headline({ stats }: { stats: PlayerStats }) {
   const { t } = usePadel();
   const { total } = stats;
@@ -222,28 +235,22 @@ function Headline({ stats }: { stats: PlayerStats }) {
         }
       />
 
-      <div className="col-span-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-        <dl className="grid grid-cols-2 gap-y-2 text-sm">
-          <dt className="text-zinc-500">{t("stats.games")}</dt>
-          <dd className="text-right font-semibold tabular-nums">
-            {total.drawn > 0
-              ? t("stats.record", { won: total.won, drawn: total.drawn, lost: total.lost })
-              : t("stats.recordNoDraws", { won: total.won, lost: total.lost })}
-          </dd>
-
-          <dt className="text-zinc-500">{t("stats.pointsPerGame")}</dt>
-          <dd className="text-right font-semibold tabular-nums">
-            <span className="text-lime-300">{stats.pointsForPerMatch.toFixed(1)}</span>
-            <span className="text-zinc-600"> / </span>
-            <span className="text-red-300">{stats.pointsAgainstPerMatch.toFixed(1)}</span>
-            <span
-              className={`ml-2 text-xs ${diff > 0 ? "text-lime-300" : diff < 0 ? "text-red-300" : "text-zinc-500"}`}
-            >
-              ({diff > 0 ? "+" : ""}
-              {diff})
+      <div className="col-span-2">
+        <ChartCard title={t("stats.c.results")}>
+          <ResultsBar won={total.won} drawn={total.drawn} lost={total.lost} />
+          <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-zinc-800 pt-3 text-sm">
+            <span className="text-zinc-400">{t("stats.pointsPerGame")}</span>
+            <span className="font-semibold tabular-nums text-zinc-100">
+              {stats.pointsForPerMatch.toFixed(1)}
+              <span className="text-zinc-500"> / </span>
+              {stats.pointsAgainstPerMatch.toFixed(1)}
+              <span className="ml-2 text-xs font-normal text-zinc-400">
+                ({diff > 0 ? "+" : ""}
+                {diff})
+              </span>
             </span>
-          </dd>
-        </dl>
+          </p>
+        </ChartCard>
       </div>
     </div>
   );
@@ -280,10 +287,15 @@ function Tile({
   );
 }
 
-/* The four claims the page exists to make. Each carries its sample size,
+/* The four claims the page exists to make.
+
+   Each carries its icon, its sample size and how those matches actually went,
    because "you win 80% with Ana" means something very different over twenty
-   matches than over two. */
-function Marks({ marks }: { marks: ReturnType<typeof highlights> }) {
+   matches than over two. The icons say what the card says: a star over two
+   players for the partner who works, lightning between them for the one who does
+   not, an arrow in the gold for the opponent you beat, a ghost for the one who
+   haunts you. */
+function Marks({ marks, stats }: { marks: ReturnType<typeof highlights>; stats: PlayerStats }) {
   const { t } = usePadel();
   const any = marks.bestPartner || marks.worstPartner || marks.favouriteOpponent || marks.nemesis;
   if (!any) return null;
@@ -291,10 +303,32 @@ function Marks({ marks }: { marks: ReturnType<typeof highlights> }) {
   return (
     <Section title={t("stats.highlights")}>
       <div className="grid gap-2">
-        <Mark label={t("stats.bestPartner")} icon={<IconLink size={26} />} highlight={marks.bestPartner} />
-        <Mark label={t("stats.worstPartner")} icon={<IconLinkBroken size={26} />} highlight={marks.worstPartner} />
-        <Mark label={t("stats.favouriteOpponent")} icon={<IconTarget size={26} />} highlight={marks.favouriteOpponent} />
-        <Mark label={t("stats.nemesis")} icon={<IconFlame size={26} />} highlight={marks.nemesis} />
+        <Mark
+          label={t("stats.bestPartner")}
+          icon={<IconDuoStar size={28} />}
+          good
+          highlight={marks.bestPartner}
+          source={stats.partners}
+        />
+        <Mark
+          label={t("stats.worstPartner")}
+          icon={<IconDuoClash size={28} />}
+          highlight={marks.worstPartner}
+          source={stats.partners}
+        />
+        <Mark
+          label={t("stats.favouriteOpponent")}
+          icon={<IconBullseye size={28} />}
+          good
+          highlight={marks.favouriteOpponent}
+          source={stats.opponents}
+        />
+        <Mark
+          label={t("stats.nemesis")}
+          icon={<IconGhost size={28} />}
+          highlight={marks.nemesis}
+          source={stats.opponents}
+        />
       </div>
     </Section>
   );
@@ -303,16 +337,21 @@ function Marks({ marks }: { marks: ReturnType<typeof highlights> }) {
 function Mark({
   label,
   icon,
+  good,
   highlight,
+  source,
 }: {
   label: string;
   icon: React.ReactNode;
+  good?: boolean;
   highlight: Highlight | null;
+  source: PairTally[];
 }) {
   const { t, nameOf } = usePadel();
   if (!highlight) return null;
 
   const rate = Math.round(highlight.rate * 100);
+  const results = source.find((r) => r.playerId === highlight.playerId)?.results ?? [];
   // Below three shared matches the claim is barely evidence, and the card says
   // so rather than letting a single lucky night read as a pattern.
   const thin = highlight.played < 3;
@@ -324,40 +363,46 @@ function Mark({
       max={5}
       lift={1.01}
     >
-      <span className="flex items-center gap-3 px-4 py-3">
+      <span className="flex items-center gap-3.5 px-4 py-3.5">
+        {/* The tile takes the card's mood: lime for a good relationship, red for
+            a bad one. The label and the strip say the same thing in words and
+            shapes, so colour is never the only carrier. */}
         <span
           aria-hidden
-          className="pd-z2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-zinc-300"
+          className={`pd-z2 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
+            good ? "bg-lime-300/10 text-lime-300" : "bg-red-400/10 text-red-300"
+          }`}
         >
           {icon}
         </span>
+
         <span className="pd-z1 block min-w-0 flex-1">
-          <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
+          <span className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">{label}</span>
           <span className="block truncate text-lg font-bold leading-tight">{nameOf(highlight.playerId)}</span>
-          <span className="block text-sm tabular-nums text-zinc-400">
-            {t("stats.highlightLine", { won: highlight.won, played: highlight.played, rate })}
+          <span className="mt-1.5 flex items-center gap-2.5">
+            {/* The last five is enough to show the trend, and it leaves the words
+                beside it room to stay on one line. */}
+            <ResultStrip results={results} max={5} size="md" />
+            <span className="whitespace-nowrap text-sm tabular-nums text-zinc-400">
+              {t("stats.c.matchesOf", { won: highlight.won, played: highlight.played })}
+            </span>
           </span>
           {thin && (
-            <span className="mt-0.5 block text-xs text-amber-300/80">
+            <span className="mt-1 block text-xs text-amber-300/80">
               {t("stats.smallSample", { n: highlight.played })}
             </span>
           )}
         </span>
-        {/* The rate colours itself. A "best partner" you still lose with is not
-            a success, and painting it green would say otherwise. */}
-        <span
-          className={`pd-z2 shrink-0 text-xl font-bold tabular-nums ${
-            rate >= 50 ? "text-lime-300" : rate < 35 ? "text-red-300" : "text-zinc-300"
-          }`}
-        >
-          {rate}%
-        </span>
+
+        <span className="pd-z2 shrink-0 text-2xl font-bold tabular-nums text-zinc-50">{rate}%</span>
       </span>
     </TiltCard>
   );
 }
 
-function Form({ stats }: { stats: PlayerStats }) {
+/* How it has been going: the last ten results, then a curve of the win rate over
+   a sliding window of matches. */
+function FormSection({ stats }: { stats: PlayerStats }) {
   const { t } = usePadel();
   if (stats.recentForm.length === 0) return null;
 
@@ -367,11 +412,13 @@ function Form({ stats }: { stats: PlayerStats }) {
       : stats.currentStreak < 0
         ? t("stats.streakLosses", { n: -stats.currentStreak })
         : t("stats.streakNone");
+  const enough = stats.results.length >= FORM_MIN_MATCHES;
 
   return (
     <Section title={t("stats.form")} aside={streakText}>
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-        {/* Newest on the left, which is how a form guide is read. */}
+      <div className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+        {/* Newest on the left, which is how a form guide is read. Letters, not
+            only colours. */}
         <div className="flex flex-wrap gap-1.5">
           {stats.recentForm.map((result, i) => (
             <span
@@ -391,93 +438,136 @@ function Form({ stats }: { stats: PlayerStats }) {
         </div>
         <dl className="mt-3 flex gap-6 text-sm">
           <div>
-            <dt className="text-zinc-500">{t("stats.bestRun")}</dt>
+            <dt className="text-zinc-400">{t("stats.bestRun")}</dt>
             <dd className="font-semibold tabular-nums text-lime-300">{stats.longestWinStreak}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">{t("stats.worstRun")}</dt>
+            <dt className="text-zinc-400">{t("stats.worstRun")}</dt>
             <dd className="font-semibold tabular-nums text-red-300">{stats.longestLossStreak}</dd>
           </div>
         </dl>
       </div>
+
+      <ChartCard
+        title={t("stats.c.form")}
+        note={enough ? t("stats.c.formNote", { n: FORM_WINDOW }) : t("stats.c.formNeeds", { n: FORM_MIN_MATCHES })}
+        table={
+          enough
+            ? {
+                head: [t("stats.c.matchCol"), t("stats.c.rate")],
+                rows: formRows(stats),
+              }
+            : undefined
+        }
+      >
+        {enough ? <FormChart results={stats.results} /> : null}
+      </ChartCard>
     </Section>
   );
 }
 
-/* The full partner or opponent table.
-
-   Sorted by matches together, so the people you actually play with sit at the
-   top rather than whoever you beat once. */
-function PairTable({
-  title,
-  column,
-  rows,
-}: {
-  title: string;
-  column: string;
-  rows: PairTally[];
-}) {
-  const { t, nameOf } = usePadel();
-  const [expanded, setExpanded] = useState(false);
-  const LIMIT = 6;
-
-  if (rows.length === 0) {
-    return (
-      <Section title={title}>
-        <p className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-6 text-center text-sm text-zinc-500">
-          {t("stats.noPartners")}
-        </p>
-      </Section>
-    );
+function formRows(stats: PlayerStats): string[][] {
+  const rows: string[][] = [];
+  for (let i = FORM_WINDOW - 1; i < stats.results.length; i++) {
+    const wins = stats.results.slice(i - FORM_WINDOW + 1, i + 1).filter((r) => r === "W").length;
+    rows.push([String(i + 1), Math.round((wins / FORM_WINDOW) * 100) + "%"]);
   }
+  return rows.reverse();
+}
 
-  const shown = expanded ? rows : rows.slice(0, LIMIT);
+/* The tournaments side by side: how often they won each one, and by how many
+   points. Two questions, two charts — they are on different scales, so they are
+   never put on one axis. */
+function ByTournament({ stats }: { stats: PlayerStats }) {
+  const { t, lang } = usePadel();
+
+  // Oldest to newest, and only the last twelve: past that the columns get too
+  // narrow to hover.
+  const chron = useMemo(
+    () => [...stats.history].reverse().filter((h) => h.played > 0).slice(-12),
+    [stats.history],
+  );
+  if (chron.length < 2) return null;
+
+  type Line = (typeof chron)[number];
+  const dateOf = (iso: string) =>
+    new Date(iso).toLocaleDateString(lang === "pt" ? "pt-PT" : "en-GB", { day: "numeric", month: "short" });
+  const nameFor = (h: Line) => h.name || t(`format.${h.format}` as Parameters<typeof t>[0]);
+  const recordOf = (h: Line) =>
+    h.drawn > 0
+      ? t("stats.record", { won: h.won, drawn: h.drawn, lost: h.lost })
+      : t("stats.recordNoDraws", { won: h.won, lost: h.lost });
+
+  const rates: Column[] = chron.map((h) => {
+    const rate = Math.round((h.won / h.played) * 100);
+    return {
+      key: h.tournamentId,
+      label: dateOf(h.finishedAt),
+      value: rate,
+      title: nameFor(h),
+      valueText: rate + "%",
+      sub: recordOf(h),
+    };
+  });
+
+  const diffs = chron.map((h) => h.pointsFor - h.pointsAgainst);
+  // The axis spans what the data spans, plus zero. A symmetric axis would give a
+  // player who has only ever won a whole empty half of the chart.
+  const lowest = Math.min(0, ...diffs);
+  const highest = Math.max(0, ...diffs);
+  let floor = lowest < 0 ? -niceStep(-lowest) : 0;
+  let ceiling = highest > 0 ? niceStep(highest) : 0;
+  if (floor === 0 && ceiling === 0) {
+    floor = -10;
+    ceiling = 10;
+  }
+  const signed = (v: number) => (v > 0 ? "+" : "") + Math.round(v);
+  const diffCols: Column[] = chron.map((h, i) => ({
+    key: h.tournamentId,
+    label: dateOf(h.finishedAt),
+    value: diffs[i],
+    title: nameFor(h),
+    valueText: signed(diffs[i]),
+    sub: `${h.pointsFor} ${t("stats.pointsFor")} · ${h.pointsAgainst} ${t("stats.pointsAgainst")}`,
+  }));
 
   return (
-    <Section title={title} aside={rows.length > LIMIT ? String(rows.length) : undefined}>
-      <div className="overflow-hidden rounded-2xl border border-zinc-800">
-        <table className="w-full text-base">
-          <thead className="bg-zinc-900 text-xs uppercase tracking-wider text-zinc-500">
-            <tr>
-              <th className="py-2.5 pl-3 text-left font-semibold">{column}</th>
-              <th className="w-10 py-2.5 text-center font-semibold">{t("stats.colGames")}</th>
-              <th className="w-10 py-2.5 text-center font-semibold">{t("stats.colWon")}</th>
-              <th className="w-14 py-2.5 pr-3 text-right font-semibold">{t("stats.colRate")}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-900">
-            {shown.map((row) => {
-              const rate = Math.round(tallyWinRate(row) * 100);
-              return (
-                <tr key={row.playerId}>
-                  <td className="truncate py-3 pl-3 pr-2 font-semibold leading-tight">
-                    {nameOf(row.playerId)}
-                  </td>
-                  <td className="py-3 text-center tabular-nums text-zinc-400">{row.played}</td>
-                  <td className="py-3 text-center tabular-nums text-zinc-400">{row.won}</td>
-                  <td
-                    className={`py-3 pr-3 text-right font-bold tabular-nums ${
-                      rate >= 60 ? "text-lime-300" : rate <= 40 ? "text-red-300" : "text-zinc-300"
-                    }`}
-                  >
-                    {rate}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {rows.length > LIMIT && (
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            aria-expanded={expanded}
-            className="min-h-12 w-full border-t border-zinc-900 bg-zinc-900/60 text-sm font-semibold text-zinc-400 active:bg-zinc-900"
-          >
-            {expanded ? "− " + shown.length : "+ " + (rows.length - LIMIT)}
-          </button>
-        )}
-      </div>
+    <Section title={t("stats.c.perTournament")}>
+      <ChartCard
+        title={t("stats.c.byTournament")}
+        note={t("stats.c.byTournamentNote")}
+        table={{
+          head: [t("stats.c.tournament"), t("stats.c.rate")],
+          rows: [...rates].reverse().map((c) => [`${c.title} · ${c.label}`, c.valueText]),
+        }}
+      >
+        <ColumnChart
+          items={rates}
+          domain={[0, 100]}
+          baseline={0}
+          reference={50}
+          format={(v) => Math.round(v) + "%"}
+          ariaLabel={t("stats.c.ariaColumns", { n: rates.length })}
+        />
+      </ChartCard>
+
+      <ChartCard
+        title={t("stats.c.diff")}
+        note={t("stats.c.diffNote")}
+        table={{
+          head: [t("stats.c.tournament"), t("stats.c.diffCol")],
+          rows: [...diffCols].reverse().map((c) => [`${c.title} · ${c.label}`, c.valueText]),
+        }}
+      >
+        <ColumnChart
+          items={diffCols}
+          domain={[floor, ceiling]}
+          baseline={0}
+          reference={0}
+          format={signed}
+          ariaLabel={t("stats.c.ariaColumns", { n: diffCols.length })}
+        />
+      </ChartCard>
     </Section>
   );
 }

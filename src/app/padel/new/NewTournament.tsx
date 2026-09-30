@@ -104,7 +104,9 @@ export function NewTournament() {
   }
 
   const openCreated = useCallback(() => {
-    if (createdId) router.push(`/padel/t/${createdId}`);
+    // ?share=1 opens the "send the matches" sheet on arrival: the whole point of
+    // creating a tournament is to tell the group who plays whom.
+    if (createdId) router.push(`/padel/t/${createdId}?share=1`);
   }, [createdId, router]);
 
   // What the choices add up to, in one line.

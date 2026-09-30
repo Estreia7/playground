@@ -430,3 +430,36 @@ test("a tie on win rate is broken by the number of matches behind it", () => {
   assert.equal(s.partners[0].playerId, "bea", "two wins together outrank one");
   assert.equal(s.partners[0].played, 2);
 });
+
+test("every partner and opponent carries the results against them, oldest first", () => {
+  // Ana wins with Bea, then loses with Bea, then wins with Caio.
+  const rounds = [
+    round(1, [match(["ana", "bea"], ["caio", "dani"], 16, 8)]),
+    round(2, [match(["ana", "bea"], ["caio", "dani"], 4, 20)]),
+    round(3, [match(["ana", "caio"], ["bea", "dani"], 16, 8)]),
+  ];
+  const s = playerStats(club([tournament({ plannedRounds: 3, rounds })]), "ana");
+
+  const bea = s.partners.find((p) => p.playerId === "bea");
+  const caio = s.partners.find((p) => p.playerId === "caio");
+  assert.deepEqual(bea?.results, ["W", "L"], "in the order they were played");
+  assert.deepEqual(caio?.results, ["W"]);
+  assert.equal(bea?.results.length, bea?.played, "one result per match together");
+
+  // Bea was across the net in round 3, and Ana won that one.
+  const beaAsOpponent = s.opponents.find((p) => p.playerId === "bea");
+  assert.deepEqual(beaAsOpponent?.results, ["W"]);
+});
+
+test("the full match-by-match history is exposed for the form curve", () => {
+  const rounds = [
+    round(1, [match(["ana", "bea"], ["caio", "dani"], 16, 8)]),
+    round(2, [match(["ana", "bea"], ["caio", "dani"], 12, 12)]),
+    round(3, [match(["ana", "bea"], ["caio", "dani"], 4, 20)]),
+  ];
+  const s = playerStats(club([tournament({ plannedRounds: 3, rounds })]), "ana");
+
+  assert.deepEqual(s.results, ["W", "D", "L"], "oldest first");
+  assert.equal(s.results.length, s.total.played);
+  assert.deepEqual(s.recentForm, ["L", "D", "W"], "recent form is the same list, newest first");
+});

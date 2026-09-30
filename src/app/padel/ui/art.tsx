@@ -84,31 +84,63 @@ export function IconLink(p: IconProps) {
   );
 }
 
-/** The same links, parted: a partner it struggles with. */
-export function IconLinkBroken(p: IconProps) {
+/* Two players, shoulder to shoulder. The partner icons share this pair and
+   differ only in what hangs over them, so they read as one family. */
+function Duo() {
+  return (
+    <>
+      <circle cx="7.4" cy="14.6" r="2.1" />
+      <path d="M3.2 22c0-2.4 1.7-3.9 4.2-3.9s4.2 1.5 4.2 3.9" />
+      <circle cx="16.6" cy="14.6" r="2.1" />
+      <path d="M12.4 22c0-2.4 1.7-3.9 4.2-3.9s4.2 1.5 4.2 3.9" />
+    </>
+  );
+}
+
+/** Two players under a star: the partner you win with. */
+export function IconDuoStar(p: IconProps) {
   return (
     <Icon {...p}>
-      <path d="M9.6 8H6.6a4 4 0 0 0 0 8h3" />
-      <path d="M14.4 8h3a4 4 0 0 1 0 8h-3" />
-      <path d="m11 4.6 1 2.2M13 19.4l-1-2.2" />
+      <Duo />
+      {/* A solid star: an outline this small reads as a third head. */}
+      <path
+        d="M12 1.3 13.26 4.56 16.76 4.76 14.05 6.96 14.94 10.35 12 8.45 9.06 10.35 9.95 6.96 7.25 4.76 10.74 4.56Z"
+        fill="currentColor"
+        strokeWidth="1.1"
+      />
     </Icon>
   );
 }
 
-export function IconTarget(p: IconProps) {
+/** Two players with lightning between them: the partner it goes wrong with. */
+export function IconDuoClash(p: IconProps) {
   return (
     <Icon {...p}>
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="5" />
-      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <Duo />
+      {/* A solid bolt, for the same reason the star is solid. */}
+      <path d="M13 1.3 8.5 7.8h3.1L10.4 11.2l5.2-5.4h-3L13 1.3Z" fill="currentColor" strokeWidth="1.1" />
     </Icon>
   );
 }
 
-export function IconFlame(p: IconProps) {
+/** An arrow in the gold: the opponent you beat most often. */
+export function IconBullseye(p: IconProps) {
   return (
     <Icon {...p}>
-      <path d="M12 3c.9 3.2 4.6 4.6 4.6 9a4.6 4.6 0 0 1-9.2 0c0-1.8.8-3 1.8-4 .3 1.3 1 2 1.7 2.1C10.5 7.6 11 5.4 12 3Z" />
+      <circle cx="11" cy="13" r="8" />
+      <circle cx="11" cy="13" r="4.2" />
+      <circle cx="11" cy="13" r="0.9" fill="currentColor" />
+      <path d="m20.6 3.4-8.8 8.8M16.6 3.4h4v4" />
+    </Icon>
+  );
+}
+
+/** A ghost: the opponent that haunts you. */
+export function IconGhost(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M12 3.2c-3.9 0-6.6 2.9-6.6 6.6V20.6l2.3-1.8 2.1 1.8 2.2-1.8 2.2 1.8 2.1-1.8 2.3 1.8V9.8c0-3.7-2.7-6.6-6.6-6.6Z" />
+      <path d="M9.4 10.6h.01M14.6 10.6h.01" strokeWidth="2.4" />
     </Icon>
   );
 }
@@ -117,6 +149,51 @@ export function IconPlus(p: IconProps) {
   return (
     <Icon {...p}>
       <path d="M12 5v14M5 12h14" />
+    </Icon>
+  );
+}
+
+export function IconClose(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="m6 6 12 12M18 6 6 18" />
+    </Icon>
+  );
+}
+
+export function IconCheck(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </Icon>
+  );
+}
+
+/** Two sheets, one behind the other: copy. */
+export function IconCopy(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2.5" />
+      <path d="M15.5 8.5V6A2.5 2.5 0 0 0 13 3.5H6A2.5 2.5 0 0 0 3.5 6v7A2.5 2.5 0 0 0 6 15.5h2.5" />
+    </Icon>
+  );
+}
+
+/** An arrow leaving a tray: send it somewhere. */
+export function IconShare(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M12 15V3.5M7.5 8 12 3.5 16.5 8" />
+      <path d="M5 12.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5.5" />
+    </Icon>
+  );
+}
+
+export function IconDownload(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M12 3.5V15M7.5 11 12 15.5 16.5 11" />
+      <path d="M5 19.5h14" />
     </Icon>
   );
 }
