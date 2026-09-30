@@ -504,3 +504,16 @@
     clip-path: inset(0 0 0 0);
   }
 }
+
+/* Bottom sheets rise into place. */
+@keyframes pd-sheet {
+  from {
+    transform: translateY(28px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pd-sheet {
+    animation: pd-sheet 300ms var(--pd-ease);
+  }
+}

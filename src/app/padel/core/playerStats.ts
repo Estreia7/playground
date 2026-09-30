@@ -1,4 +1,4 @@
-import type { Club, Match, Tournament } from "./types.ts";
+import { isPairFormat, type Club, type Match, type Tournament } from "./types.ts";
 import { isScored, placings, winRate } from "./standings.ts";
 
 /* Everything one player's record can tell you, worked out from match scores.
@@ -218,7 +218,7 @@ export function playerStats(club: Club, playerId: string): PlayerStats {
     titles: places.filter((p) => p === 1).length,
     // A fixed-teams tournament puts two players on each step of the podium,
     // which is the same rule the club ranking applies.
-    podiums: history.filter((h) => h.place <= (h.format === "teams" ? 5 : 3)).length,
+    podiums: history.filter((h) => h.place <= (isPairFormat(h.format) ? 5 : 3)).length,
     bestPlace: places.length ? Math.min(...places) : null,
     worstPlace: places.length ? Math.max(...places) : null,
     averagePlace: places.length ? places.reduce((s, p) => s + p, 0) / places.length : null,

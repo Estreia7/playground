@@ -6,8 +6,10 @@ import { errorText, usePadel } from "../../ui/PadelProvider";
 import { Loading, Page, Place, TopBar } from "../../ui/parts";
 import { IconShare, IconTrophy } from "../../ui/art";
 import { SharePanel } from "../../share/SharePanel";
-import { average, diff, isScored, progress, roundComplete, standings } from "../../core/standings.ts";
-import type { Match, Round, Tournament } from "../../core/types.ts";
+import { average, diff, groupTable, isScored, progress, roundComplete, standings } from "../../core/standings.ts";
+import { nextKnockout } from "../../core/groups.ts";
+import { isPairFormat, type Match, type Round, type Tournament } from "../../core/types.ts";
+import { groupName, koKey, roundTitle } from "../../ui/stage.ts";
 import { ScoreSheet } from "./ScoreSheet";
 
 type Tab = "games" | "table";
@@ -74,8 +76,13 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
   const complete = p.scored === p.total;
   const finished = x.status === "finished";
   const canDraw = x.format === "mexicano" && !finished && !!last && roundComplete(x, last.n);
-  // Mexicano can always draw another round, so "done" means the planned ones are in.
-  const readyToFinish = !finished && complete && (x.format !== "mexicano" || x.rounds.length >= x.plannedRounds);
+  // Mexicano can always draw another round, so "done" means the planned ones
+  // are in; groups are done once the final is drawn and played.
+  const readyToFinish =
+    !finished &&
+    complete &&
+    (x.format !== "mexicano" || x.rounds.length >= x.plannedRounds) &&
+    nextKnockout(x) === null;
 
   // Keep the selected round's pill in view as rounds are added or chosen.
   useEffect(() => {
@@ -92,7 +99,9 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
   }
 
   const champion = finished ? standings(x, nameOf).lines[0] : null;
-  const totalRounds = x.format === "mexicano" ? Math.max(x.plannedRounds, x.rounds.length) : x.rounds.length;
+  const totalRounds =
+    x.format === "mexicano" || x.format === "groups" ? Math.max(x.plannedRounds, x.rounds.length) : x.rounds.length;
+  const following = x.rounds.find((r) => r.n === round.n + 1);
 
   return (
     <>
@@ -147,11 +156,12 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
                     data-round={r.n}
                     onClick={() => setRoundN(r.n)}
                     aria-pressed={on}
+                    aria-label={r.ko ? t(koKey(r.ko)) : undefined}
                     className={`min-h-10 min-w-12 shrink-0 rounded-full px-3 text-base font-bold tabular-nums ${
                       on ? "bg-lime-300 text-zinc-950" : done ? "bg-zinc-800 text-lime-300" : "bg-zinc-900 text-zinc-400"
                     }`}
                   >
-                    {r.n}
+                    {r.ko ? t(koKey(r.ko, ".short")) : r.n}
                     {done && !on ? " ✓" : ""}
                   </button>
                 );
@@ -181,6 +191,8 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
             totalRounds={totalRounds}
             onEdit={setEditing}
           />
+        ) : x.format === "groups" ? (
+          <GroupsStandings tournament={x} />
         ) : (
           <StandingsTable tournament={x} />
         )}
@@ -198,7 +210,7 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
               onClick={() => setRoundN(round.n + 1)}
               className="min-h-14 w-full rounded-2xl bg-zinc-800 text-lg font-bold active:bg-zinc-700"
             >
-              {t("t.nextRoundBtn", { n: round.n + 1 })} →
+              {following?.ko ? t(`ko.goTo.${following.ko as 2 | 4 | 8}`) : t("t.nextRoundBtn", { n: round.n + 1 })} →
             </button>
           )}
 
@@ -271,7 +283,7 @@ function Loaded({ tournament: x }: { tournament: Tournament }) {
         <ScoreSheet
           tournament={x}
           match={editing}
-          roundN={round.n}
+          round={round}
           onClose={() => setEditing(null)}
         />
       )}
@@ -294,7 +306,7 @@ function RoundView({
   return (
     <>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500">
-        {t("t.roundOf", { n: round.n, total: totalRounds })}
+        {round.ko ? roundTitle(t, round) : t("t.roundOf", { n: round.n, total: totalRounds })}
       </h2>
       <ul className="space-y-3">
         {round.matches.map((m) => {
@@ -324,7 +336,10 @@ function RoundView({
                 }`}
               >
                 <p className="mb-2 flex justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  <span>{t("t.court", { n: m.court })}</span>
+                  <span>
+                    {t("t.court", { n: m.court })}
+                    {m.group !== undefined && <span className="text-zinc-400"> · {groupName(t, m.group)}</span>}
+                  </span>
                   {!scored && <span className="normal-case tracking-normal text-lime-300/80">{t("t.tapToScore")}</span>}
                 </p>
                 {side(m.a, m.scoreA, aWon)}
@@ -341,7 +356,7 @@ function RoundView({
           <span className="font-semibold text-zinc-300">{t("t.resting")}:</span> {round.byes.map(nameOf).join(", ")}
         </p>
       )}
-      {x.rounds.every((r) => r.matches.every(isScored)) && x.status === "active" && x.format !== "mexicano" && (
+      {x.rounds.every((r) => r.matches.every(isScored)) && x.status === "active" && x.format !== "mexicano" && nextKnockout(x) === null && (
         <p className="mt-4 text-center text-sm text-lime-300/80">{t("t.allScored")}</p>
       )}
     </>
@@ -351,7 +366,7 @@ function RoundView({
 function StandingsTable({ tournament: x }: { tournament: Tournament }) {
   const { t, nameOf } = usePadel();
   const { lines, byAverage } = standings(x, nameOf);
-  const teams = x.format === "teams";
+  const teams = isPairFormat(x.format);
   return (
     <>
       <div className="overflow-hidden rounded-2xl border border-zinc-800">
@@ -401,6 +416,110 @@ function StandingsTable({ tournament: x }: { tournament: Tournament }) {
       </div>
       <p className="mt-2 text-xs text-zinc-500">{t("legend.table")}</p>
       {byAverage && <p className="mt-2 text-sm text-zinc-400">{t("t.avgNote")}</p>}
+    </>
+  );
+}
+
+/* Groups + knockout: one small table per group, the pairs going through
+   marked, then the knockout as it stands — played, drawn, or still to come. */
+function GroupsStandings({ tournament: x }: { tournament: Tournament }) {
+  const { t, nameOf } = usePadel();
+  const q = x.qualifiers ?? 0;
+  const first = (x.groups?.length ?? 0) * q;
+  const stages: number[] = [];
+  for (let ko = first; ko >= 2; ko /= 2) stages.push(ko);
+  const pair = (ids: readonly string[]) => ids.map(nameOf).join(" / ");
+
+  return (
+    <>
+      <div className="space-y-5">
+        {(x.groups ?? []).map((_, g) => (
+          <section key={g} aria-label={groupName(t, g)}>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-zinc-500">{groupName(t, g)}</h2>
+            <div className="overflow-hidden rounded-2xl border border-zinc-800">
+              <table className="w-full text-base">
+                <thead className="bg-zinc-900 text-xs uppercase tracking-wider text-zinc-500">
+                  <tr>
+                    <th className="w-10 py-2.5 pl-3 text-left font-semibold">#</th>
+                    <th className="py-2.5 text-left font-semibold">{t("col.team")}</th>
+                    <th className="w-9 py-2.5 text-center font-semibold">{t("col.played")}</th>
+                    <th className="w-9 py-2.5 text-center font-semibold">{t("col.won")}</th>
+                    <th className="w-9 py-2.5 text-center font-semibold">{t("col.lost")}</th>
+                    <th className="w-14 py-2.5 pr-3 text-right font-semibold">{t("col.diff")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-900">
+                  {groupTable(x, g).map((l, i) => {
+                    const through = i < q;
+                    return (
+                      <tr key={l.key} className={through ? "bg-lime-300/[0.05]" : ""}>
+                        <td className="relative py-3 pl-3">
+                          {through && <span className="absolute inset-y-0 left-0 w-1 bg-lime-300" aria-hidden />}
+                          <span className={`tabular-nums ${through ? "font-bold text-lime-300" : "text-zinc-500"}`}>{i + 1}</span>
+                        </td>
+                        <td className="py-3 pr-2 font-semibold leading-tight">{pair(l.ids)}</td>
+                        <td className="py-3 text-center tabular-nums text-zinc-400">{l.played}</td>
+                        <td className="py-3 text-center font-bold tabular-nums text-lime-300">{l.won}</td>
+                        <td className="py-3 text-center tabular-nums text-zinc-400">{l.lost}</td>
+                        <td className="py-3 pr-3 text-right tabular-nums text-zinc-400">
+                          {diff(l) > 0 ? "+" : ""}
+                          {diff(l)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-zinc-500">
+        <span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-sm bg-lime-300 align-middle" aria-hidden />
+        {q === 1 ? t("t.throughOne") : t("t.through", { q })} {t("legend.table")}
+      </p>
+
+      <h2 className="mb-2 mt-7 text-sm font-semibold uppercase tracking-wider text-zinc-500">{t("t.knockout")}</h2>
+      <ol className="space-y-4">
+        {stages.map((ko, i) => {
+          const r = x.rounds.find((y) => y.ko === ko);
+          return (
+            <li key={ko}>
+              <p className={`mb-1.5 text-base font-bold ${r ? "text-lime-300" : "text-zinc-400"}`}>{t(koKey(ko))}</p>
+              {r ? (
+                <ul className="space-y-2">
+                  {r.matches.map((m) => {
+                    const won = isScored(m) ? ((m.scoreA as number) > (m.scoreB as number) ? "a" : "b") : null;
+                    const side = (ids: readonly string[], score: number | null, win: boolean) => (
+                      <div className="flex items-center gap-3">
+                        <span className={`min-w-0 flex-1 truncate ${win ? "font-bold text-white" : won ? "text-zinc-500" : "text-zinc-200"}`}>
+                          {pair(ids)}
+                        </span>
+                        <span className={`w-8 shrink-0 text-right text-lg font-bold tabular-nums ${win ? "text-lime-300" : "text-zinc-500"}`}>
+                          {score ?? "–"}
+                        </span>
+                      </div>
+                    );
+                    return (
+                      <li key={m.id} className="space-y-1 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+                        {side(m.a, m.scoreA, won === "a")}
+                        {side(m.b, m.scoreB, won === "b")}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="rounded-xl border border-dashed border-zinc-800 px-4 py-3 text-sm text-zinc-500">
+                  {i === 0 ? t("t.koWaitGroups") : t("t.koWaitPrev")}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      {x.rounds.some((r) => r.ko === first) && !x.rounds.some((r) => r.ko && r.matches.some(isScored)) && (
+        <p className="mt-3 text-sm text-zinc-500">{t("t.koHint")}</p>
+      )}
     </>
   );
 }

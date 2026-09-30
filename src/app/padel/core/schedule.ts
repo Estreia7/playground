@@ -1,4 +1,4 @@
-import type { Match, Pair, Round } from "./types.ts";
+import { isPairFormat, type Format, type Match, type Pair, type Round } from "./types.ts";
 
 /* Draws the matches.
 
@@ -15,6 +15,9 @@ import type { Match, Pair, Round } from "./types.ts";
 
    Teams — fixed pairs, a plain round robin (circle method), split into waves
    when there are more matches in a round than courts.
+
+   Groups — the same round robin inside each group, the groups played side by
+   side. The knockout that follows is drawn in groups.ts.
 
    Sitting out is shared: whoever has sat out least is next to rest. */
 
@@ -42,8 +45,8 @@ export function shuffle<T>(items: readonly T[], rng: Rng): T[] {
 }
 
 /** The most courts a field can fill: four players a court. */
-export function maxCourts(players: number, format: "americano" | "mexicano" | "teams"): number {
-  return format === "teams" ? Math.floor(Math.floor(players / 2) / 2) : Math.floor(players / 4);
+export function maxCourts(players: number, format: Format): number {
+  return isPairFormat(format) ? Math.floor(Math.floor(players / 2) / 2) : Math.floor(players / 4);
 }
 
 /** Smallest round count that lets everyone partner everyone once (n-1) and,
@@ -259,15 +262,14 @@ export function mexicanoRound(
   return { n: previous.length + 1, matches, byes };
 }
 
-/** Round robin for fixed teams (circle method). Each circle round is split into
-    waves of at most `courts` matches; the teams not on court in a wave sit out. */
-export function teamsSchedule(teams: readonly Pair[], courts: number, rng: Rng, newId: () => string): Round[] {
+/** The circle method: `count` teams, every one meeting every other once. Each
+    entry is one round's games, as pairs of team indexes. */
+function circleRounds(count: number, rng: Rng): [number, number][][] {
   const BYE = "__bye__";
-  const idx: string[] = shuffle(teams.map((_, i) => String(i)), rng);
+  const idx: string[] = shuffle(Array.from({ length: count }, (_, i) => String(i)), rng);
   if (idx.length % 2 === 1) idx.push(BYE);
   const n = idx.length;
-  const rounds: Round[] = [];
-  const everyone = teams.flat();
+  const out: [number, number][][] = [];
   for (let r = 0; r < n - 1; r++) {
     const games: [number, number][] = [];
     for (let i = 0; i < n / 2; i++) {
@@ -275,21 +277,71 @@ export function teamsSchedule(teams: readonly Pair[], courts: number, rng: Rng, 
       const y = idx[n - 1 - i];
       if (x !== BYE && y !== BYE) games.push([Number(x), Number(y)]);
     }
-    for (let w = 0; w < games.length; w += Math.max(1, courts)) {
-      const wave = games.slice(w, w + Math.max(1, courts));
-      const matches: Match[] = wave.map(([x, y], i) => ({
-        id: newId(),
-        court: i + 1,
-        a: teams[x],
-        b: teams[y],
-        scoreA: null,
-        scoreB: null,
-      }));
-      const onCourt = new Set(matches.flatMap((m) => [...m.a, ...m.b]));
-      rounds.push({ n: rounds.length + 1, matches, byes: everyone.filter((id) => !onCourt.has(id)) });
-    }
+    out.push(games);
     // rotate every slot but the first
     idx.splice(1, 0, idx.pop() as string);
+  }
+  return out;
+}
+
+/** Splits one circle round into waves of at most `courts` matches; everyone
+    not on court in a wave sits it out. */
+function toWaves(
+  games: { a: Pair; b: Pair; group?: number }[],
+  everyone: readonly string[],
+  courts: number,
+  rounds: Round[],
+  newId: () => string,
+) {
+  const size = Math.max(1, courts);
+  for (let w = 0; w < games.length; w += size) {
+    const matches: Match[] = games.slice(w, w + size).map((g, i) => ({
+      id: newId(),
+      court: i + 1,
+      a: g.a,
+      b: g.b,
+      scoreA: null,
+      scoreB: null,
+      ...(g.group !== undefined ? { group: g.group } : {}),
+    }));
+    const onCourt = new Set(matches.flatMap((m) => [...m.a, ...m.b]));
+    rounds.push({ n: rounds.length + 1, matches, byes: everyone.filter((id) => !onCourt.has(id)) });
+  }
+}
+
+/** Round robin for fixed teams (circle method). Each circle round is split into
+    waves of at most `courts` matches; the teams not on court in a wave sit out. */
+export function teamsSchedule(teams: readonly Pair[], courts: number, rng: Rng, newId: () => string): Round[] {
+  const rounds: Round[] = [];
+  const everyone = teams.flat();
+  for (const games of circleRounds(teams.length, rng)) {
+    toWaves(games.map(([x, y]) => ({ a: teams[x], b: teams[y] })), everyone, courts, rounds, newId);
+  }
+  return rounds;
+}
+
+/** Group stage: a round robin inside each group, played side by side. Round r
+    of every group goes on court together, split into waves when there are more
+    matches than courts, so the groups finish at about the same time. */
+export function groupsSchedule(groups: readonly Pair[][], courts: number, rng: Rng, newId: () => string): Round[] {
+  const circles = groups.map((g) => circleRounds(g.length, rng));
+  const depth = Math.max(0, ...circles.map((c) => c.length));
+  const everyone = groups.flat(2);
+  const rounds: Round[] = [];
+  for (let r = 0; r < depth; r++) {
+    const games = circles.flatMap((c, gi) => (c[r] ?? []).map(([x, y]) => ({ a: groups[gi][x], b: groups[gi][y], group: gi })));
+    toWaves(games, everyone, courts, rounds, newId);
+  }
+  return rounds;
+}
+
+/** How many group-stage rounds `groupsSchedule` will draw. */
+export function groupStageRounds(sizes: readonly number[], courts: number): number {
+  const depth = Math.max(0, ...sizes.map((s) => (s < 2 ? 0 : s % 2 === 0 ? s - 1 : s)));
+  let rounds = 0;
+  for (let r = 0; r < depth; r++) {
+    const games = sizes.reduce((sum, s) => sum + (r < (s % 2 === 0 ? s - 1 : s) ? Math.floor(s / 2) : 0), 0);
+    rounds += Math.ceil(games / Math.max(1, courts));
   }
   return rounds;
 }

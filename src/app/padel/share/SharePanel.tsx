@@ -5,6 +5,7 @@ import { usePadel } from "../ui/PadelProvider";
 import { IconCheck, IconClose, IconCopy, IconDownload, IconLink, IconShare } from "../ui/art";
 import { IMAGE_WIDTH, paginate, revision, type SharePage } from "./paginate.ts";
 import type { Tournament } from "../core/types.ts";
+import { nextKnockout } from "../core/groups.ts";
 
 /* The sheet that turns a tournament into pictures ready for WhatsApp.
 
@@ -36,8 +37,9 @@ export function SharePanel({ tournament, onClose }: { tournament: Tournament; on
   const pages = useMemo(() => paginate(tournament), [tournament]);
   const rev = revision(tournament);
   const hasMatches = pages.some((p) => p.blocks.length > 0);
+  // Mexicano rounds and the knockout are drawn as the evening goes on.
   const moreToCome =
-    tournament.format === "mexicano" && tournament.status === "active";
+    tournament.status === "active" && (tournament.format === "mexicano" || nextKnockout(tournament) !== null);
 
   const [images, setImages] = useState<Record<number, Loaded | "error">>({});
   const [status, setStatus] = useState<Record<number, Status>>({});

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { errorText, usePadel } from "../../ui/PadelProvider";
-import { LIMITS, type Match, type Tournament } from "../../core/types.ts";
+import { LIMITS, type Match, type Round, type Tournament } from "../../core/types.ts";
+import { roundTitle } from "../../ui/stage.ts";
 
 /* Entering a score, one-handed, between points.
 
@@ -18,12 +19,12 @@ type Side = "a" | "b";
 export function ScoreSheet({
   tournament: x,
   match: m,
-  roundN,
+  round,
   onClose,
 }: {
   tournament: Tournament;
   match: Match;
-  roundN: number;
+  round: Round;
   onClose: () => void;
 }) {
   const { t, act, nameOf } = usePadel();
@@ -93,7 +94,12 @@ export function ScoreSheet({
   const names = (s: Side) => (s === "a" ? m.a : m.b).map(nameOf).join(" · ");
   const pad = Array.from({ length: (points ?? GAMES_PAD - 1) + 1 }, (_, i) => i);
   const current = side === "a" ? a : b;
-  const ready = a !== null && b !== null;
+  // A knockout match has to send one pair through.
+  const level = !!round.ko && a !== null && a === b;
+  const ready = a !== null && b !== null && !level;
+  const title = round.ko
+    ? t("score.titleKo", { court: m.court, stage: roundTitle(t, round) })
+    : t("score.title", { court: m.court, round: round.n });
 
   const sideCard = (s: Side, value: number | null) => {
     const on = side === s;
@@ -132,12 +138,12 @@ export function ScoreSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={t("score.title", { court: m.court, round: roundN })}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label={t("score.close")} onClick={onClose} className="absolute inset-0 bg-black/70" />
       <div className="relative max-h-[94dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-zinc-700" aria-hidden />
         <p className="mb-3 text-center text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          {t("score.title", { court: m.court, round: roundN })}
+          {title}
         </p>
 
         <div className="space-y-2">
@@ -166,6 +172,12 @@ export function ScoreSheet({
             </button>
           ))}
         </div>
+
+        {level && !error && (
+          <p role="status" className="mt-3 rounded-xl bg-amber-400/10 px-4 py-3 text-amber-200">
+            {t("err.needWinner")}
+          </p>
+        )}
 
         {error && (
           <p role="alert" className="mt-3 rounded-xl bg-red-500/10 px-4 py-3 text-red-300">

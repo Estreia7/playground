@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePadel } from "./PadelProvider";
-import { IconBars, IconRacket, IconTrophy, Medal } from "./art";
+import { IconBars, IconRacket, IconTag, IconTrophy, Medal } from "./art";
 
 /* Small shared pieces. Everything is sized for a thumb: 48px touch targets,
    16px+ text, numbers in tabular figures so columns of scores line up. */
@@ -65,6 +65,7 @@ export function BottomNav() {
     { href: "/padel", label: t("nav.tournaments"), icon: <IconRacket size={24} />, active: path === "/padel" || path.startsWith("/padel/t") },
     { href: "/padel/ranking", label: t("nav.ranking"), icon: <IconTrophy size={24} />, active: path.startsWith("/padel/ranking") },
     { href: "/padel/stats", label: t("nav.stats"), icon: <IconBars size={24} />, active: path.startsWith("/padel/stats") },
+    { href: "/padel/rackets", label: t("nav.rackets"), icon: <IconTag size={24} />, active: path.startsWith("/padel/rackets") },
   ];
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-900 bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">

@@ -198,6 +198,26 @@ export function IconDownload(p: IconProps) {
   );
 }
 
+/** A price tag with its string hole: what a racket costs. */
+export function IconTag(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M3.5 12.2V4.8a1.3 1.3 0 0 1 1.3-1.3h7.4l8.3 8.3a1.3 1.3 0 0 1 0 1.8l-7.4 7.4a1.3 1.3 0 0 1-1.8 0l-7.8-7.8Z" />
+      <path d="M8.2 8.2h.01" strokeWidth="2.6" />
+    </Icon>
+  );
+}
+
+/** Leaves the app: a box with an arrow out of its corner. */
+export function IconExternal(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M13.5 4.5h6v6M19.5 4.5 11 13" />
+      <path d="M17 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4" />
+    </Icon>
+  );
+}
+
 export function IconPencil(p: IconProps) {
   return (
     <Icon {...p}>

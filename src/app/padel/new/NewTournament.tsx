@@ -5,11 +5,15 @@ import { useRouter } from "next/navigation";
 import { errorText, usePadel } from "../ui/PadelProvider";
 import { Page, Section, Stepper, TopBar } from "../ui/parts";
 import { CreatingOverlay } from "../ui/CreatingOverlay";
-import { maxCourts, suggestedRounds, teamRounds } from "../core/schedule.ts";
-import { LIMITS, type Format } from "../core/types.ts";
+import { RenameSheet } from "../ui/RenameSheet";
+import { IconPencil } from "../ui/art";
+import { koKey } from "../ui/stage.ts";
+import { groupStageRounds, maxCourts, suggestedRounds, teamRounds } from "../core/schedule.ts";
+import { defaultShape, groupShapes, groupSizes, type GroupShape } from "../core/groups.ts";
+import { LIMITS, isPairFormat, type Format } from "../core/types.ts";
 
 const POINT_PRESETS = [16, 21, 24, 32];
-const FORMATS: Format[] = ["americano", "mexicano", "teams"];
+const FORMATS: Format[] = ["americano", "mexicano", "teams", "groups"];
 
 const same = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" }) === 0;
 
@@ -30,8 +34,18 @@ export function NewTournament() {
   // its own minimum time before opening it.
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [shapeChoice, setShape] = useState<GroupShape | null>(null);
+  // "Played before" can switch to fixing names instead of picking players.
+  const [editingNames, setEditingNames] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   const n = players.length;
+  const pairs = isPairFormat(format);
+  const shapes = format === "groups" && n % 2 === 0 ? groupShapes(n / 2) : [];
+  // The organiser's pick while it still fits the field, the usual one otherwise.
+  const shape =
+    shapes.find((s) => s.groups === shapeChoice?.groups && s.qualifiers === shapeChoice?.qualifiers) ??
+    (shapes.length ? defaultShape(n / 2) : null);
   const courtsMax = Math.max(1, maxCourts(n, format));
   // Until the organiser touches them, courts and rounds follow the field size.
   const courts = Math.min(courtsChoice ?? courtsMax, courtsMax);
@@ -64,6 +78,18 @@ export function NewTournament() {
     setRounds(null);
   }
 
+  /** A name fixed while picked stays picked under its new spelling. */
+  function renamed(from: string, to: string) {
+    setPlayers((prev) => {
+      const next: string[] = [];
+      for (const p of prev) {
+        const nm = same(p, from) ? to : p;
+        if (!next.some((x) => same(x, nm))) next.push(nm);
+      }
+      return next;
+    });
+  }
+
   function shuffleTeams() {
     setPlayers((prev) => {
       const out = prev.slice();
@@ -78,9 +104,11 @@ export function NewTournament() {
   const blocker =
     n < LIMITS.minPlayers
       ? t("new.needMore", { n: LIMITS.minPlayers - n })
-      : format === "teams" && n % 2 === 1
+      : pairs && n % 2 === 1
         ? t("new.needEven")
-        : "";
+        : format === "groups" && !shape
+          ? t("new.needGroups")
+          : "";
 
   async function create() {
     if (blocker || saving) return;
@@ -94,6 +122,7 @@ export function NewTournament() {
       courts,
       rounds,
       players,
+      ...(format === "groups" && shape ? { groups: shape.groups, qualifiers: shape.qualifiers } : {}),
     });
     if (r.ok && r.id) {
       setCreatedId(r.id);
@@ -114,6 +143,13 @@ export function NewTournament() {
   if (n >= LIMITS.minPlayers) {
     if (format === "teams") {
       if (n % 2 === 0) summary = t("new.teamsSummary", { rounds: teamRounds(n / 2, courts) });
+    } else if (format === "groups") {
+      if (shape) {
+        summary = t("new.groupsSummary", {
+          rounds: groupStageRounds(groupSizes(n / 2, shape.groups), courts),
+          stage: t(`new.koPath.${shape.groups * shape.qualifiers as 2 | 4 | 8}`),
+        });
+      }
     } else if (format === "mexicano") {
       summary = t("new.mexicanoSummary");
     } else {
@@ -188,10 +224,44 @@ export function NewTournament() {
 
           {known.length > 0 && (
             <div className="mt-3">
-              <p className="mb-2 text-sm text-zinc-500">{t("new.known")}</p>
+              <div className="mb-2 flex min-h-10 items-center justify-between gap-2">
+                <p className="text-sm text-zinc-500">{t("new.known")}</p>
+                <button
+                  type="button"
+                  onClick={() => setEditingNames((v) => !v)}
+                  aria-pressed={editingNames}
+                  className={`flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold ${
+                    editingNames ? "bg-lime-300 text-zinc-950" : "text-zinc-400 active:bg-zinc-900"
+                  }`}
+                >
+                  {editingNames ? (
+                    t("new.editDone")
+                  ) : (
+                    <>
+                      <IconPencil size={15} />
+                      {t("new.editNames")}
+                    </>
+                  )}
+                </button>
+              </div>
+              {editingNames && <p className="mb-2 text-sm leading-snug text-lime-300/80">{t("new.editHint")}</p>}
               <div className="flex flex-wrap gap-2">
                 {known.map((p) => {
                   const on = players.some((x) => same(x, p.name));
+                  if (editingNames) {
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setRenaming(p.id)}
+                        aria-label={t("new.editAria", { name: p.name })}
+                        className="flex min-h-11 items-center gap-2 rounded-full border border-dashed border-zinc-600 px-4 text-base text-zinc-200 active:border-lime-300"
+                      >
+                        {p.name}
+                        <IconPencil size={14} className="text-zinc-500" />
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       key={p.id}
@@ -209,12 +279,13 @@ export function NewTournament() {
               </div>
             </div>
           )}
+          {renaming && <RenameSheet playerId={renaming} onClose={() => setRenaming(null)} onRenamed={renamed} />}
 
           {n === 0 ? (
             <p className="mt-3 text-sm text-zinc-500">{t("new.noneYet")}</p>
           ) : (
             <div className="mt-4">
-              {format === "teams" && (
+              {pairs && (
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-sm text-zinc-500">{t("new.teamsHint")}</p>
                   <button type="button" onClick={shuffleTeams} className="min-h-10 shrink-0 rounded-lg bg-zinc-800 px-3 text-sm font-semibold">
@@ -227,11 +298,11 @@ export function NewTournament() {
                   <li
                     key={p}
                     className={`flex min-h-12 items-center gap-3 pl-4 ${
-                      format === "teams" && Math.floor(i / 2) % 2 === 1 ? "bg-zinc-900/70" : "bg-zinc-900/30"
+                      pairs && Math.floor(i / 2) % 2 === 1 ? "bg-zinc-900/70" : "bg-zinc-900/30"
                     }`}
                   >
                     <span className="w-14 shrink-0 text-sm tabular-nums text-zinc-500">
-                      {format === "teams" ? (i % 2 === 0 ? t("new.team", { n: i / 2 + 1 }) : "") : i + 1}
+                      {pairs ? (i % 2 === 0 ? t("new.team", { n: i / 2 + 1 }) : "") : i + 1}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-base">{p}</span>
                     <button
@@ -249,6 +320,53 @@ export function NewTournament() {
           )}
         </Section>
 
+        {format === "groups" && shape && (
+          <Section title={t("new.shape")}>
+            <div className="space-y-2" role="radiogroup" aria-label={t("new.shape")}>
+              {shapes.map((s) => {
+                const on = s.groups === shape.groups && s.qualifiers === shape.qualifiers;
+                const sizes = groupSizes(n / 2, s.groups);
+                const split =
+                  s.groups === 1
+                    ? t("new.oneGroup", { n: sizes[0] })
+                    : sizes[0] === sizes[sizes.length - 1]
+                      ? t("new.groupsOf", { g: s.groups, n: sizes[0] })
+                      : t("new.groupsOfUneven", { g: s.groups, a: sizes[sizes.length - 1], b: sizes[0] });
+                const through =
+                  s.groups === 1
+                    ? t("new.throughSingle", { q: s.qualifiers })
+                    : s.qualifiers === 1
+                      ? t("new.throughOne")
+                      : t("new.throughEach", { q: s.qualifiers });
+                return (
+                  <button
+                    key={s.groups + "x" + s.qualifiers}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setShape(s)}
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left ${
+                      on ? "border-lime-300 bg-lime-300/10" : "border-zinc-800 bg-zinc-900/60"
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-base font-bold ${on ? "text-lime-300" : ""}`}>{split}</span>
+                      <span className="mt-0.5 block text-sm leading-snug text-zinc-400">{through}</span>
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-3 py-1 text-sm font-bold ${
+                        on ? "bg-lime-300 text-zinc-950" : "bg-zinc-800 text-zinc-300"
+                      }`}
+                    >
+                      {t(koKey(s.groups * s.qualifiers))}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
         {n >= LIMITS.minPlayers && (
           <>
             <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 sm:grid-cols-2">
@@ -265,7 +383,7 @@ export function NewTournament() {
                   }}
                 />
               </div>
-              {format !== "teams" && (
+              {!pairs && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-base font-semibold">{t("new.rounds")}</span>
                   <Stepper label={t("new.rounds")} value={rounds} min={1} max={LIMITS.maxRounds} onChange={setRounds} />

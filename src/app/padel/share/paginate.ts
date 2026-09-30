@@ -47,6 +47,8 @@ export const MAX_HEIGHT = 2000;
 
 export interface RoundBlock {
   roundN: number;
+  /** Knockout rounds: pairs left (4 = semi-finals), so the heading can say so. */
+  ko?: number;
   matches: Match[];
   /** Players sitting this round out. Only listed at the start of a round. */
   byes: string[];
@@ -91,6 +93,7 @@ function pack(t: Tournament, cap: number): RoundBlock[][] {
   for (const round of t.rounds) {
     let pending: RoundBlock = {
       roundN: round.n,
+      ko: round.ko,
       matches: [...round.matches].sort((a, b) => a.court - b.court),
       byes: round.byes,
       continued: false,

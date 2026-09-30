@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { errorText, usePadel } from "../ui/PadelProvider";
+import { usePadel } from "../ui/PadelProvider";
+import { RenameSheet } from "../ui/RenameSheet";
 import { BottomNav, LangToggle, Loading, Page, Place, TopBar } from "../ui/parts";
 import { EmptyArt, IconPencil, IconTrophy, Medal } from "../ui/art";
 import { TiltCard } from "../ui/TiltCard";
@@ -62,16 +63,9 @@ export function RankingView() {
 }
 
 function Row({ line: l, place, open, onToggle }: { line: RankingLine; place: number; open: boolean; onToggle: () => void }) {
-  const { t, nameOf, act } = usePadel();
-  const [error, setError] = useState("");
+  const { t, nameOf } = usePadel();
+  const [renaming, setRenaming] = useState(false);
   const name = nameOf(l.playerId);
-
-  async function rename() {
-    const next = window.prompt(t("rank.renamePrompt", { name }), name);
-    if (!next || next.trim() === name) return;
-    const r = await act({ type: "renamePlayer", playerId: l.playerId, name: next });
-    setError(r.ok ? "" : errorText(t, r.error));
-  }
 
   return (
     <>
@@ -119,13 +113,13 @@ function Row({ line: l, place, open, onToggle }: { line: RankingLine; place: num
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                rename();
+                setRenaming(true);
               }}
               className="mt-3 min-h-11 rounded-xl bg-zinc-800 px-4 text-sm font-semibold"
             >
               <span className="inline-flex items-center gap-2"><IconPencil size={16} />{t("rank.rename")}</span>
             </button>
-            {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
+            {renaming && <RenameSheet playerId={l.playerId} onClose={() => setRenaming(false)} />}
           </td>
         </tr>
       )}

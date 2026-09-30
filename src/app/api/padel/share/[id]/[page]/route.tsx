@@ -5,6 +5,7 @@ import { readClub } from "../../../store.ts";
 import { IMAGE_WIDTH, PAD, SIZE, paginate, type RoundBlock, type SharePage } from "../../../../../padel/share/paginate.ts";
 import { translate, type Key, type Lang } from "../../../../../padel/ui/i18n.ts";
 import type { Club, Match, Tournament } from "../../../../../padel/core/types.ts";
+import { groupName, roundTitle } from "../../../../../padel/ui/stage.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -164,6 +165,14 @@ function Sheet({ tournament, page, assets, t, nameOf }: SheetProps) {
 }
 
 function roundsLabel(page: SharePage, t: T): string {
+  const first = page.blocks[0];
+  const last = page.blocks[page.blocks.length - 1];
+  // A knockout round goes by its name: "Round 9 – Final", "Semi-finals".
+  if (first && last && (first.ko || last.ko)) {
+    const a = roundTitle(t, { n: first.roundN, ko: first.ko });
+    const b = roundTitle(t, { n: last.roundN, ko: last.ko });
+    return a === b ? a : a + " – " + b;
+  }
   return page.fromRound === page.toRound
     ? t("share.round", { n: page.fromRound })
     : t("share.rounds", { from: page.fromRound, to: page.toRound });
@@ -237,7 +246,8 @@ function Round({ block, t, nameOf }: { block: RoundBlock; t: T; nameOf: (id: str
   // Who is sitting out goes on the heading row, so it costs no height of its own.
   const showByes = block.byes.length > 0 && !block.continued;
   const heading =
-    t("share.round", { n: block.roundN }) + (block.continued ? " · " + t("share.continued") : "");
+    (block.ko ? roundTitle(t, { n: block.roundN, ko: block.ko }) : t("share.round", { n: block.roundN })) +
+    (block.continued ? " · " + t("share.continued") : "");
   const resting = t("t.resting") + ": " + block.byes.map(nameOf).join(", ");
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -264,7 +274,7 @@ function Round({ block, t, nameOf }: { block: RoundBlock; t: T; nameOf: (id: str
       </div>
 
       {block.matches.map((m) => (
-        <MatchRow key={m.id} match={m} nameOf={nameOf} />
+        <MatchRow key={m.id} match={m} nameOf={nameOf} group={m.group !== undefined ? groupName(t, m.group) : null} />
       ))}
 
       <div style={{ height: SIZE.roundGap }} />
@@ -272,7 +282,7 @@ function Round({ block, t, nameOf }: { block: RoundBlock; t: T; nameOf: (id: str
   );
 }
 
-function MatchRow({ match, nameOf }: { match: Match; nameOf: (id: string) => string }) {
+function MatchRow({ match, nameOf, group }: { match: Match; nameOf: (id: string) => string; group: string | null }) {
   const scored = match.scoreA !== null && match.scoreB !== null;
   return (
     <div
@@ -307,18 +317,20 @@ function MatchRow({ match, nameOf }: { match: Match; nameOf: (id: string) => str
 
       <Team names={match.a.map(nameOf)} align="flex-start" />
 
-      <div
-        style={{
-          width: CENTER,
-          display: "flex",
-          justifyContent: "center",
-          fontSize: scored ? 38 : 30,
-          fontWeight: scored ? 800 : 600,
-          color: scored ? BALL : "#6f8598",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {scored ? `${match.scoreA}–${match.scoreB}` : "vs"}
+      <div style={{ width: CENTER, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            fontSize: scored ? 38 : 30,
+            fontWeight: scored ? 800 : 600,
+            color: scored ? BALL : "#6f8598",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {scored ? `${match.scoreA}–${match.scoreB}` : "vs"}
+        </div>
+        {/* Group matches say which group, under the score, costing no height. */}
+        {group && <div style={{ fontSize: 22, fontWeight: 600, color: MUTED, whiteSpace: "nowrap" }}>{group}</div>}
       </div>
 
       <Team names={match.b.map(nameOf)} align="flex-end" />

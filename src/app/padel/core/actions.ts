@@ -1,7 +1,9 @@
-import { LIMITS } from "./types.ts";
+import { LIMITS, isPairFormat } from "./types.ts";
 import type { Club, Format, Pair, Player, Scoring, Tournament } from "./types.ts";
+import { drawGroups, knockoutRounds, refreshBracket, validShape } from "./groups.ts";
 import {
   americanoSchedule,
+  groupsSchedule,
   maxCourts,
   mexicanoRound,
   shuffle,
@@ -25,16 +27,22 @@ export type Action =
       scoring: Scoring;
       courts: number;
       rounds: number;
-      /** Player names in order. For fixed teams, consecutive names are
-          partners: 1+2, 3+4, … */
+      /** Player names in order. For fixed teams and groups, consecutive
+          names are partners: 1+2, 3+4, … */
       players: string[];
+      /** Groups format: how many groups, and how many pairs go through from each. */
+      groups?: number;
+      qualifiers?: number;
     }
   | { type: "setScore"; tournamentId: string; matchId: string; scoreA: number | null; scoreB: number | null }
   | { type: "nextRound"; tournamentId: string }
   | { type: "finish"; tournamentId: string }
   | { type: "reopen"; tournamentId: string }
   | { type: "deleteTournament"; tournamentId: string }
-  | { type: "renamePlayer"; playerId: string; name: string };
+  | { type: "renamePlayer"; playerId: string; name: string }
+  /** Two entries that are the same person (a typo made a second one): every
+      match of `fromId` becomes `intoId`'s, and `fromId` is removed. */
+  | { type: "mergePlayers"; fromId: string; intoId: string };
 
 export type ErrorCode =
   | "badRequest"
@@ -50,7 +58,10 @@ export type ErrorCode =
   | "allRoundsPlayed"
   | "finished"
   | "nameTaken"
-  | "badName";
+  | "badName"
+  | "badGroups"
+  | "needWinner"
+  | "sameTournament";
 
 export type Result = { ok: true; club: Club; id?: string } | { ok: false; error: ErrorCode };
 
@@ -85,7 +96,7 @@ export function apply(club: Club, action: Action, env: Env): Result {
     case "createTournament":
       return createTournament(club, action, env);
     case "setScore":
-      return setScore(club, action);
+      return setScore(club, action, env);
     case "nextRound":
       return nextRound(club, action.tournamentId, env);
     case "finish":
@@ -112,6 +123,8 @@ export function apply(club: Club, action: Action, env: Env): Result {
         club: { ...club, players: club.players.map((p) => (p.id === action.playerId ? { ...p, name } : p)) },
       };
     }
+    case "mergePlayers":
+      return mergePlayers(club, action.fromId, action.intoId);
     default:
       return fail("badRequest");
   }
@@ -122,7 +135,7 @@ function replace(club: Club, t: Tournament): Club {
 }
 
 function createTournament(club: Club, a: Extract<Action, { type: "createTournament" }>, env: Env): Result {
-  if (a.format !== "americano" && a.format !== "mexicano" && a.format !== "teams") return fail("badRequest");
+  if (!["americano", "mexicano", "teams", "groups"].includes(a.format)) return fail("badRequest");
   const scoring = validScoring(a.scoring);
   if (!scoring) return fail("badScore");
   if (!Array.isArray(a.players)) return fail("badRequest");
@@ -133,11 +146,13 @@ function createTournament(club: Club, a: Extract<Action, { type: "createTourname
   for (let i = 0; i < names.length; i++) {
     if (names.slice(0, i).some((n) => sameName(n, names[i]))) return fail("duplicatePlayer");
   }
-  if (a.format === "teams" && names.length % 2 === 1) return fail("oddTeams");
+  if (isPairFormat(a.format) && names.length % 2 === 1) return fail("oddTeams");
+  const shape = { groups: a.groups ?? 0, qualifiers: a.qualifiers ?? 0 };
+  if (a.format === "groups" && !validShape(names.length / 2, shape)) return fail("badGroups");
 
   const courtsMax = maxCourts(names.length, a.format);
   if (!isInt(a.courts) || a.courts < 1 || a.courts > courtsMax) return fail("badCourts");
-  if (a.format !== "teams" && (!isInt(a.rounds) || a.rounds < 1 || a.rounds > LIMITS.maxRounds)) {
+  if (!isPairFormat(a.format) && (!isInt(a.rounds) || a.rounds < 1 || a.rounds > LIMITS.maxRounds)) {
     return fail("badRounds");
   }
 
@@ -164,12 +179,19 @@ function createTournament(club: Club, a: Extract<Action, { type: "createTourname
     createdAt: env.now(),
   };
 
+  const teams: Pair[] = [];
+  if (isPairFormat(a.format)) for (let i = 0; i < ids.length; i += 2) teams.push([ids[i], ids[i + 1]]);
+
   if (a.format === "teams") {
-    const teams: Pair[] = [];
-    for (let i = 0; i < ids.length; i += 2) teams.push([ids[i], ids[i + 1]]);
     t.teams = teams;
     t.rounds = teamsSchedule(teams, a.courts, env.rng, env.newId);
     t.plannedRounds = t.rounds.length;
+  } else if (a.format === "groups") {
+    t.teams = teams;
+    t.groups = drawGroups(teams, shape.groups, env.rng);
+    t.qualifiers = shape.qualifiers;
+    t.rounds = groupsSchedule(t.groups, a.courts, env.rng, env.newId);
+    t.plannedRounds = t.rounds.length + knockoutRounds(shape);
   } else if (a.format === "americano") {
     t.rounds = americanoSchedule(ids, a.courts, a.rounds, env.rng, env.newId);
   } else {
@@ -180,12 +202,12 @@ function createTournament(club: Club, a: Extract<Action, { type: "createTourname
 }
 
 function defaultName(format: Format, iso: string): string {
-  const label = format === "americano" ? "Americano" : format === "mexicano" ? "Mexicano" : "Equipas";
+  const label = { americano: "Americano", mexicano: "Mexicano", teams: "Equipas", groups: "Grupos" }[format];
   // "Americano 29/09" — day/month reads the same in both languages here.
   return label + " " + iso.slice(8, 10) + "/" + iso.slice(5, 7);
 }
 
-function setScore(club: Club, a: Extract<Action, { type: "setScore" }>): Result {
+function setScore(club: Club, a: Extract<Action, { type: "setScore" }>, env: Env): Result {
   const t = club.tournaments.find((x) => x.id === a.tournamentId);
   if (!t) return fail("notFound");
   const clearing = a.scoreA === null && a.scoreB === null;
@@ -196,18 +218,19 @@ function setScore(club: Club, a: Extract<Action, { type: "setScore" }>): Result 
       return fail("badScore");
     }
   }
-  let found = false;
+  const round = t.rounds.find((r) => r.matches.some((m) => m.id === a.matchId));
+  if (!round) return fail("notFound");
+  // A knockout match sends one pair through, so it cannot end level.
+  if (round.ko && !clearing && a.scoreA === a.scoreB) return fail("needWinner");
   const rounds = t.rounds.map((r) => ({
     ...r,
-    matches: r.matches.map((m) => {
-      if (m.id !== a.matchId) return m;
-      found = true;
-      return { ...m, scoreA: clearing ? null : a.scoreA, scoreB: clearing ? null : a.scoreB };
-    }),
+    matches: r.matches.map((m) =>
+      m.id === a.matchId ? { ...m, scoreA: clearing ? null : a.scoreA, scoreB: clearing ? null : a.scoreB } : m,
+    ),
   }));
-  if (!found) return fail("notFound");
   // Scores stay editable after the end: fixing a typo should fix the ranking.
-  return { ok: true, club: replace(club, { ...t, rounds }) };
+  // In a groups tournament it can also change who goes through.
+  return { ok: true, club: replace(club, refreshBracket({ ...t, rounds }, env.newId)) };
 }
 
 function nextRound(club: Club, id: string, env: Env): Result {
@@ -223,4 +246,31 @@ function nextRound(club: Club, id: string, env: Env): Result {
     ok: true,
     club: replace(club, { ...t, rounds: [...t.rounds, round], plannedRounds: Math.max(t.plannedRounds, t.rounds.length + 1) }),
   };
+}
+
+function mergePlayers(club: Club, fromId: string, intoId: string): Result {
+  if (typeof fromId !== "string" || typeof intoId !== "string" || fromId === intoId) return fail("badRequest");
+  if (!club.players.some((p) => p.id === fromId) || !club.players.some((p) => p.id === intoId)) return fail("notFound");
+  // One person cannot have played twice in the same tournament.
+  if (club.tournaments.some((t) => t.playerIds.includes(fromId) && t.playerIds.includes(intoId))) {
+    return fail("sameTournament");
+  }
+  const swap = (id: string) => (id === fromId ? intoId : id);
+  const pair = (p: Pair): Pair => [swap(p[0]), swap(p[1])];
+  const tournaments = club.tournaments.map((t) =>
+    !t.playerIds.includes(fromId)
+      ? t
+      : {
+          ...t,
+          playerIds: t.playerIds.map(swap),
+          teams: t.teams?.map(pair),
+          groups: t.groups?.map((g) => g.map(pair)),
+          rounds: t.rounds.map((r) => ({
+            ...r,
+            byes: r.byes.map(swap),
+            matches: r.matches.map((m) => ({ ...m, a: pair(m.a), b: pair(m.b) })),
+          })),
+        },
+  );
+  return { ok: true, club: { ...club, players: club.players.filter((p) => p.id !== fromId), tournaments } };
 }
