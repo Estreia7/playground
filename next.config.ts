@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
   // bundler cannot know that and fails the build trying to resolve it. Leaving
   // the package to Node's own require skips the bundling entirely, which is
   // what this option is for. It only ever runs on the server.
-  serverExternalPackages: ["dukascopy-node"],
+  // ws is the same story: its optional native speed-ups are not installed.
+  serverExternalPackages: ["dukascopy-node", "ws"],
 
   async rewrites() {
     return [

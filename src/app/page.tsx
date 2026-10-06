@@ -10,6 +10,14 @@ const experiments = [
     image: "/padel-cover.svg",
   },
   {
+    title: "Crypto Desk — markets, cycles & on-chain",
+    description:
+      "Top-100 coins with RSI and Bull Market Support signals, TradingView charts with a coin list, Bitcoin's bull and bear cycles compared, STH-SOPR, live XRP exchange flows and NUPL.",
+    href: "/crypto",
+    status: "live" as const,
+    image: "/crypto-cover.svg",
+  },
+  {
     title: "FX Lab — EUR/USD pattern finder",
     description:
       "Finds trade candidates by asking what the market did the last time it looked like this, with RSI, MACD and candlestick evidence behind every score. Paper account included.",

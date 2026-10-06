@@ -2,8 +2,8 @@
 
    Next calls register() once when a server instance boots, in both `next dev`
    and `next start`, and never during `next build`. That makes it the right
-   place to start the FX Lab scheduler, which needs to keep ticking whether or
-   not anyone has the page open.
+   place to start the FX Lab scheduler and the crypto XRP flow collector, both
+   of which need to keep running whether or not anyone has a page open.
 
    Two guards matter. The Edge runtime has no timers or filesystem, so the
    scheduler is Node-only. And dev re-runs register() whenever this file
@@ -17,4 +17,7 @@ export async function register(): Promise<void> {
   // would otherwise try to include the whole data layer.
   const { startScheduler } = await import("./app/api/fx/scheduler.ts");
   startScheduler();
+
+  const { startCollector } = await import("./app/api/crypto/xrpl/collector.ts");
+  void startCollector();
 }

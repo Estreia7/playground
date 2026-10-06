@@ -56,3 +56,6 @@ next-env.d.ts
 
 # Padel club data (players, tournaments, scores) — runtime data, not source.
 /storage/padel
+
+# Crypto Desk runtime data (price history caches, XRP flow buckets) — downloaded, not source.
+/storage/crypto
