@@ -171,9 +171,25 @@ export default function ChartView() {
           ))}
           {data && !list.length && (
             <li className="muted" style={{ padding: 16, fontSize: 13 }}>
-              {tab === "watchlist" ? "No coins starred yet. Tap ☆ next to a coin to add it." : "No coin matches that search."}
+              {tab === "watchlist" && !query
+                ? "No coins starred yet. Tap ☆ next to a coin to add it."
+                : `No coin in the top ${data.coins.length} matches that search.`}
             </li>
           )}
+          {/* Anything outside the list can still be charted by its ticker:
+              TradingView has every Binance USDT market. */}
+          {data && /^[A-Za-z0-9]{2,12}$/.test(query.trim()) &&
+            !data.coins.some((c) => c.symbol === query.trim().toUpperCase()) && (
+              <li>
+                <button type="button" className="cx-row" onClick={() => select(query.trim().toUpperCase())}>
+                  <span className="cx-index-mark mono">{query.trim().toUpperCase().slice(0, 4)}</span>
+                  <span className="name">
+                    <b>Open {query.trim().toUpperCase()} / USDT</b>
+                    <small>Binance chart on TradingView</small>
+                  </span>
+                </button>
+              </li>
+            )}
           {!data && !error &&
             Array.from({ length: 10 }, (_, i) => (
               <li key={i} style={{ padding: "6px 12px" }}>

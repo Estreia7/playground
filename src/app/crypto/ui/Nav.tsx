@@ -27,9 +27,6 @@ export function CryptoNav() {
           </Link>
         ))}
       </nav>
-      <Link href="/" className="cx-back">
-        ← Playground
-      </Link>
     </header>
   );
 }

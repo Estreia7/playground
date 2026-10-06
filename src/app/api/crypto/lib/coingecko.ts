@@ -34,7 +34,9 @@ export function topCoins(): Promise<GeckoCoin[]> {
       const params = new URLSearchParams({
         vs_currency: "usd",
         order: "market_cap_desc",
-        per_page: "150",
+        // 250 is the most one call returns: the table keeps 250 after
+        // stablecoins and wrapped tokens are dropped, as far as it goes.
+        per_page: "250",
         page: "1",
         sparkline: "true",
         price_change_percentage: "1h,24h,7d",

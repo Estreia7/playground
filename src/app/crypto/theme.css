@@ -100,13 +100,6 @@
   text-transform: uppercase;
 }
 
-.cx-back {
-  color: var(--cx-faint);
-  font-size: 12px;
-  text-decoration: none;
-  flex: none;
-}
-.cx-back:hover { color: var(--cx-muted); }
 
 .cx-tabs {
   display: flex;
@@ -403,7 +396,6 @@
 
 @media (max-width: 640px) {
   .cx-top { gap: 10px; padding: 0 12px; }
-  .cx-back { display: none; }
   .cx-main { padding: 16px 16px 40px; }
 }
 

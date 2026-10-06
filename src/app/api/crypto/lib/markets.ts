@@ -7,11 +7,13 @@ import type { MarketsPayload, MarketRow } from "../../../crypto/lib/types.ts";
 /* The overview's data: CoinGecko's top coins merged with signals computed
    from each coin's Binance daily candles.
 
-   Signals need about 400 days per coin, one request each, so they are
-   computed for the whole list at once every fifteen minutes and served stale
-   while the next batch runs. Prices and market caps refresh every 90 s. */
+   Signals need about 400 days per coin, one request each. Each coin's are
+   cached for fifteen minutes and served stale while they refresh, so only a
+   coin that has just entered the list is ever waited for. Prices and market
+   caps refresh every 90 s. */
 
-const TABLE_SIZE = 100;
+const TABLE_SIZE = 250;
+const SIGNAL_TTL = 15 * 60_000;
 
 interface SignalSet {
   micro: number | null;
@@ -27,16 +29,20 @@ async function signalsFor(symbols: string[]): Promise<Record<string, SignalSet>>
   await mapLimit(symbols, 6, async (sym) => {
     if (!pairs.has(sym + "USDT")) return;
     try {
-      const rows = await klines(sym + "USDT", "1d", { limit: 420 });
-      const daily: DailyClose[] = rows.map((k) => [k[0], k[4]]);
-      const now = signalsOf(daily);
-      const before = signalsOf(daily.slice(0, -1));
-      out[sym] = { ...now, microYesterday: before.micro, macroYesterday: before.macro };
+      out[sym] = await memo("signal:" + sym, SIGNAL_TTL, () => coinSignals(sym), { stale: true });
     } catch {
       // One coin failing leaves its signal cells empty; the table still loads.
     }
   });
   return out;
+}
+
+async function coinSignals(sym: string): Promise<SignalSet> {
+  const rows = await klines(sym + "USDT", "1d", { limit: 420 });
+  const daily: DailyClose[] = rows.map((k) => [k[0], k[4]]);
+  const now = signalsOf(daily);
+  const before = signalsOf(daily.slice(0, -1));
+  return { ...now, microYesterday: before.micro, macroYesterday: before.macro };
 }
 
 function tradingViewSymbol(sym: string, onBinance: boolean): string {
@@ -65,10 +71,7 @@ export async function marketsPayload(): Promise<MarketsPayload> {
   const listed: GeckoCoin[] = coins.filter((c) => !isExcluded(c)).slice(0, TABLE_SIZE);
   const symbols = listed.map((c) => c.symbol.toUpperCase());
 
-  // Keyed on the symbol list so a reshuffled top 100 gets its new coins.
-  const signals = await memo("signals:" + [...symbols].sort().join(","), 15 * 60_000, () => signalsFor(symbols), {
-    stale: true,
-  }).catch(() => ({}) as Record<string, SignalSet>);
+  const signals = await signalsFor(symbols).catch(() => ({}) as Record<string, SignalSet>);
 
   const rows: MarketRow[] = listed.map((c) => {
     const sym = c.symbol.toUpperCase();

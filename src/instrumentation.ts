@@ -20,4 +20,9 @@ export async function register(): Promise<void> {
 
   const { startCollector } = await import("./app/api/crypto/xrpl/collector.ts");
   void startCollector();
+
+  // Warm the crypto overview's signal cache, so the first visitor after a
+  // deploy is not the one waiting for 250 coins' candles.
+  const { marketsPayload } = await import("./app/api/crypto/lib/markets.ts");
+  void marketsPayload().catch(() => {});
 }

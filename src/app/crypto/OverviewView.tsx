@@ -76,7 +76,8 @@ export default function OverviewView() {
         <div>
           <h1>Market overview</h1>
           <p>
-            The top 100 coins by market cap, with stablecoins and wrapped tokens left out. Signals come from each coin&apos;s
+            The top 250 coins by market cap{data ? ` (${data.coins.length} after ` : " (with "}stablecoins and wrapped tokens are
+            left out). Signals come from each coin&apos;s
             Binance candles and refresh every 15 minutes; prices every minute or so.
           </p>
         </div>
