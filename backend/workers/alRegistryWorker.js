@@ -85,11 +85,10 @@ class Browser {
   }
 }
 
-// Queue a regular host job for every host behind a match that lacks a fresh
-// dossier. No minimum listing count: a 2-listing host is still expanded.
+// Queue a regular host job for every host behind a match that has no
+// dossier yet. No minimum listing count: a 2-listing host is still expanded.
 function queueHostExpansion(jobId) {
-  const days = parseInt(process.env.HOST_REFRESH_DAYS || '14', 10);
-  const hosts = reg.hostsToExpand(days);
+  const hosts = reg.hostsToExpand();
   for (const h of hosts) {
     const id = nanoid(10);
     const name = (h.hostName || `Host ${h.hostId}`).slice(0, 120);

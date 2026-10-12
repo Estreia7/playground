@@ -26,6 +26,14 @@ const alRegistryRouter = require('./routes/alRegistry');
 
 openDb();
 
+// Bring every AL the host dossiers already show into the AL Registry
+// (cheap, idempotent) so the registry never lags behind the dossiers.
+try {
+  alRegistry.matchFromDossiers();
+} catch (err) {
+  logger.warn('AL registry boot sync failed:', err.message);
+}
+
 const recovered = store.recoverInterruptedOnBoot();
 if (recovered > 0) {
   logger.warn(`Recovered ${recovered} interrupted job(s) on boot`);

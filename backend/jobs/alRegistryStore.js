@@ -161,9 +161,83 @@ function dossierRowsForRegistry() {
     .all();
 }
 
+// Every AL any host dossier shows becomes a registry row too, so the registry
+// is the union of imported RNAL exports and everything the dossiers already
+// know. Name/address/capacity come from the cached RNT record (al_licenses).
+// Rows from a real RNAL import are never overwritten (INSERT OR IGNORE); a
+// later import of the same AL takes the row over with its own source file.
+const DOSSIER_SOURCE = 'Host dossiers';
+
+function importFromDossiers() {
+  const db = getDb();
+  const missing = db
+    .prepare(
+      `SELECT DISTINCT CAST(json_extract(hr.result_json, '$.alNumber') AS TEXT) AS al,
+              l.rnt_json AS rnt
+         FROM host_results hr
+         LEFT JOIN al_licenses l
+           ON l.al_number = CAST(json_extract(hr.result_json, '$.alNumber') AS TEXT)
+        WHERE hr.status = 'done'
+          AND json_extract(hr.result_json, '$.alNumber') IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM al_registry r
+             WHERE r.al_number = CAST(json_extract(hr.result_json, '$.alNumber') AS TEXT))`
+    )
+    .all();
+  if (!missing.length) return 0;
+
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO al_registry (al_number, name, registered_at, modalidade, camas,
+                                        utentes, quartos, address, postal_code, localidade,
+                                        freguesia, concelho, source_file, imported_at)
+     VALUES (@al, @name, @registeredAt, @modalidade, @camas, @utentes, @quartos, @address,
+             @postalCode, @localidade, @freguesia, @concelho, @source, @ts)`
+  );
+  const openMatch = db.prepare(
+    `INSERT OR IGNORE INTO al_airbnb_matches (al_number, status) VALUES (?, 'pending')`
+  );
+  const ts = nowSec();
+  let added = 0;
+  const tx = db.transaction(() => {
+    for (const { al, rnt: raw } of missing) {
+      if (!cleanAl(al)) continue;
+      let rnt = {};
+      try {
+        rnt = raw ? JSON.parse(raw) : {};
+      } catch {
+        rnt = {};
+      }
+      const found = rnt.status === 'found';
+      const a = (found && rnt.address) || {};
+      const c = (found && rnt.capacity) || {};
+      insert.run({
+        al,
+        name: (found && rnt.name) || null,
+        registeredAt: (found && rnt.registeredAt) || null,
+        modalidade: (found && rnt.modalidade) || null,
+        camas: c.camas ?? null,
+        utentes: c.utentes ?? null,
+        quartos: c.quartos ?? null,
+        address: a.full || null,
+        postalCode: a.postalCode || null,
+        localidade: a.localidade || null,
+        freguesia: a.freguesia || null,
+        concelho: a.concelho || null,
+        source: DOSSIER_SOURCE,
+        ts,
+      });
+      openMatch.run(al);
+      added++;
+    }
+  });
+  tx();
+  return added;
+}
+
 // Step 0 / Step 3: match every open registry AL against the host dossiers.
 // Free — no browser, no search. Returns the ALs that changed.
 function matchFromDossiers() {
+  importFromDossiers();
   const best = new Map();
   for (const row of dossierRowsForRegistry()) {
     if (!best.has(row.al)) best.set(row.al, row);
@@ -206,11 +280,13 @@ function matchFromDossiers() {
   return changed;
 }
 
-// Step 2: hosts behind found matches that have no fresh dossier and no
+// Step 2: hosts behind found matches that have no dossier at all and no
 // queued/running host job. Every host counts — no minimum listing count.
-function hostsToExpand(refreshDays = 14) {
+// Hosts that already have a dossier are left to the tracker (count checks +
+// host-sync keep them current); re-running full dossiers would mean hours of
+// redundant Airbnb traffic once the dossier ALs are in the registry.
+function hostsToExpand() {
   const db = getDb();
-  const cutoff = nowSec() - refreshDays * 86400;
   const hosts = db
     .prepare(
       `SELECT host_id AS hostId, MAX(host_url) AS hostUrl, MAX(host_name) AS hostName,
@@ -220,10 +296,10 @@ function hostsToExpand(refreshDays = 14) {
         GROUP BY host_id`
     )
     .all();
-  const freshDossier = db.prepare(
+  const hasDossier = db.prepare(
     `SELECT 1 FROM jobs j JOIN host_meta hm ON hm.job_id = j.id
       WHERE j.type = 'host' AND hm.host_id = ?
-        AND (j.status IN ('queued','running') OR (j.status = 'done' AND j.created_at >= ?))
+        AND j.status IN ('queued','running','done')
       LIMIT 1`
   );
   const queuedByUrl = db.prepare(
@@ -231,8 +307,7 @@ function hostsToExpand(refreshDays = 14) {
         AND urls_json LIKE ? LIMIT 1`
   );
   return hosts.filter(
-    (h) =>
-      !freshDossier.get(h.hostId, cutoff) && !queuedByUrl.get(`%/users/profile/${h.hostId}"%`)
+    (h) => !hasDossier.get(h.hostId) && !queuedByUrl.get(`%/users/profile/${h.hostId}"%`)
   );
 }
 
@@ -437,6 +512,8 @@ module.exports = {
   pendingAls,
   matchesMissingHost,
   matchFromDossiers,
+  importFromDossiers,
+  DOSSIER_SOURCE,
   hostsToExpand,
   listRegistry,
   registrySources,
