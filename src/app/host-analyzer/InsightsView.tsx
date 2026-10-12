@@ -7,6 +7,7 @@ import type { InsightsHost, InsightsPayload, TrackedHost } from "./types";
 import { Sparkline, TrendChart } from "./TrendChart";
 import { AlUsageModal } from "./AlUsageModal";
 import { exportInsightsToExcel } from "./exportInsights";
+import { SupplyPanel } from "./SupplyPanel";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -297,6 +298,9 @@ export function InsightsView({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Area supply */}
+      {insights.supply && <SupplyPanel areas={insights.supply.areas} />}
+
       {/* KPI row */}
       <div className="flex flex-wrap items-stretch gap-3">
         <Kpi label="Hosts analyzed" value={kpis.hosts} />

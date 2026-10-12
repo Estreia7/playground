@@ -278,6 +278,115 @@ router.get('/host-funnel', (_req, res) => {
   return res.json({ hosts });
 });
 
+// --- Area supply ---------------------------------------------------------------
+// Quick-filter areas for the Insights supply chart. Albufeira and Portimão are
+// concelhos; Quarteira (incl. Vilamoura) and Almancil are freguesias of Loulé,
+// so each area matches on whichever RNT address level defines it.
+const norm = (s) =>
+  String(s || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+
+const SUPPLY_AREAS = [
+  { key: 'albufeira', label: 'Albufeira', scope: 'Concelho', match: (a) => norm(a.concelho) === 'albufeira' },
+  { key: 'portimao', label: 'Portimão', scope: 'Concelho', match: (a) => norm(a.concelho) === 'portimao' },
+  { key: 'quarteira', label: 'Quarteira', scope: 'Freguesia, incl. Vilamoura', match: (a) => norm(a.freguesia) === 'quarteira' },
+  { key: 'almancil', label: 'Almancil', scope: 'Freguesia', match: (a) => norm(a.freguesia) === 'almancil' },
+  { key: 'algarve', label: 'All Algarve', scope: 'Distrito de Faro', match: (a) => norm(a.distrito) === 'faro' },
+];
+
+// One property = one AL license found in the RNT registry, shown on at least
+// one active (non-removed) listing. Its market entry is the license opening
+// date, so the series reads "how today's supply was built up over time".
+function buildSupply(deduped, licenseMap, now) {
+  const props = new Map(); // al -> { rnt, hosts: Map<hostId, label> }
+  for (const { entry, hostId } of deduped) {
+    const hostLabel = entry.host?.hostName || entry.job.name || hostId;
+    for (const l of entry.listings) {
+      if (l.removed || !l.alNumber) continue;
+      const al = String(l.alNumber);
+      const rnt = licenseMap.get(al)?.rnt;
+      if (rnt?.status !== 'found' || !rnt.address) continue;
+      if (!props.has(al)) props.set(al, { rnt, hosts: new Map() });
+      props.get(al).hosts.set(hostId, hostLabel);
+    }
+  }
+
+  const currentYear = new Date(now * 1000).getUTCFullYear();
+  const yearAgo = new Date((now - 365 * 86400) * 1000).toISOString().slice(0, 10);
+
+  const areas = SUPPLY_AREAS.map(({ key, label, scope, match }) => {
+    const inArea = [...props.values()].filter((p) => match(p.rnt.address));
+    const hostCounts = new Map();
+    const openedByYear = new Map();
+    const mix = { Studio: 0, '1 bed': 0, '2 bed': 0, '3 bed': 0, '4+ bed': 0 };
+    let bedrooms = 0;
+    let guests = 0;
+    let apartments = 0;
+    let villas = 0;
+    let newLast12m = 0;
+    let undated = 0;
+
+    for (const p of inArea) {
+      const { rnt } = p;
+      const q = rnt.capacity?.quartos;
+      if (q != null) {
+        bedrooms += q;
+        mix[q === 0 ? 'Studio' : q >= 4 ? '4+ bed' : `${q} bed`]++;
+      }
+      guests += rnt.capacity?.utentes || 0;
+      const kind = norm(rnt.modalidade);
+      if (kind === 'apartamento') apartments++;
+      else if (kind === 'moradia') villas++;
+
+      const opened = rnt.openedAt || rnt.registeredAt || null;
+      const year = opened ? parseInt(opened.slice(0, 4), 10) : NaN;
+      if (Number.isFinite(year) && year >= 1990 && year <= currentYear) {
+        openedByYear.set(year, (openedByYear.get(year) || 0) + 1);
+        if (opened >= yearAgo) newLast12m++;
+      } else {
+        undated++;
+      }
+
+      for (const [hostId, hostLabel] of p.hosts) {
+        if (!hostCounts.has(hostId)) hostCounts.set(hostId, { hostId, name: hostLabel, properties: 0 });
+        hostCounts.get(hostId).properties++;
+      }
+    }
+
+    const years = [];
+    if (openedByYear.size) {
+      let total = 0;
+      for (let y = Math.min(...openedByYear.keys()); y <= currentYear; y++) {
+        const opened = openedByYear.get(y) || 0;
+        total += opened;
+        years.push({ year: y, opened, total });
+      }
+    }
+
+    return {
+      key,
+      label,
+      scope,
+      properties: inArea.length,
+      hosts: hostCounts.size,
+      bedrooms,
+      guests,
+      apartments,
+      villas,
+      newLast12m,
+      undated,
+      years,
+      bedroomMix: Object.entries(mix).map(([name, count]) => ({ label: name, count })),
+      topHosts: [...hostCounts.values()].sort((a, b) => b.properties - a.properties).slice(0, 6),
+    };
+  });
+
+  return { areas };
+}
+
 // Cross-host insights: KPIs, evolution series, concelho/owner breakdowns and
 // data anomalies. Hosts are deduped by host id (newest job wins) so a
 // re-analyzed host never double-counts.
@@ -345,6 +454,8 @@ router.get('/insights', (_req, res) => {
   const concelhos = Array.from(concelhoMap.entries())
     .map(([name, c]) => ({ name, listings: c.listings, hosts: c.hosts.size }))
     .sort((a, b) => b.listings - a.listings);
+
+  const supply = buildSupply(deduped, licenseMap, now);
 
   // --- Owner / NIF cross-host table -----------------------------------------
   const ownerMap = new Map();
@@ -524,6 +635,7 @@ router.get('/insights', (_req, res) => {
     kpis,
     hosts,
     concelhos,
+    supply,
     owners,
     emails,
     hostNifs,

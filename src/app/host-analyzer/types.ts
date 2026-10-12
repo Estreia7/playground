@@ -215,7 +215,25 @@ export type InsightsHost = FunnelHost & {
   delta30d: number | null;
 };
 
+export type SupplyArea = {
+  key: string;
+  label: string;
+  scope: string;
+  properties: number;
+  hosts: number;
+  bedrooms: number;
+  guests: number;
+  apartments: number;
+  villas: number;
+  newLast12m: number;
+  undated: number;
+  years: Array<{ year: number; opened: number; total: number }>;
+  bedroomMix: Array<{ label: string; count: number }>;
+  topHosts: Array<{ hostId: string; name: string; properties: number }>;
+};
+
 export type InsightsPayload = {
+  supply?: { areas: SupplyArea[] };
   kpis: {
     hosts: number;
     listings: number;
