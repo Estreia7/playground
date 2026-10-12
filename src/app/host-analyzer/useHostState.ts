@@ -479,6 +479,15 @@ export function useHostState() {
     if (hostId && !snapshotsByHost[hostId]) loadSnapshots(hostId);
   }, [selected, jobs, snapshotsByHost, loadSnapshots]);
 
+  // A dossier opened from elsewhere (AL Registry) may be older than the
+  // 30 jobs loaded up front: fetch it on demand, once per id.
+  const fetchedOnDemand = useRef(new Set<string>());
+  useEffect(() => {
+    if (!selected || jobs[selected] || fetchedOnDemand.current.has(selected)) return;
+    fetchedOnDemand.current.add(selected);
+    loadDetail(selected);
+  }, [selected, jobs, loadDetail]);
+
   useEffect(() => {
     const es = new EventSource(`${API_BASE}/jobs/stream`);
     const types = [

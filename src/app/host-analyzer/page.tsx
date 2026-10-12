@@ -8,8 +8,9 @@ import { NewTargetForm, TasksList } from "./TasksView";
 import { HostView } from "./HostView";
 import { FunnelView } from "./FunnelView";
 import { InsightsView } from "./InsightsView";
+import { RegistryView } from "./RegistryView";
 
-type Tab = "dossiers" | "funnel" | "insights";
+type Tab = "dossiers" | "funnel" | "insights" | "registry";
 
 export default function HostAnalyzerPage() {
   const {
@@ -73,6 +74,7 @@ export default function HostAnalyzerPage() {
               ["dossiers", "Dossiers"],
               ["funnel", "Funnel"],
               ["insights", "Insights"],
+              ["registry", "AL Registry"],
             ] as Array<[Tab, string]>
           ).map(([key, label]) => (
             <button
@@ -83,7 +85,7 @@ export default function HostAnalyzerPage() {
                 if (key === "insights") refreshInsights();
               }}
               aria-current={tab === key ? "page" : undefined}
-              className={`ha-focus relative flex-1 rounded-[9px] px-4 py-2 text-sm font-medium transition-colors sm:flex-none sm:py-1.5 ${
+              className={`ha-focus relative flex-1 whitespace-nowrap rounded-[9px] px-2 py-2 text-sm font-medium transition-colors sm:flex-none sm:px-4 sm:py-1.5 ${
                 tab === key ? "text-[var(--ink-deep)]" : "text-[var(--mist)] hover:text-[var(--foam)]"
               }`}
             >
@@ -163,6 +165,21 @@ export default function HostAnalyzerPage() {
               <FunnelView
                 funnel={funnel}
                 onOpenHost={(id) => {
+                  setSelected(id);
+                  setTab("dossiers");
+                }}
+              />
+            </motion.div>
+          ) : tab === "registry" ? (
+            <motion.div
+              key="registry"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <RegistryView
+                onOpenDossier={(id) => {
                   setSelected(id);
                   setTab("dossiers");
                 }}

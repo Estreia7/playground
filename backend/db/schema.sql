@@ -150,3 +150,83 @@ CREATE TABLE IF NOT EXISTS adr_overrides (
   PRIMARY KEY (job_id, url, month_index)
 );
 CREATE INDEX IF NOT EXISTS idx_adr_overrides_job ON adr_overrides(job_id);
+
+-- AL Registry: RNAL export rows the user imports (one row per AL number).
+-- Matched against Airbnb in two directions — AL → listing → host (search +
+-- verify) and host → listings → AL (host dossiers) — see al_airbnb_matches.
+CREATE TABLE IF NOT EXISTS al_registry (
+  al_number     TEXT PRIMARY KEY,
+  name          TEXT,
+  registered_at TEXT,
+  modalidade    TEXT,
+  camas         INTEGER,
+  utentes       INTEGER,
+  quartos       INTEGER,
+  address       TEXT,
+  postal_code   TEXT,
+  localidade    TEXT,
+  freguesia     TEXT,
+  concelho      TEXT,
+  source_file   TEXT,
+  imported_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_al_registry_source ON al_registry(source_file);
+
+-- One row per registry AL: where it stands on Airbnb.
+--   status    pending | found | delisted | not_found | error
+--   found_via host_dossier | bing | google
+-- delisted = a search engine still indexes the listing but /rooms/<id> now
+-- redirects away (removed/deactivated). bing_tried / google_tried make every
+-- paid or slow step run at most once per AL unless explicitly reset.
+CREATE TABLE IF NOT EXISTS al_airbnb_matches (
+  al_number     TEXT PRIMARY KEY,
+  status        TEXT NOT NULL DEFAULT 'pending',
+  found_via     TEXT,
+  room_id       TEXT,
+  listing_url   TEXT,
+  listing_title TEXT,
+  host_id       TEXT,
+  host_url      TEXT,
+  host_name     TEXT,
+  bing_tried    INTEGER NOT NULL DEFAULT 0,
+  google_tried  INTEGER NOT NULL DEFAULT 0,
+  checked_at    INTEGER,
+  error         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_al_matches_status ON al_airbnb_matches(status);
+CREATE INDEX IF NOT EXISTS idx_al_matches_host ON al_airbnb_matches(host_id);
+
+-- Raw search-engine answers per (AL, provider): re-filtering never re-spends.
+CREATE TABLE IF NOT EXISTS al_search_cache (
+  al_number    TEXT NOT NULL,
+  provider     TEXT NOT NULL,
+  query        TEXT NOT NULL,
+  results_json TEXT NOT NULL,
+  ts           INTEGER NOT NULL,
+  PRIMARY KEY (al_number, provider)
+);
+
+-- Every paid search call (and its failures), for the credits panel.
+CREATE TABLE IF NOT EXISTS search_usage (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider  TEXT NOT NULL,
+  al_number TEXT,
+  ts        INTEGER NOT NULL,
+  cost      INTEGER NOT NULL DEFAULT 0,
+  results   INTEGER,
+  status    TEXT NOT NULL  -- ok | quota | auth | error | validation
+);
+CREATE INDEX IF NOT EXISTS idx_search_usage_provider ON search_usage(provider, ts);
+
+-- Per-provider health: canary validation, exhaustion, last known balance.
+-- key_fingerprint resets exhaustion/validation when the API key changes.
+CREATE TABLE IF NOT EXISTS search_provider_state (
+  provider         TEXT PRIMARY KEY,
+  key_fingerprint  TEXT,
+  exhausted_until  INTEGER,
+  last_error       TEXT,
+  validated_at     INTEGER,
+  validation_error TEXT,
+  last_remaining   INTEGER,
+  updated_at       INTEGER NOT NULL
+);
