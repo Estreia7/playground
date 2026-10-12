@@ -7,12 +7,35 @@ let currentJobId = null;
 let currentAbort = null;
 let busy = false;
 
+// Cool-down between Airbnb-heavy jobs: a queue of many host dossiers (e.g.
+// every host behind an AL Registry import) must not hit Airbnb back to back.
+// A random pause after each such job; kicks during it are deferred.
+const HEAVY_TYPES = new Set(['host', 'host-sync', 'al-registry', 'al-google']);
+let cooldownUntil = 0;
+let cooldownTimer = null;
+
+function cooldownMs() {
+  const min = parseInt(process.env.JOB_COOLDOWN_MIN_S || '120', 10);
+  const max = Math.max(min, parseInt(process.env.JOB_COOLDOWN_MAX_S || '300', 10));
+  return Math.round((min + Math.random() * (max - min)) * 1000);
+}
+
 function setRunner(fn) {
   runJobImpl = fn;
 }
 
 function kick() {
   if (busy) return;
+  const wait = cooldownUntil - Date.now();
+  if (wait > 0) {
+    if (!cooldownTimer) {
+      cooldownTimer = setTimeout(() => {
+        cooldownTimer = null;
+        kick();
+      }, wait);
+    }
+    return;
+  }
   if (!runJobImpl) {
     logger.warn('scheduler.kick called before runner was registered');
     return;
@@ -42,6 +65,11 @@ function kick() {
       busy = false;
       currentJobId = null;
       currentAbort = null;
+      if (HEAVY_TYPES.has(next.type)) {
+        const ms = cooldownMs();
+        cooldownUntil = Date.now() + ms;
+        if (store.getNextQueued()) logger.info(`scheduler: cooling down ${Math.round(ms / 1000)}s before the next job`);
+      }
       setImmediate(kick);
     });
 }
