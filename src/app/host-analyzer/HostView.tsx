@@ -151,10 +151,14 @@ export function HostView({
   const [registryBusy, setRegistryBusy] = useState(false);
 
   // Stats and map cover ACTIVE listings; removed ones stay in the table only.
-  const listings = job.listingOrder
-    .map((u) => job.listings[u])
-    .filter(Boolean)
-    .filter((l) => !l.removed);
+  const listings = useMemo(
+    () =>
+      job.listingOrder
+        .map((u) => job.listings[u])
+        .filter(Boolean)
+        .filter((l) => !l.removed),
+    [job.listingOrder, job.listings]
+  );
   const licensed = listings.filter((l) => l.alNumber).length;
   const scores = listings.map((l) => l.reviewsScore).filter((v): v is number => v != null);
   const reviews = listings.map((l) => l.reviewsCount).filter((v): v is number => v != null);
@@ -170,25 +174,56 @@ export function HostView({
 
   const mapData = useMemo(() => {
     const points: MapPoint[] = [];
+    // Why a listing is missing from the map, so the footnote can say so.
+    const missing = { noAl: 0, notFound: 0, unlocated: 0 };
     for (const l of listings) {
-      const lic = l.alNumber ? job.licenses[l.alNumber] : undefined;
-      if (!lic || lic.lat == null || lic.lng == null) continue;
+      if (!l.alNumber) {
+        // Only scraped listings truly lack one; queued rows just aren't read yet.
+        if (l.status === "done") missing.noAl += 1;
+        continue;
+      }
+      const lic = job.licenses[l.alNumber];
+      if (!lic) continue; // registry lookup still pending
+      if (lic.rnt.status !== "found") {
+        missing.notFound += 1;
+        continue;
+      }
+      if (lic.lat == null || lic.lng == null) {
+        missing.unlocated += 1;
+        continue;
+      }
       const ins = insuranceOf(l, job.licenses);
       points.push({
         lat: lic.lat,
         lng: lic.lng,
         label: l.title || l.url,
-        sub:
-          lic.rnt.status === "found"
-            ? [lic.rnt.modalidade, lic.rnt.address?.concelho].filter(Boolean).join(" · ")
-            : undefined,
+        sub: [lic.rnt.modalidade, lic.rnt.address?.concelho].filter(Boolean).join(" · "),
         tone: ins === "valid" ? "ok" : ins === "expired" ? "warn" : ins === "none" ? "alert" : "muted",
         pulse: ins === "none" || ins === "expired",
+        approx: lic.geocodeStatus === "locality",
       });
     }
     const area = operatingArea(points);
-    return { points, area };
+    const approx = points.filter((p) => p.approx).length;
+    return { points, area, missing, approx };
   }, [listings, job.licenses]);
+
+  const mapFootnote = useMemo(() => {
+    const { missing, approx } = mapData;
+    const off = [
+      missing.noAl > 0 && `${missing.noAl} without an AL number`,
+      missing.notFound > 0 && `${missing.notFound} not in the RNT registry`,
+      missing.unlocated > 0 && `${missing.unlocated} with an address we couldn't place`,
+    ].filter(Boolean);
+    if (off.length === 0 && approx === 0) return null;
+    return [
+      off.length > 0 && `Not on the map: ${off.join(" · ")}.`,
+      approx > 0 &&
+        `${approx} pinned to the town centre only (dashed ring), as their registry address couldn't be matched to a street.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }, [mapData]);
 
   const vuln = useMemo(() => {
     if (!funnel) return null;
@@ -414,6 +449,7 @@ export function HostView({
             ? `Operates within ~${mapData.area.radiusKm} km around ${concelhos[0]}`
             : null
         }
+        footnote={mapFootnote}
       />
 
       <AnalysisSection job={job} />

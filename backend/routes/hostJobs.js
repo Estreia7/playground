@@ -546,6 +546,11 @@ router.get('/al-usage', (req, res) => {
         owner: rnt.owners?.[0] || null,
         insuranceStatus: rnt.insurance?.status || 'none',
         registeredAt: rnt.registeredAt || null,
+        modalidade: rnt.modalidade || null,
+        address: rnt.address || null,
+        lat: entry.lat ?? null,
+        lng: entry.lng ?? null,
+        geocodeStatus: entry.geocodeStatus || null,
       }
     : null;
 

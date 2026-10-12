@@ -1,12 +1,69 @@
 "use client";
 
-// Drill-down for an AL number: the RNT record plus every listing (across all
-// dossiers) displaying it. The consult surface for the duplicate-AL flag.
+// Drill-down for an AL number: the RNT record (address, location, owner)
+// plus every listing (across all dossiers) displaying it. The consult surface
+// for the duplicate-AL flag.
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { API_BASE, INSURANCE_LABEL } from "./helpers";
-import type { AlUsage } from "./types";
+import { API_BASE, INSURANCE_LABEL, rntPortalUrl } from "./helpers";
+import { MiniMap } from "./MapPanel";
+import type { MapPoint } from "./MapInner";
+import type { AlUsage, RntAddress } from "./types";
+
+type UsageLicense = NonNullable<AlUsage["license"]>;
+
+// RNT address → postal-style lines: street + door + floor, postcode + town,
+// then the parish/municipality when they add something.
+function addressLines(a: RntAddress): string[] {
+  const floor = a.andar ? (/^\d+$/.test(a.andar) ? `${a.andar}º` : a.andar) : null;
+  const unit = [floor, a.lado].filter(Boolean).join(" ");
+  // The registry often repeats the type inside the name ("Caminho Caminho Lebre").
+  const repeatsType =
+    !!a.tipoVia && !!a.via && a.via.toLowerCase().startsWith(`${a.tipoVia.toLowerCase()} `);
+  const street = [repeatsType ? null : a.tipoVia, a.via, a.porta].filter(Boolean).join(" ");
+  if (!street) return a.full ? [a.full] : [];
+  const town = [a.postalCode, a.localidade].filter(Boolean).join(" ");
+  const seen = new Set([a.localidade?.toLowerCase()]);
+  const region = [a.freguesia, a.concelho, a.distrito].filter((p): p is string => {
+    if (!p || seen.has(p.toLowerCase())) return false;
+    seen.add(p.toLowerCase());
+    return true;
+  });
+  return [unit ? `${street}, ${unit}` : street, town, region.join(" · ")].filter(Boolean);
+}
+
+const PRECISION_NOTE: Record<string, string> = {
+  postal: "Postal-code area",
+  locality: "Town centre only: street not matched",
+};
+
+function licensePoint(al: string, lic: UsageLicense): MapPoint | null {
+  if (lic.lat == null || lic.lng == null) return null;
+  const s = lic.insuranceStatus;
+  return {
+    lat: lic.lat,
+    lng: lic.lng,
+    label: lic.name || `${al}/AL`,
+    sub: lic.address?.localidade || lic.concelho || undefined,
+    tone: s === "valid" ? "ok" : s === "expired" ? "warn" : "alert",
+    approx: lic.geocodeStatus === "locality",
+  };
+}
+
+function PortalLink({ al }: { al: string }) {
+  return (
+    <a
+      href={rntPortalUrl(al)}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Open AL ${al} on the RNT portal (new tab)`}
+      className="ha-focus inline-flex items-center gap-1 rounded-full border border-[var(--tide)] px-2.5 py-1 text-[11px] font-medium text-[var(--foam)] transition-colors hover:border-[var(--verdi)]/50 hover:text-[var(--verdi)]"
+    >
+      RNT portal ↗
+    </a>
+  );
+}
 
 export function AlUsageModal({ als, onClose }: { als: string[]; onClose: () => void }) {
   const [usages, setUsages] = useState<AlUsage[] | null>(null);
@@ -57,7 +114,7 @@ export function AlUsageModal({ als, onClose }: { als: string[]; onClose: () => v
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.98 }}
         transition={{ type: "spring", stiffness: 260, damping: 24 }}
-        className="ha-scroll max-h-[80dvh] w-full max-w-xl overflow-y-auto rounded-[14px] border border-[var(--tide)] bg-[var(--harbor)] p-5"
+        className="ha-scroll max-h-[85dvh] w-full max-w-2xl overflow-y-auto rounded-[14px] border border-[var(--tide)] bg-[var(--harbor)] p-4 sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -84,9 +141,11 @@ export function AlUsageModal({ als, onClose }: { als: string[]; onClose: () => v
           {usages?.map((u) => {
             const hostCount = new Set(u.listings.map((l) => l.hostId || l.jobId)).size;
             const crossHost = hostCount > 1;
+            const point = u.license ? licensePoint(u.al, u.license) : null;
+            const lines = u.license?.address ? addressLines(u.license.address) : [];
             return (
-              <div key={u.al} className="rounded-[12px] border border-[var(--tide)] p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <div key={u.al} className="rounded-[12px] border border-[var(--tide)] p-3 sm:p-4">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="ha-mono text-sm font-semibold">{u.al}/AL</span>
                   {u.listings.length > 1 && (
                     <span
@@ -101,26 +160,56 @@ export function AlUsageModal({ als, onClose }: { als: string[]; onClose: () => v
                         : `on ${u.listings.length} listings`}
                     </span>
                   )}
+                  <span className="ml-auto">
+                    <PortalLink al={u.al} />
+                  </span>
                 </div>
 
                 {u.license ? (
-                  <div className="mt-2 text-xs text-[var(--mist)]">
-                    <div className="text-sm text-[var(--foam)]">{u.license.name || "—"}</div>
-                    <div className="mt-0.5">
-                      {[u.license.concelho, u.license.registeredAt].filter(Boolean).join(" · ")}
-                      {" · "}
-                      {INSURANCE_LABEL[u.license.insuranceStatus] ?? u.license.insuranceStatus}
-                    </div>
-                    {u.license.owner && (
+                  <div
+                    className={`mt-3 grid gap-4 ${point ? "sm:grid-cols-[minmax(0,1fr)_220px]" : ""}`}
+                  >
+                    <div className="min-w-0 text-xs text-[var(--mist)]">
+                      <div className="text-sm text-[var(--foam)]">{u.license.name || "—"}</div>
                       <div className="mt-0.5">
-                        {u.license.owner.name}
-                        {u.license.owner.nif && (
-                          <span className="ha-mono"> · NIF {u.license.owner.nif}</span>
-                        )}
-                        {u.license.owner.email && (
-                          <span className="ha-mono"> · {u.license.owner.email}</span>
-                        )}
+                        {[u.license.modalidade, u.license.concelho, u.license.registeredAt]
+                          .filter(Boolean)
+                          .join(" · ")}
+                        {" · "}
+                        {INSURANCE_LABEL[u.license.insuranceStatus] ?? u.license.insuranceStatus}
                       </div>
+                      {u.license.owner && (
+                        <div className="mt-0.5 break-words">
+                          {u.license.owner.name}
+                          {u.license.owner.nif && (
+                            <span className="ha-mono"> · NIF {u.license.owner.nif}</span>
+                          )}
+                          {u.license.owner.email && (
+                            <span className="ha-mono"> · {u.license.owner.email}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {lines.length > 0 && (
+                        <address className="mt-3 not-italic leading-relaxed">
+                          <div className="mb-0.5 text-[11px] text-[var(--mist)]">Registered address</div>
+                          <div className="text-[13px] text-[var(--foam)]">{lines[0]}</div>
+                          {lines.slice(1).map((line) => (
+                            <div key={line}>{line}</div>
+                          ))}
+                        </address>
+                      )}
+                    </div>
+
+                    {point && (
+                      <figure className="m-0 flex flex-col gap-1.5">
+                        <MiniMap point={point} className="h-[180px] sm:h-[200px]" />
+                        {u.license.geocodeStatus && PRECISION_NOTE[u.license.geocodeStatus] && (
+                          <figcaption className="text-[10px] text-[var(--mist)]">
+                            {PRECISION_NOTE[u.license.geocodeStatus]}
+                          </figcaption>
+                        )}
+                      </figure>
                     )}
                   </div>
                 ) : (

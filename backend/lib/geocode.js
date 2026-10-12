@@ -3,8 +3,14 @@
 // and results cached upstream in the al_licenses table so each address is
 // geocoded at most once.
 //
-// Strategy: structured street query first, then postal-code fallback, then a
-// free-text locality query built from the RNT freguesia/concelho/distrito.
+// Strategy: structured street queries first (with the house number, then
+// without, scoped by localidade, postal code or concelho), then a postal-code
+// query, then free-text locality queries (localidade before freguesia, so a
+// Vilamoura flat doesn't land on the Quarteira parish centre). RNT street
+// fields are hand-typed and noisy ("Rua Rua X", "X, condomínio Y, Bloco 5",
+// "X- COND.Y"), so the street is cleaned first — without that almost every
+// lookup fell through to the parish centre and whole portfolios stacked on a
+// single map pin.
 // Every hit is validated against the region implied by the RNT address
 // (mainland vs Madeira vs Azores) — Portuguese street names collide across
 // hundreds of parishes, and countrycodes=pt alone happily returns an island
@@ -77,6 +83,29 @@ async function queryNominatim(params, signal) {
     .filter((hit) => Number.isFinite(hit.lat) && Number.isFinite(hit.lng));
 }
 
+// Everything after the street name proper: building, block, lot, unit, floor.
+const VIA_TAIL =
+  /\s*(?:[,;(]|\s-\s|-\s|\b(?:n\.?\s*º|nº|lote|lt\.?|bloco|bl\.?|edf\.?|edif[ií]cio|cond\.?|condom[ií]nio|torre|moradia|vivenda|apart(?:amento)?s?|apt\.?|fra?c[çc][ãa]o|loja|r\/c|piso|andar)\b).*$/i;
+
+// RNT tipoVia + via → the bare street name Nominatim knows, or null.
+//   "Rua" + "Manuel da Fonseca, condomínio Vila Sol F5, Bloco 5" → "Rua Manuel da Fonseca"
+//   "Rua" + "Rua AGOSTO AZUL- TRES CASTELOS. EDF. CLUBE" → "Rua AGOSTO AZUL"
+//   "Avenida" + "Comunidades Lusíadas- COND.PARAISO"     → "Avenida Comunidades Lusíadas"
+function cleanStreet(tipoVia, via) {
+  let name = String(via || '').replace(VIA_TAIL, '').replace(/\s+/g, ' ').trim();
+  if (!name || /\bsem nome\b/i.test(name)) return null;
+  const type = String(tipoVia || '').trim();
+  // The portal often repeats the type inside the name ("Rua Rua X").
+  if (type && name.toLowerCase().startsWith(type.toLowerCase() + ' ')) name = name.slice(type.length + 1);
+  return [type, name].filter(Boolean).join(' ');
+}
+
+// A usable house number ("78", "61A", "5 B"); building codes like "EM21" are not.
+function houseNumber(porta) {
+  const m = String(porta || '').trim().match(/^(\d{1,4})\s?([a-z])?$/i);
+  return m ? m[1] + (m[2] || '').toUpperCase() : null;
+}
+
 // address: the parsed RNT address object (see lib/rnt.js).
 // Returns { lat, lng, precision: 'street'|'postal'|'locality'|null }.
 async function geocodeAddress(address, signal) {
@@ -84,32 +113,7 @@ async function geocodeAddress(address, signal) {
   if (!address) return { lat: null, lng: null, precision: null };
 
   const expected = expectedRegion(address);
-  const street = [address.tipoVia, address.via, address.porta].filter(Boolean).join(' ').trim();
-
-  const attempts = [];
-  if (street && address.postalCode) {
-    attempts.push({
-      params: { street, postalcode: address.postalCode, county: address.concelho || '' },
-      precision: 'street',
-    });
-  }
-  if (address.postalCode) {
-    attempts.push({
-      params: { postalcode: address.postalCode, county: address.concelho || '' },
-      precision: 'postal',
-    });
-  }
-  const locality = [address.freguesia, address.concelho, address.distrito]
-    .filter(Boolean)
-    .join(', ');
-  if (locality) {
-    attempts.push({ params: { q: `${locality}, Portugal` }, precision: 'locality' });
-  }
-  // Legacy free-text fallback for addresses missing the structured parts.
-  if (attempts.length === 0 && address.full) {
-    attempts.push({ params: { q: `${address.full}, Portugal` }, precision: 'street' });
-  }
-
+  const attempts = buildAttempts(address);
   for (const attempt of attempts) {
     if (signal?.aborted) throw new Error('Aborted');
     try {
@@ -132,6 +136,46 @@ async function geocodeAddress(address, signal) {
   return { lat: null, lng: null, precision: null };
 }
 
+// Ordered Nominatim queries for one RNT address, most precise first. The
+// loop stops at the first region-valid hit, so a clean address costs one
+// request and only messy ones walk down the list.
+function buildAttempts(address) {
+  const street = cleanStreet(address.tipoVia, address.via);
+  const number = houseNumber(address.porta);
+  const county = address.concelho || '';
+  const town = address.localidade || '';
+  const attempts = [];
+
+  if (street) {
+    if (number && town) {
+      attempts.push({ params: { street: `${number} ${street}`, city: town, county }, precision: 'street' });
+    }
+    if (town) attempts.push({ params: { street, city: town, county }, precision: 'street' });
+    if (address.postalCode) {
+      attempts.push({ params: { street, postalcode: address.postalCode, county }, precision: 'street' });
+    }
+    // Localidade names don't always match an OSM place; the concelho alone
+    // still pins the street, only less safely when a name repeats inside it.
+    attempts.push({ params: { street, county }, precision: 'street' });
+  }
+  if (address.postalCode) {
+    attempts.push({ params: { postalcode: address.postalCode, county }, precision: 'postal' });
+  }
+  if (town && town !== address.freguesia) {
+    const q = [town, county, address.distrito].filter(Boolean).join(', ');
+    attempts.push({ params: { q: `${q}, Portugal` }, precision: 'locality' });
+  }
+  const locality = [address.freguesia, county, address.distrito].filter(Boolean).join(', ');
+  if (locality) {
+    attempts.push({ params: { q: `${locality}, Portugal` }, precision: 'locality' });
+  }
+  // Legacy free-text fallback for addresses missing the structured parts.
+  if (attempts.length === 0 && address.full) {
+    attempts.push({ params: { q: `${address.full}, Portugal` }, precision: 'street' });
+  }
+  return attempts;
+}
+
 function stubGeocode(address) {
   // Deterministic scatter around the Algarve so the stub map looks plausible.
   const seed = (address?.postalCode || '8200').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -142,4 +186,11 @@ function stubGeocode(address) {
   };
 }
 
-module.exports = { geocodeAddress, expectedRegion, coordsRegion };
+module.exports = {
+  geocodeAddress,
+  expectedRegion,
+  coordsRegion,
+  cleanStreet,
+  houseNumber,
+  buildAttempts,
+};

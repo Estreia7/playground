@@ -11,19 +11,24 @@ const { emit } = require('../jobs/jobManager');
 const logger = require('../lib/logger');
 
 // Force-refresh one AL: RNT fetch (no cache read), geocode only when coords
-// are missing or previously failed, upsert, and emit under the HOST job id so
-// an open dossier updates live. Shared with the manual-AL endpoint.
+// are missing, previously failed or only a locality centre, upsert, and emit
+// under the HOST job id so an open dossier updates live. Shared with the
+// manual-AL endpoint.
 async function refreshOneAl(alNumber, hostJobId, signal) {
   const rnt = await fetchRnt(alNumber, signal);
   const existing = store.alLicenseLookup(alNumber, 36500);
   let lat = existing?.lat ?? null;
   let lng = existing?.lng ?? null;
   let geocodeStatus = existing?.geocodeStatus ?? 'pending';
-  if (rnt.status === 'found' && (lat == null || geocodeStatus === 'failed')) {
+  const retry = lat == null || geocodeStatus === 'failed' || geocodeStatus === 'locality';
+  if (rnt.status === 'found' && retry) {
     const geo = await geocodeAddress(rnt.address, signal);
-    lat = geo.lat;
-    lng = geo.lng;
-    geocodeStatus = geo.precision || 'failed';
+    // A miss keeps an existing locality pin rather than dropping the marker.
+    if (geo.lat != null || lat == null) {
+      lat = geo.lat;
+      lng = geo.lng;
+      geocodeStatus = geo.precision || 'failed';
+    }
   }
   if (rnt.status !== 'found') geocodeStatus = 'skipped';
   store.alLicenseUpsert({ alNumber, rnt, lat, lng, geocodeStatus });

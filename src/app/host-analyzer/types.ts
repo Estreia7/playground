@@ -171,6 +171,11 @@ export type AlUsage = {
     owner: RntOwner | null;
     insuranceStatus: string;
     registeredAt: string | null;
+    modalidade: string | null;
+    address: RntAddress | null;
+    lat: number | null;
+    lng: number | null;
+    geocodeStatus: string | null;
   } | null;
   listings: Array<{
     jobId: string;

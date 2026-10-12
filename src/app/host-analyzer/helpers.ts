@@ -9,6 +9,11 @@ import type {
 } from "./types";
 
 export const API_BASE = "/api/airbnb";
+
+// Public RNAL record page on the Turismo de Portugal registry.
+export function rntPortalUrl(al: string): string {
+  return `https://rnt.turismodeportugal.pt/RNT/RNAL.aspx?nr=${encodeURIComponent(al)}`;
+}
 export const PROFILE_URL_RE =
   /^https?:\/\/(www\.)?airbnb\.[a-z.]+\/users\/(profile|show)\/\d+/i;
 
