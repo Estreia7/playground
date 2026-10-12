@@ -139,23 +139,13 @@ function parseRnt(html, alNumber) {
   $('table[id*="wtTableRecords_Titular"] tbody tr').each((_, tr) => {
     const cells = $(tr).find('td');
     if (cells.length < 3) return;
-    // The contacts cell holds phone + email on separate <br> lines; a plain
-    // .text() glues them together and the email regex then swallows the phone
-    // digits ("912345678joao@gmail.com"). Preserve separators, take the phone
-    // out FIRST, and only then look for the email.
-    const rawHtml = cells.eq(3).html() || '';
-    const contactsText = clean(
-      cheerio.load(`<div>${rawHtml.replace(/<br\s*\/?>/gi, '\n')}</div>`)('div').text()
-    );
-    const phone = contactsText.match(/(?:\+?\d[\d\s]{7,})/);
-    const withoutPhone = phone ? contactsText.replace(phone[0], ' ') : contactsText;
-    const email = withoutPhone.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    const { email, phone } = parseContacts($, cells.eq(3));
     out.owners.push({
       quality: clean(cells.eq(0).text()) || null,
       nif: clean(cells.eq(1).text()) || null,
       name: clean(cells.eq(2).text()) || null,
-      email: email ? sanitizeEmail(email[0]) : null,
-      phone: phone ? clean(phone[0]) : null,
+      email,
+      phone,
     });
   });
 
@@ -215,15 +205,59 @@ function clean(s) {
     .trim();
 }
 
-// Repair emails polluted by adjacent phone digits in old cached records
-// ("912345678joao@gmail.com") and validate shape. Strips a leading +351
-// and/or a run of ≥6 digits ONLY when the remainder is still a valid email,
-// so legitimate short digit prefixes ("20anos@gmail.com") survive.
+// The contacts cell holds a phone and/or an email. The portal has used two
+// layouts: text lines split by <br>, and (since 2026) one <div> per contact
+// with an icon in front. Reading the cell's text nodes one at a time handles
+// both — gluing the cell into one string is what produced
+// "joao@gmail.comjoao" and "912345678joao@gmail.com" before.
+function parseContacts($, cell) {
+  const pieces = [];
+  const walk = (node) => {
+    if (node.type === 'text') {
+      const t = clean(node.data);
+      if (t) pieces.push(t);
+    } else if (node.children) {
+      node.children.forEach(walk);
+    }
+  };
+  cell.contents().each((_, n) => walk(n));
+
+  let email = null;
+  let phone = null;
+  for (const piece of pieces) {
+    // A piece can still carry both when the portal puts them on one line.
+    const p = piece.match(/\+?\d[\d\s]{7,}\d/);
+    const rest = p ? piece.replace(p[0], ' ') : piece;
+    const e = rest.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/);
+    if (!phone && p) phone = clean(p[0]);
+    if (!email && e) email = sanitizeEmail(e[0]);
+  }
+  return { email, phone };
+}
+
+// Repair and validate emails, including ones cached by older parsers:
+//   - phone digits glued in front ("912345678joao@gmail.com"): strip a leading
+//     +351 and/or a run of ≥6 digits, only when what is left is still valid,
+//     so real digit prefixes ("20anos@gmail.com") survive;
+//   - the address read twice, cut at the second "@" ("joao@gmail.comjoao"):
+//     drop the repeated local part from the end.
 const EMAIL_SHAPE = /^[\w.+-]+@[\w-]+(\.[a-z]{2,})+$/i;
+// Endings real addresses here use. A string that already ends in one of these
+// ("m@x.com") is left alone even if it happens to end with its own local part.
+const COMMON_TLDS = new Set([
+  'com', 'pt', 'net', 'org', 'eu', 'es', 'fr', 'de', 'uk', 'nl', 'be', 'ch', 'it', 'ie', 'br', 'info',
+  'biz', 'io', 'co', 'me', 'us', 'ca', 'se', 'dk', 'no', 'fi', 'at', 'pl', 'lu', 'ru', 'cz', 'travel',
+]);
 
 function sanitizeEmail(raw) {
   if (!raw) return null;
-  const s = String(raw).trim().toLowerCase().replace(/\.+$/, '');
+  let s = String(raw).trim().toLowerCase().replace(/\.+$/, '');
+  const local = s.split('@')[0];
+  const ending = s.slice(s.lastIndexOf('.') + 1);
+  if (local && !COMMON_TLDS.has(ending) && s.length > local.length * 2 + 1 && s.endsWith(local)) {
+    const once = s.slice(0, -local.length);
+    if (EMAIL_SHAPE.test(once)) s = once;
+  }
   if (EMAIL_SHAPE.test(s) && !/^(\+?351)?\d{6,}/.test(s)) return s;
   const stripped = s.replace(/^\+?351/, '').replace(/^\d{6,}/, '');
   if (stripped !== s && EMAIL_SHAPE.test(stripped)) return stripped;
