@@ -24,7 +24,11 @@ const APPLY = process.argv.includes('--apply');
 const keepIdx = process.argv.indexOf('--keep');
 const KEEP = keepIdx > -1 ? parseInt(process.argv[keepIdx + 1], 10) : 2;
 // A file shared by this many distinct listing folders is not a listing photo.
-const SHARED_MIN_DIRS = 3;
+// Measured 2026-10-13: Airbnb's search-bar house sat in 2970 folders and a 3D
+// "host" illustration in 47, while real photos reused by managers across units
+// of one building top out around 15 — so 20 separates the two cleanly.
+const sharedIdx = process.argv.indexOf('--shared-min');
+const SHARED_MIN_DIRS = sharedIdx > -1 ? parseInt(process.argv[sharedIdx + 1], 10) : 20;
 
 function hashFile(p) {
   return crypto.createHash('sha1').update(fs.readFileSync(p)).digest('hex');
