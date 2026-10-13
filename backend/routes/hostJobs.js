@@ -53,7 +53,7 @@ router.post('/host-jobs', (req, res) => {
 });
 
 router.get('/host-jobs', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit, 10) || 30, 200);
+  const limit = Math.min(parseInt(req.query.limit, 10) || 30, 1000);
   const jobs = store.listJobs(limit, 'host').map((job) => ({
     ...job,
     host: store.getHostMeta(job.id),

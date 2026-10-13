@@ -171,12 +171,14 @@ export function useHostState() {
     }
   }, []);
 
-  // Initial load: job list + detail per job.
+  // Initial load: every host job + its detail. Details are fetched a few at a
+  // time (newest first) — a list capped at the 30 newest silently hid older
+  // dossiers once AL Registry runs started queuing hosts in bulk.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/host-jobs?limit=30`);
+        const res = await fetch(`${API_BASE}/host-jobs?limit=1000`);
         if (!res.ok) return;
         const { jobs: list } = (await res.json()) as {
           jobs: Array<{
@@ -190,7 +192,11 @@ export function useHostState() {
         if (cancelled) return;
         setOrder(list.map((j) => j.id));
         setJobs(Object.fromEntries(list.map((j) => [j.id, emptyHostJob(j)])));
-        await Promise.all(list.map((j) => loadDetail(j.id)));
+        let next = 0;
+        const worker = async () => {
+          while (!cancelled && next < list.length) await loadDetail(list[next++].id);
+        };
+        await Promise.all(Array.from({ length: Math.min(6, list.length) }, worker));
         refreshFunnel();
       } catch (err) {
         console.warn("host jobs initial load failed", err);
