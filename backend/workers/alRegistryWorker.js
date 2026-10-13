@@ -123,6 +123,21 @@ function queueNextChunk(jobId) {
   return id;
 }
 
+// Keep free matching going without anyone pressing a button: queue a run when
+// there is free work left (hosts to read, or Bing to try once its pause is
+// over) and no run is already queued/running. Called on a timer by index.js.
+function ensureRegistryRun() {
+  if (reg.hasActiveJob('al-registry')) return null;
+  const counts = reg.pipelineCounts();
+  const bingReady = counts.waitingBing > 0 && !reg.bingBlockedUntil();
+  if (!bingReady && counts.missingHost === 0) return null;
+  const id = nanoid(10);
+  const name = 'AL registry: free matching (auto)';
+  store.createJob({ id, urls: ['registry'], name, type: 'al-registry' });
+  emit(id, 'job-created', { jobId: id, type: 'al-registry', urls: ['registry'], name, createdAt: nowSec() });
+  return id;
+}
+
 async function runAlRegistryJob(job, { signal }) {
   const jobId = job.id;
   const browser = new Browser();
@@ -166,9 +181,14 @@ async function runAlRegistryJob(job, { signal }) {
     }
 
     // --- 2. bing (free), within what is left of this chunk ------------------
-    const pending = reg.pendingAls('bing', Math.max(0, budget - visits));
-    progress(jobId, { phase: 'bing', total: pending.length, done: 0 });
+    // Paused after a block: skip Bing until the back-off ends (index.js
+    // restarts free matching then). Hosts above still ran.
+    const pausedUntil = reg.bingBlockedUntil();
+    const pending = pausedUntil ? [] : reg.pendingAls('bing', Math.max(0, budget - visits));
+    if (pausedUntil) progress(jobId, { phase: 'bing-paused', until: pausedUntil });
+    else progress(jobId, { phase: 'bing', total: pending.length, done: 0 });
     done = 0;
+    let netFailures = 0;
     for (const al of pending) {
       if (signal?.aborted) return { cancelled: true };
       // A host job may have matched it in the meantime.
@@ -180,6 +200,7 @@ async function runAlRegistryJob(job, { signal }) {
       try {
         const page = await browser.get();
         const ids = await bingCandidates(page, al);
+        netFailures = 0;
         const { verified } = ids.length
           ? await verifyCandidates(page, al, ids, signal)
           : { verified: null };
@@ -194,15 +215,18 @@ async function runAlRegistryJob(job, { signal }) {
         });
       } catch (err) {
         if (signal?.aborted) return { cancelled: true };
-        if (err.code === 'bing-blocked') {
-          // Stop here: the rest stay pending AND untried, so a later run
-          // retries them — nothing gets pushed to the paid step by a block.
+        if (err.code === 'bing-network') netFailures++;
+        if (err.code === 'bing-blocked' || netFailures >= 3) {
+          // Stop and back off: the rest stay pending AND untried, so nothing
+          // reaches the paid step because of a block, and the run resumes by
+          // itself once the pause is over. A block is expected, not an error.
           bingBlocked = true;
-          logger.warn(`registry: Bing blocked at ${al}, stopping the Bing step`);
-          progress(jobId, { phase: 'bing-blocked', total: pending.length, done, al });
+          const until = reg.setBingBlocked(err.message);
+          logger.warn(`registry: Bing blocked at ${al} (${err.message.slice(0, 80)}), paused until ${new Date(until * 1000).toISOString()}`);
+          progress(jobId, { phase: 'bing-blocked', total: pending.length, done, al, until });
           break;
         }
-        errored = true;
+        // One-off failure: leave this AL untried for the next run.
         logger.warn(`registry bing failed for ${al}:`, err.message);
         await browser.resetPage();
         progress(jobId, { phase: 'bing', total: pending.length, done: ++done, al, error: err.message });
@@ -220,7 +244,7 @@ async function runAlRegistryJob(job, { signal }) {
 
   // More work than one chunk? Go to the back of the queue and continue later.
   const more =
-    reg.matchesMissingHost().length > 0 || (!bingBlocked && reg.pendingAls('bing', 1).length > 0);
+    reg.matchesMissingHost().length > 0 || (!bingBlocked && !reg.bingBlockedUntil() && reg.pendingAls('bing', 1).length > 0);
   if (more && visits > 0) queueNextChunk(jobId);
 
   progress(jobId, { phase: 'done', bingBlocked, visits });
@@ -307,4 +331,4 @@ async function runAlGoogleJob(job, { signal }) {
   return { cancelled: !!signal?.aborted, errored: false };
 }
 
-module.exports = { runAlRegistryJob, runAlGoogleJob, queueHostExpansion };
+module.exports = { runAlRegistryJob, runAlGoogleJob, queueHostExpansion, ensureRegistryRun };

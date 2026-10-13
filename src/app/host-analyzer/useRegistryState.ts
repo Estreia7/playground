@@ -7,6 +7,7 @@ import type {
   ProvidersPayload,
   RegistryPayload,
   RegistryProgress,
+  RegistryStatus,
 } from "./registryTypes";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -117,6 +118,28 @@ export function useRegistryState(active: boolean) {
   const [source, setSource] = useState<string | null>(null);
   const [progress, setProgress] = useState<RegistryProgress | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [status, setStatus] = useState<RegistryStatus | null>(null);
+
+  // Live pipeline/queue state straight from the server — survives reloads and
+  // covers work started elsewhere (auto-resume, other tabs). Polled while the
+  // tab is open and visible.
+  const refreshStatus = useCallback(async () => {
+    try {
+      const q = source ? `?source=${encodeURIComponent(source)}` : "";
+      setStatus(await api<RegistryStatus>(`/al-registry/status${q}`));
+    } catch {
+      /* keep the last snapshot */
+    }
+  }, [source]);
+
+  useEffect(() => {
+    if (!active) return;
+    refreshStatus();
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") refreshStatus();
+    }, 5000);
+    return () => clearInterval(t);
+  }, [active, refreshStatus]);
 
   const refresh = useCallback(async () => {
     try {
@@ -155,6 +178,7 @@ export function useRegistryState(active: boolean) {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         refresh();
+        refreshStatus();
         if (withProviders) refreshProviders();
       }, 600);
     };
@@ -173,7 +197,7 @@ export function useRegistryState(active: boolean) {
       if (timer) clearTimeout(timer);
       es.close();
     };
-  }, [active, refresh, refreshProviders]);
+  }, [active, refresh, refreshStatus, refreshProviders]);
 
   const importFile = useCallback(
     async (file: File) => {
@@ -220,6 +244,7 @@ export function useRegistryState(active: boolean) {
     source,
     setSource,
     progress,
+    status,
     loadError,
     refresh,
     refreshProviders,

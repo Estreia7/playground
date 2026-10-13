@@ -494,6 +494,92 @@ function hasActiveJob(type) {
     .get(type);
 }
 
+// --- Bing back-off --------------------------------------------------------------
+// A Bing block pauses the free Bing step for BING_BACKOFF_HOURS; free matching
+// restarts by itself afterwards (index.js). Stored with the provider states.
+
+function bingBlockedUntil() {
+  const s = getProviderState('bing');
+  return s?.exhausted_until && s.exhausted_until > nowSec() ? s.exhausted_until : null;
+}
+
+function setBingBlocked(message) {
+  const hours = parseFloat(process.env.BING_BACKOFF_HOURS || '4');
+  const until = nowSec() + Math.round(hours * 3600);
+  setProviderState('bing', { exhausted_until: until, last_error: String(message || '').slice(0, 200) });
+  return until;
+}
+
+// --- Pipeline status (cheap; polled by the UI) -------------------------------------
+
+function pipelineCounts(sourceFile = null) {
+  const db = getDb();
+  const where = sourceFile ? 'WHERE r.source_file = ?' : '';
+  const args = sourceFile ? [sourceFile] : [];
+  const c = db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN m.status = 'found' THEN 1 ELSE 0 END) AS found,
+              SUM(CASE WHEN m.status = 'delisted' THEN 1 ELSE 0 END) AS delisted,
+              SUM(CASE WHEN m.status = 'not_found' THEN 1 ELSE 0 END) AS notFound,
+              SUM(CASE WHEN m.status IN ('pending','error') AND m.bing_tried = 0 THEN 1 ELSE 0 END) AS waitingBing,
+              SUM(CASE WHEN m.status IN ('pending','error') AND m.bing_tried = 1 AND m.google_tried = 0 THEN 1 ELSE 0 END) AS waitingGoogle,
+              SUM(CASE WHEN m.status = 'found' AND m.host_id IS NULL THEN 1 ELSE 0 END) AS missingHost
+         FROM al_registry r LEFT JOIN al_airbnb_matches m ON m.al_number = r.al_number
+         ${where}`
+    )
+    .get(...args);
+  const out = {};
+  for (const [k, v] of Object.entries(c)) out[k] = v || 0;
+  out.checked = out.found + out.delisted + out.notFound;
+  out.pct = out.total ? Math.round((out.checked / out.total) * 1000) / 10 : 0;
+  return out;
+}
+
+// What the (serial) job queue is doing: the running job with best-effort
+// progress, and every queued job in run order — so the UI can say "your Google
+// search is 3rd in line, behind 2 tracker checks".
+function queueSnapshot(currentJobId) {
+  const db = getDb();
+  const lastRegistryEvent = db.prepare(
+    `SELECT payload_json FROM job_events
+      WHERE job_id = ? AND event_type = 'al-registry' ORDER BY seq DESC LIMIT 1`
+  );
+  const jobRow = (id) => db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(id);
+
+  let running = null;
+  const cur = currentJobId ? jobRow(currentJobId) : null;
+  if (cur) {
+    running = { id: cur.id, type: cur.type, name: cur.name, startedAt: cur.started_at, progress: null };
+    if (cur.type === 'al-registry' || cur.type === 'al-google') {
+      const e = lastRegistryEvent.get(cur.id);
+      if (e) running.progress = JSON.parse(e.payload_json);
+    } else if (cur.type === 'host') {
+      const done = db.prepare(`SELECT COUNT(*) AS n FROM host_results WHERE job_id = ?`).get(cur.id).n;
+      const meta = db.prepare(`SELECT listings_count FROM host_meta WHERE job_id = ?`).get(cur.id);
+      const cap = parseInt(process.env.HOST_MAX_LISTINGS || '300', 10);
+      const total = meta?.listings_count != null ? Math.min(meta.listings_count, cap) : null;
+      running.progress = { phase: total == null ? 'profile' : 'listings', done, total };
+    }
+  }
+
+  const queued = db
+    .prepare(
+      `SELECT id, type, name, created_at AS createdAt, json_array_length(urls_json) AS items
+         FROM jobs WHERE status = 'queued' ORDER BY created_at ASC`
+    )
+    .all()
+    .map((j, i) => ({ ...j, position: i + 1 }));
+  const byType = {};
+  for (const j of queued) byType[j.type] = (byType[j.type] || 0) + 1;
+  return {
+    running,
+    queuedTotal: queued.length,
+    queuedByType: byType,
+    registryQueued: queued.filter((j) => j.type === 'al-registry' || j.type === 'al-google'),
+  };
+}
+
 function queuedJobs(type) {
   return getDb()
     .prepare(`SELECT COUNT(*) AS n FROM jobs WHERE type = ? AND status = 'queued'`)
@@ -539,5 +625,9 @@ module.exports = {
   hasActiveJob,
   queuedJobs,
   queuedHostJobs,
+  bingBlockedUntil,
+  setBingBlocked,
+  pipelineCounts,
+  queueSnapshot,
   activeJobs,
 };

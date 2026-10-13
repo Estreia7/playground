@@ -92,6 +92,19 @@ router.get('/al-registry', (req, res) => {
   });
 });
 
+// Cheap live status for the progress panel (polled every few seconds).
+router.get('/al-registry/status', (req, res) => {
+  const source = req.query.source ? String(req.query.source) : null;
+  const sched = scheduler.status();
+  res.json({
+    counts: reg.pipelineCounts(source),
+    bingPausedUntil: reg.bingBlockedUntil(),
+    cooldownUntil: sched.cooldownUntil,
+    ...reg.queueSnapshot(sched.currentJobId),
+    now: Math.floor(Date.now() / 1000),
+  });
+});
+
 router.get('/al-registry/providers', async (req, res) => {
   try {
     res.json(await providerStatus({ refresh: req.query.refresh === '1' }));

@@ -33,10 +33,20 @@ function decodeBing(href) {
 
 async function bingCandidates(page, al) {
   if (process.env.SCRAPER_STUB === '1') return [];
-  await page.goto(
-    'https://www.bing.com/search?q=' + encodeURIComponent(`"${al}/AL" airbnb`),
-    { waitUntil: 'domcontentloaded', timeout: 30_000 }
-  );
+  try {
+    await page.goto(
+      'https://www.bing.com/search?q=' + encodeURIComponent(`"${al}/AL" airbnb`),
+      { waitUntil: 'domcontentloaded', timeout: 30_000 }
+    );
+  } catch (err) {
+    // Bing throttles at the network level first (connections closed/reset)
+    // before it serves a CAPTCHA. One drop can be a blip; the worker treats a
+    // run of these as a block.
+    if (/ERR_CONNECTION_(CLOSED|RESET|REFUSED)|ERR_EMPTY_RESPONSE|ERR_HTTP2|Timeout/i.test(err.message)) {
+      err.code = 'bing-network';
+    }
+    throw err;
+  }
   await page.waitForTimeout(2500);
   // A real results page always has #b_results (even with zero hits); a
   // CAPTCHA / challenge / "unusual traffic" page doesn't. Throwing lets the

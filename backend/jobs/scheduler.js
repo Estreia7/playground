@@ -100,8 +100,17 @@ function cancel(jobId) {
   return { ok: false, reason: 'not-cancellable' };
 }
 
+// Snapshot for status panels: what runs now and how long the cool-down lasts.
+function status() {
+  return {
+    busy,
+    currentJobId,
+    cooldownUntil: cooldownUntil > Date.now() ? Math.floor(cooldownUntil / 1000) : null,
+  };
+}
+
 function isRunning(jobId) {
   return currentJobId === jobId;
 }
 
-module.exports = { setRunner, kick, cancel, isRunning };
+module.exports = { setRunner, kick, cancel, isRunning, status };

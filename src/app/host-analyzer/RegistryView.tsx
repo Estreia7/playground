@@ -6,11 +6,11 @@
 // The coverage bar is the page's one signature: the registry's whole state in
 // a single line, and also the status filter for the table below.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { fmtTime, rntPortalUrl } from "./helpers";
 import { useRegistryState } from "./useRegistryState";
-import type { RegistryRow, SearchProvider } from "./registryTypes";
+import type { RegistryRow, RegistryStatus, SearchProvider } from "./registryTypes";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const PAGE = 150;
@@ -357,6 +357,206 @@ function ProvidersPanel({
   );
 }
 
+// --- Pipeline panel (server state, polled) ---------------------------------------
+// Answers "how far along is my import, and what is the server doing right now?"
+// from GET /al-registry/status, so it is right after a reload and for work that
+// started by itself (auto-resume, waves of host dossiers).
+
+const JOB_TYPE_LABEL: Record<string, [string, string]> = {
+  host: ["host dossier", "host dossiers"],
+  "host-count": ["tracker check", "tracker checks"],
+  "host-sync": ["tracker sync", "tracker syncs"],
+  "al-registry": ["free-matching run", "free-matching runs"],
+  "al-google": ["Google search", "Google searches"],
+  registry: ["RNT refresh", "RNT refreshes"],
+  adr: ["ADR job", "ADR jobs"],
+};
+
+function plural(n: number, type: string) {
+  const [one, many] = JOB_TYPE_LABEL[type] || ["job", "jobs"];
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+function clock(ts: number) {
+  return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// Seconds left until `until` (server clock), ticking once a second.
+function useCountdown(until: number | null, serverNow: number | undefined) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!until) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [until]);
+  if (!until || !serverNow) return 0;
+  // Correct for client/server clock skew using the snapshot's own "now".
+  const skew = serverNow * 1000 - Date.now();
+  return Math.max(0, Math.round((until * 1000 - (now + skew)) / 1000));
+}
+
+function Bar({ value, total }: { value: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, (value / total) * 100) : 0;
+  return (
+    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--ink-deep)]">
+      <motion.div
+        className="h-full rounded-full bg-[var(--verdi)]"
+        initial={false}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.5, ease: EASE }}
+      />
+    </div>
+  );
+}
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function runningLine(r: NonNullable<RegistryStatus["running"]>) {
+  const p = r.progress || {};
+  if (r.type === "al-registry" || r.type === "al-google") {
+    const label =
+      p.phase === "bing-paused"
+        ? "Free matching: Bing paused, reading hosts only"
+        : PHASE_LABEL[p.phase as string] || (r.type === "al-google" ? "Searching Google" : "Free matching");
+    return { label, detail: p.al ? `${p.al}/AL` : null, done: p.done, total: p.total };
+  }
+  if (r.type === "host") {
+    return {
+      label: p.phase === "profile" ? `Host dossier "${r.name}": reading the profile` : `Host dossier "${r.name}"`,
+      detail: p.total ? "listings" : null,
+      done: p.done,
+      total: p.total ?? undefined,
+    };
+  }
+  return { label: `${capitalize((JOB_TYPE_LABEL[r.type] || ["job"])[0])}: ${r.name}`, detail: null };
+}
+
+function PipelinePanel({ status, noCredits }: { status: RegistryStatus | null; noCredits: boolean }) {
+  const cooldownLeft = useCountdown(status?.cooldownUntil ?? null, status?.now);
+  if (!status) return null;
+  const c = status.counts;
+  const r = status.running;
+  const line = r ? runningLine(r) : null;
+  const queuedOthers = Object.entries(status.queuedByType);
+  const googleQueuedItems = status.registryQueued
+    .filter((j) => j.type === "al-google")
+    .reduce((n, j) => n + j.items, 0);
+  const remaining = c.waitingBing + c.waitingGoogle;
+
+  return (
+    <div className="mt-5 border-t border-[var(--tide)] pt-4" role="status" aria-live="polite">
+      {/* Overall progress for the selected file */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-sm">
+          Checked <span className="ha-mono font-semibold">{c.checked.toLocaleString("en-GB")}</span>
+          <span className="text-[var(--mist)]"> of {c.total.toLocaleString("en-GB")}</span>
+        </p>
+        <span className="ha-mono text-sm font-semibold text-[var(--verdi)]">{c.pct.toFixed(1)}%</span>
+      </div>
+      <div className="mt-2">
+        <Bar value={c.checked} total={c.total} />
+      </div>
+      <p className="mt-2 text-xs text-[var(--mist)]">
+        {remaining === 0 ? (
+          "Every licence has been checked."
+        ) : (
+          <>
+            <span className="ha-mono text-[var(--foam)]">{c.waitingBing.toLocaleString("en-GB")}</span> waiting for Bing
+            {" · "}
+            <span className="ha-mono text-[var(--foam)]">{c.waitingGoogle.toLocaleString("en-GB")}</span> waiting for
+            Google
+            {googleQueuedItems > 0 && (
+              <>
+                {" · "}
+                <span className="ha-mono text-[var(--foam)]">{googleQueuedItems}</span> in a queued Google search
+              </>
+            )}
+          </>
+        )}
+        {c.missingHost > 0 && (
+          <>
+            {" · "}
+            <span className="ha-mono text-[var(--foam)]">{c.missingHost}</span> hosts still to read
+          </>
+        )}
+      </p>
+
+      {/* What the server is doing right now */}
+      <div className="mt-4 rounded-[10px] bg-[var(--ink-deep)]/60 px-3 py-2.5">
+        {r && line ? (
+          <>
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="flex min-w-0 items-center gap-2 text-[var(--foam)]">
+                <span
+                  className="ha-sonar relative h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--verdi)] text-[var(--verdi)]"
+                  aria-hidden
+                />
+                <span className="truncate">{line.label}</span>
+                {line.detail && <span className="ha-mono shrink-0 text-[var(--mist)]">{line.detail}</span>}
+              </span>
+              {line.total ? (
+                <span className="ha-mono shrink-0 text-[var(--mist)]">
+                  {line.done ?? 0} / {line.total}
+                </span>
+              ) : null}
+            </div>
+            {line.total ? (
+              <div className="mt-2">
+                <Bar value={line.done ?? 0} total={line.total} />
+              </div>
+            ) : null}
+          </>
+        ) : cooldownLeft > 0 ? (
+          <p className="flex items-center gap-2 text-xs text-[var(--foam)]">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--mist)]" aria-hidden />
+            <span>
+              Pausing{" "}
+              <span className="ha-mono">
+                {Math.floor(cooldownLeft / 60)}:{String(cooldownLeft % 60).padStart(2, "0")}
+              </span>{" "}
+              before the next job, so Airbnb doesn&apos;t see back-to-back visits.
+            </span>
+          </p>
+        ) : (
+          <p className="flex items-center gap-2 text-xs text-[var(--mist)]">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--tide)]" aria-hidden />
+            {status.queuedTotal > 0 ? "Starting the next job." : "Idle: nothing queued."}
+          </p>
+        )}
+
+        {status.queuedTotal > 0 && (
+          <p className="mt-2 text-[11px] text-[var(--mist)]">
+            Queue: {queuedOthers.map(([t, n]) => plural(n, t)).join(", ")} waiting
+            {status.registryQueued.length > 0 &&
+              " · " +
+                status.registryQueued
+                  .map(
+                    (j) =>
+                      `${capitalize((JOB_TYPE_LABEL[j.type] || ["job"])[0])}${j.type === "al-google" ? ` (${j.items})` : ""} is #${j.position}`
+                  )
+                  .join(", ")}
+          </p>
+        )}
+      </div>
+
+      {status.bingPausedUntil && (
+        <p className="mt-3 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
+          Bing started blocking the server, so the free Bing step is paused until {clock(status.bingPausedUntil)}.
+          Nothing was lost: those licences stay pending, and free matching resumes by itself then.
+        </p>
+      )}
+      {noCredits && (
+        <p className="mt-3 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
+          Every Google provider is out of credits. The remaining licences stay pending; add a key or wait for a
+          monthly reset, then search again.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // --- Main view ------------------------------------------------------------------------
 
 const PHASE_LABEL: Record<string, string> = {
@@ -369,7 +569,7 @@ const PHASE_LABEL: Record<string, string> = {
 };
 
 export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string) => void }) {
-  const { data, providers, source, setSource, progress, loadError, refreshProviders, importFile, runFree, runGoogle, recheck } =
+  const { data, providers, source, setSource, progress, status, loadError, refreshProviders, importFile, runFree, runGoogle, recheck } =
     useRegistryState(true);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -445,11 +645,10 @@ export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string)
       />
     ) : null;
 
-  const live =
-    progress && progress.phase !== "done" && (freeRunning || googleRunning || progress.phase === "paused") ? progress : null;
-  const paused = progress?.phase === "paused" || (progress?.phase === "done" && progress.pausedNoCredits);
-  const bingBlocked =
-    progress?.phase === "bing-blocked" || (progress?.phase === "done" && !!progress.bingBlocked);
+  const noCredits =
+    progress?.phase === "paused" ||
+    (progress?.phase === "done" && !!progress.pausedNoCredits) ||
+    (!!providers && !providers.next && (status?.counts.waitingGoogle ?? 0) > 0);
 
   return (
     <div className="flex flex-col gap-5">
@@ -586,53 +785,7 @@ export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string)
                 <CoverageBar segments={segments} total={s.total} filter={filter} onFilter={setFilter} />
               </div>
 
-              <AnimatePresence initial={false}>
-                {(live || paused || bingBlocked) && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.25, ease: EASE }}
-                    className="overflow-hidden"
-                  >
-                    {bingBlocked && !paused ? (
-                      <p role="status" className="mt-4 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
-                        Bing started blocking the server, so the Bing step stopped. The remaining licences stay
-                        pending and untried; run free matching again later (Bing usually lifts it within hours).
-                      </p>
-                    ) : paused ? (
-                      <p role="status" className="mt-4 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
-                        Every Google provider is out of credits. Nothing was lost: the remaining ALs stay
-                        pending. Add a key or wait for a monthly reset, then search again.
-                      </p>
-                    ) : live ? (
-                      <div role="status" className="mt-4">
-                        <div className="flex items-center justify-between gap-3 text-xs">
-                          <span className="flex items-center gap-2 text-[var(--foam)]">
-                            <span className="ha-sonar relative h-1.5 w-1.5 rounded-full bg-[var(--verdi)] text-[var(--verdi)]" aria-hidden />
-                            {PHASE_LABEL[live.phase] || "Working"}
-                            {live.al && <span className="ha-mono text-[var(--mist)]">{live.al}/AL</span>}
-                          </span>
-                          {live.total != null && live.total > 0 && (
-                            <span className="ha-mono text-[var(--mist)]">
-                              {live.done ?? 0} / {live.total}
-                            </span>
-                          )}
-                        </div>
-                        {live.total != null && live.total > 0 && (
-                          <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--ink-deep)]">
-                            <motion.div
-                              className="h-full bg-[var(--verdi)]"
-                              animate={{ width: `${((live.done ?? 0) / live.total) * 100}%` }}
-                              transition={{ duration: 0.4, ease: EASE }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <PipelinePanel status={status} noCredits={noCredits} />
             </section>
 
           {/* Narrow screens: credits right after coverage, before the long table. */}

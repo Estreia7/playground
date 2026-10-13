@@ -12,7 +12,7 @@ const { runHostJob } = require('./workers/hostWorker');
 const { runHostCountJob } = require('./workers/hostCountWorker');
 const { runHostSyncJob } = require('./workers/hostSyncWorker');
 const { runRegistryJob } = require('./workers/registryWorker');
-const { runAlRegistryJob, runAlGoogleJob, queueHostExpansion } = require('./workers/alRegistryWorker');
+const { runAlRegistryJob, runAlGoogleJob, queueHostExpansion, ensureRegistryRun } = require('./workers/alRegistryWorker');
 const alRegistry = require('./jobs/alRegistryStore');
 const tracker = require('./jobs/tracker');
 const { MEDIA_ROOT } = require('./scraper/extractPhotos');
@@ -89,6 +89,17 @@ const server = app.listen(PORT, '127.0.0.1', () => {
   logger.info(`airbnb-str-scrapper backend listening on http://127.0.0.1:${PORT}`);
   setImmediate(() => scheduler.kick());
   tracker.start();
+  // Free matching resumes by itself: after a Bing pause ends, or when found
+  // listings still need their host read. Cheap check, every 10 minutes.
+  const resumeRegistry = () => {
+    try {
+      if (ensureRegistryRun()) scheduler.kick();
+    } catch (err) {
+      logger.warn('AL registry auto-run failed:', err.message);
+    }
+  };
+  setTimeout(resumeRegistry, 60_000);
+  setInterval(resumeRegistry, 10 * 60_000);
 });
 
 function shutdown(reason) {

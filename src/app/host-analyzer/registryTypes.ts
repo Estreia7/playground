@@ -86,6 +86,9 @@ export type RegistryProgress = {
     | "hosts"
     | "bing"
     | "bing-blocked"
+    | "bing-paused"
+    | "profile"
+    | "listings"
     | "expand"
     | "chunk-queued"
     | "google"
@@ -102,6 +105,7 @@ export type RegistryProgress = {
   reason?: string;
   pausedNoCredits?: boolean;
   bingBlocked?: boolean;
+  until?: number;
 };
 
 export type ImportRow = {
@@ -117,4 +121,43 @@ export type ImportRow = {
   localidade: string | null;
   freguesia: string | null;
   concelho: string | null;
+};
+
+// GET /al-registry/status — cheap live pipeline + queue state (polled).
+export type PipelineCounts = {
+  total: number;
+  found: number;
+  delisted: number;
+  notFound: number;
+  waitingBing: number;
+  waitingGoogle: number;
+  missingHost: number;
+  checked: number;
+  pct: number;
+};
+
+export type QueueJob = {
+  id: string;
+  type: string;
+  name: string;
+  createdAt: number;
+  items: number;
+  position: number;
+};
+
+export type RegistryStatus = {
+  counts: PipelineCounts;
+  bingPausedUntil: number | null;
+  cooldownUntil: number | null;
+  running: {
+    id: string;
+    type: string;
+    name: string;
+    startedAt: number | null;
+    progress: (Partial<RegistryProgress> & { phase?: string; done?: number; total?: number }) | null;
+  } | null;
+  queuedTotal: number;
+  queuedByType: Record<string, number>;
+  registryQueued: QueueJob[];
+  now: number;
 };
