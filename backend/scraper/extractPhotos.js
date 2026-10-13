@@ -1,13 +1,24 @@
-// Collect the first ~5 gallery photos of a listing page (already navigated)
-// and download them to backend/media/<listingId>/ so previews keep working
-// after Airbnb's CDN URLs rot. Served read-only at /api/media/*.
+// Collect the first gallery photos of a listing page (already navigated) and
+// download them to backend/media/<listingId>/ so previews keep working after
+// Airbnb's CDN URLs rot. Served read-only at /api/media/*.
+//
+// Only the listing's OWN photos qualify: Airbnb serves them as
+//   /im/pictures/{hosting|miso|prohost-api}/Hosting-<roomId>/…
+// The page also carries Airbnb illustrations (the search-bar house icon,
+// /im/pictures/airbnb-platform-assets/…) and host avatars (/im/pictures/user/…)
+// above/around the gallery — an unfiltered first-N grab stored the icon as
+// "photo 2" on most listings.
 
 const fs = require('fs');
 const path = require('path');
 const logger = require('../lib/logger');
 
-const MAX_PHOTOS = 5;
+// 2 by default: thumbnails + a peek in the lightbox, ~0.3 MB per listing.
+const MAX_PHOTOS = Math.max(1, parseInt(process.env.HOST_PHOTOS_PER_LISTING || '2', 10));
 const MAX_BYTES = 800 * 1024;
+// Below this much free disk, listings are still scraped but photos skipped —
+// the VPS hosts other apps and SQLite must never hit a full disk.
+const MIN_FREE_BYTES = parseFloat(process.env.MEDIA_MIN_FREE_GB || '3') * 1024 ** 3;
 const MEDIA_ROOT = path.resolve(__dirname, '..', 'media');
 
 function listingIdFromUrl(url) {
@@ -15,31 +26,45 @@ function listingIdFromUrl(url) {
   return m ? m[1] : null;
 }
 
-async function collectPhotoUrls(page) {
+function freeBytes() {
+  try {
+    const s = fs.statfsSync(MEDIA_ROOT);
+    return s.bavail * s.bsize;
+  } catch {
+    return Infinity;
+  }
+}
+
+async function collectPhotoUrls(page, roomId, max) {
   return page
-    .evaluate((max) => {
-      const urls = [];
-      const seen = new Set();
+    .evaluate(
+      ({ max, roomId }) => {
+        const own = new RegExp(`/im/pictures/(?:hosting|miso|prohost-api)/Hosting-${roomId}/`, 'i');
+        const urls = [];
+        const seen = new Set();
 
-      function push(raw) {
-        if (!raw || urls.length >= max) return;
-        // Normalize: keep the base image, pin a sane width for storage.
-        const base = raw.split('?')[0];
-        if (seen.has(base)) return;
-        if (!/muscache\.com\/im\/pictures/i.test(raw)) return;
-        seen.add(base);
-        urls.push(`${base}?im_w=960`);
-      }
+        function push(raw) {
+          if (!raw || urls.length >= max) return;
+          // Normalize: keep the base image, pin a sane width for storage.
+          const base = raw.split('?')[0];
+          if (seen.has(base) || !own.test(base)) return;
+          seen.add(base);
+          urls.push(`${base}?im_w=960`);
+        }
 
-      const og = document.querySelector('meta[property="og:image"]');
-      if (og) push(og.getAttribute('content'));
-
-      for (const img of document.querySelectorAll('img')) {
-        push(img.currentSrc || img.src);
-        if (urls.length >= max) break;
-      }
-      return urls;
-    }, MAX_PHOTOS)
+        const og = document.querySelector('meta[property="og:image"]');
+        if (og) push(og.getAttribute('content'));
+        // Gallery first, then anything else on the page that is still one of
+        // this listing's own photos (e.g. sleeping-arrangement pictures).
+        const hero = document.querySelectorAll('[data-section-id^="HERO"] img');
+        for (const img of [...hero, ...document.querySelectorAll('img')]) {
+          push(img.currentSrc || img.src);
+          if (urls.length >= max) break;
+        }
+        return urls;
+      },
+      { max, roomId }
+    )
     .catch(() => []);
 }
 
@@ -82,7 +107,13 @@ async function downloadPhotos(urls, listingUrl, signal) {
 // One call per listing page visit. Returns relative media paths.
 async function extractPhotos(page, listingUrl, signal) {
   if (process.env.SCRAPER_STUB === '1') return stubPhotos(listingUrl);
-  const urls = await collectPhotoUrls(page);
+  const roomId = listingIdFromUrl(listingUrl);
+  if (!roomId) return [];
+  if (freeBytes() < MIN_FREE_BYTES) {
+    logger.warn(`photos skipped for ${roomId}: free disk below ${process.env.MEDIA_MIN_FREE_GB || '3'} GB`);
+    return [];
+  }
+  const urls = await collectPhotoUrls(page, roomId, MAX_PHOTOS);
   return downloadPhotos(urls, listingUrl, signal);
 }
 
