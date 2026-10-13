@@ -216,6 +216,19 @@ async function processHostListing({ jobId, card, ctx, signal }) {
   const url = card.url;
   emit(jobId, 'host-listing-started', { jobId, url });
 
+  // Reuse a fresh scrape of the same listing from another dossier (co-managed
+  // listings show up under several hosts) unless this job is a forced re-run.
+  const reuseDays = parseInt(process.env.LISTING_REUSE_DAYS || '30', 10);
+  if (reuseDays > 0 && !store.getJob(jobId)?.fresh) {
+    const prev = store.recentHostListingResult(url, jobId, reuseDays);
+    if (prev) {
+      const result = { ...prev, url, reusedFrom: 'recent-dossier' };
+      store.saveHostListingResult({ jobId, listingUrl: url, status: 'done', result });
+      emit(jobId, 'host-listing-done', { jobId, ...result, status: 'done' });
+      return;
+    }
+  }
+
   const deadline = Date.now() + PER_LISTING_TIMEOUT_MS;
   let page = null;
   try {

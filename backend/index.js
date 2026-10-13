@@ -12,7 +12,7 @@ const { runHostJob } = require('./workers/hostWorker');
 const { runHostCountJob } = require('./workers/hostCountWorker');
 const { runHostSyncJob } = require('./workers/hostSyncWorker');
 const { runRegistryJob } = require('./workers/registryWorker');
-const { runAlRegistryJob, runAlGoogleJob } = require('./workers/alRegistryWorker');
+const { runAlRegistryJob, runAlGoogleJob, queueHostExpansion } = require('./workers/alRegistryWorker');
 const alRegistry = require('./jobs/alRegistryStore');
 const tracker = require('./jobs/tracker');
 const { MEDIA_ROOT } = require('./scraper/extractPhotos');
@@ -41,10 +41,13 @@ if (recovered > 0) {
 
 // After a host dossier is built or synced, its listings may carry AL numbers
 // from the imported registry: match them for free (no search, no browser).
+// Then top the host-expansion wave back up (bounded by HOST_EXPANSION_WAVE),
+// so registry hosts keep flowing in as dossiers finish.
 function rematchRegistry(job) {
   try {
     const changed = alRegistry.matchFromDossiers();
     if (changed.length) emit(job.id, 'al-registry', { jobId: job.id, phase: 'rematched', changed });
+    queueHostExpansion(null);
   } catch (err) {
     logger.warn('AL registry rematch failed:', err.message);
   }

@@ -10,7 +10,7 @@ const { providerStatus } = require('../lib/searchProviders');
 
 const router = express.Router();
 
-const GOOGLE_MAX_BATCH = 50;
+const GOOGLE_MAX_BATCH = 500;
 
 function queueJob(type, urls, name) {
   const id = nanoid(10);

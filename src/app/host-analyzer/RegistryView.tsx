@@ -326,7 +326,7 @@ function ProvidersPanel({
           onChange={(e) => setBatch(parseInt(e.target.value, 10))}
           className="ha-input ha-focus px-2 py-1 text-xs"
         >
-          {[5, 10, 25, 50].map((v) => (
+          {[10, 25, 50, 100, 250, 500].map((v) => (
             <option key={v} value={v}>
               {v}
             </option>
@@ -365,6 +365,7 @@ const PHASE_LABEL: Record<string, string> = {
   bing: "Searching Bing",
   expand: "Queuing host dossiers",
   google: "Searching Google",
+  "chunk-queued": "Queuing the next chunk",
 };
 
 export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string) => void }) {
@@ -447,6 +448,8 @@ export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string)
   const live =
     progress && progress.phase !== "done" && (freeRunning || googleRunning || progress.phase === "paused") ? progress : null;
   const paused = progress?.phase === "paused" || (progress?.phase === "done" && progress.pausedNoCredits);
+  const bingBlocked =
+    progress?.phase === "bing-blocked" || (progress?.phase === "done" && !!progress.bingBlocked);
 
   return (
     <div className="flex flex-col gap-5">
@@ -584,7 +587,7 @@ export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string)
               </div>
 
               <AnimatePresence initial={false}>
-                {(live || paused) && (
+                {(live || paused || bingBlocked) && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
@@ -592,7 +595,12 @@ export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string)
                     transition={{ duration: 0.25, ease: EASE }}
                     className="overflow-hidden"
                   >
-                    {paused ? (
+                    {bingBlocked && !paused ? (
+                      <p role="status" className="mt-4 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
+                        Bing started blocking the server, so the Bing step stopped. The remaining licences stay
+                        pending and untried; run free matching again later (Bing usually lifts it within hours).
+                      </p>
+                    ) : paused ? (
                       <p role="status" className="mt-4 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
                         Every Google provider is out of credits. Nothing was lost: the remaining ALs stay
                         pending. Add a key or wait for a monthly reset, then search again.

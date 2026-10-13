@@ -38,6 +38,17 @@ async function bingCandidates(page, al) {
     { waitUntil: 'domcontentloaded', timeout: 30_000 }
   );
   await page.waitForTimeout(2500);
+  // A real results page always has #b_results (even with zero hits); a
+  // CAPTCHA / challenge / "unusual traffic" page doesn't. Throwing lets the
+  // caller stop the Bing step instead of marking every AL as "Bing tried".
+  const state = await page
+    .evaluate(() => ({ results: !!document.querySelector('#b_results'), url: location.href }))
+    .catch(() => ({ results: false, url: '' }));
+  if (!state.results || /captcha|\/challenge/i.test(state.url)) {
+    const err = new Error(`Bing blocked (${state.url.slice(0, 80)})`);
+    err.code = 'bing-blocked';
+    throw err;
+  }
   const hrefs = await page.$$eval('li.b_algo h2 a', (as) => as.map((a) => a.href)).catch(() => []);
   const ids = [];
   for (const h of hrefs) {

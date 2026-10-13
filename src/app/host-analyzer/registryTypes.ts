@@ -81,7 +81,17 @@ export type ProvidersPayload = {
 // Live progress from the "al-registry" SSE event.
 export type RegistryProgress = {
   jobId: string;
-  phase: "dossiers" | "hosts" | "bing" | "expand" | "google" | "paused" | "rematched" | "done";
+  phase:
+    | "dossiers"
+    | "hosts"
+    | "bing"
+    | "bing-blocked"
+    | "expand"
+    | "chunk-queued"
+    | "google"
+    | "paused"
+    | "rematched"
+    | "done";
   total?: number;
   done?: number;
   al?: string;
@@ -91,6 +101,7 @@ export type RegistryProgress = {
   matched?: number;
   reason?: string;
   pausedNoCredits?: boolean;
+  bingBlocked?: boolean;
 };
 
 export type ImportRow = {

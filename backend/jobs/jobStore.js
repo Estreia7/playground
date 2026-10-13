@@ -370,6 +370,48 @@ function saveHostListingResult({ jobId, listingUrl, status, result }) {
   ).run(jobId, listingUrl, status, JSON.stringify(result), nowSec());
 }
 
+// Newest successful scrape of the same listing in ANOTHER dossier, if recent.
+// Co-managed listings appear in several hosts' dossiers; reusing a fresh
+// result saves an Airbnb visit (and its photos) per duplicate.
+function recentHostListingResult(listingUrl, excludeJobId, maxAgeDays = 30) {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT result_json FROM host_results
+        WHERE listing_url = ? AND job_id != ? AND status = 'done' AND finished_at >= ?
+        ORDER BY finished_at DESC LIMIT 1`
+    )
+    .get(listingUrl, excludeJobId, nowSec() - maxAgeDays * 86400);
+  if (!row) return null;
+  const result = JSON.parse(row.result_json);
+  if (result.error) return null;
+  // Dossier-specific flags never travel with a copy.
+  delete result.removed;
+  delete result.removedAt;
+  return result;
+}
+
+// Roughly how many Airbnb pages a finished job visited — sizes the scheduler
+// cool-down so a 2-listing host doesn't idle as long as a 300-listing one.
+function jobWorkItems(job) {
+  const db = getDb();
+  if (job.type === 'host') {
+    return db.prepare(`SELECT COUNT(*) AS n FROM host_results WHERE job_id = ?`).get(job.id).n + 1;
+  }
+  if (job.type === 'host-sync') {
+    return db.prepare(`SELECT COUNT(*) AS n FROM host_listing_events WHERE job_id = ?`).get(job.id).n + 1;
+  }
+  // al-registry / al-google: one progress event per AL handled.
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM job_events
+          WHERE job_id = ? AND event_type = 'al-registry' AND payload_json LIKE '%"al":%'`
+      )
+      .get(job.id).n + 1
+  );
+}
+
 function hostListingResults(jobId) {
   const db = getDb();
   return db
@@ -686,6 +728,8 @@ module.exports = {
   addAdrJobIds,
   saveHostListingResult,
   hostListingResults,
+  jobWorkItems,
+  recentHostListingResult,
   alLicenseLookup,
   alLicenseUpsert,
   alLicenseSetGeocode,

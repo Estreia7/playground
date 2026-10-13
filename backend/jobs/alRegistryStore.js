@@ -293,7 +293,8 @@ function hostsToExpand() {
               COUNT(*) AS registryListings
          FROM al_airbnb_matches
         WHERE status = 'found' AND host_id IS NOT NULL
-        GROUP BY host_id`
+        GROUP BY host_id
+        ORDER BY registryListings DESC, MAX(checked_at) ASC`
     )
     .all();
   const hasDossier = db.prepare(
@@ -493,6 +494,17 @@ function hasActiveJob(type) {
     .get(type);
 }
 
+function queuedJobs(type) {
+  return getDb()
+    .prepare(`SELECT COUNT(*) AS n FROM jobs WHERE type = ? AND status = 'queued'`)
+    .get(type).n;
+}
+
+// Host jobs waiting to run — the wave size check for host expansion.
+function queuedHostJobs() {
+  return queuedJobs('host');
+}
+
 function activeJobs() {
   return getDb()
     .prepare(
@@ -525,5 +537,7 @@ module.exports = {
   getProviderState,
   setProviderState,
   hasActiveJob,
+  queuedJobs,
+  queuedHostJobs,
   activeJobs,
 };

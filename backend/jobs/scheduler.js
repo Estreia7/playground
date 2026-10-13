@@ -9,15 +9,25 @@ let busy = false;
 
 // Cool-down between Airbnb-heavy jobs: a queue of many host dossiers (e.g.
 // every host behind an AL Registry import) must not hit Airbnb back to back.
-// A random pause after each such job; kicks during it are deferred.
+// The pause scales with the pages the job just visited (~10 s each, 30 s to
+// 5 min, ±20 % jitter): a 2-listing host waits 30 s, a big one the full 5 min.
+// Kicks during a cool-down are deferred.
 const HEAVY_TYPES = new Set(['host', 'host-sync', 'al-registry', 'al-google']);
 let cooldownUntil = 0;
 let cooldownTimer = null;
 
-function cooldownMs() {
-  const min = parseInt(process.env.JOB_COOLDOWN_MIN_S || '120', 10);
+function cooldownMs(job) {
+  const min = parseInt(process.env.JOB_COOLDOWN_MIN_S || '30', 10);
   const max = Math.max(min, parseInt(process.env.JOB_COOLDOWN_MAX_S || '300', 10));
-  return Math.round((min + Math.random() * (max - min)) * 1000);
+  const perItem = parseFloat(process.env.JOB_COOLDOWN_PER_ITEM_S || '10');
+  let items = 1;
+  try {
+    items = store.jobWorkItems(job);
+  } catch {
+    /* fall back to the minimum */
+  }
+  const base = Math.min(max, Math.max(min, items * perItem));
+  return Math.round(base * (0.8 + Math.random() * 0.4) * 1000);
 }
 
 function setRunner(fn) {
@@ -66,7 +76,7 @@ function kick() {
       currentJobId = null;
       currentAbort = null;
       if (HEAVY_TYPES.has(next.type)) {
-        const ms = cooldownMs();
+        const ms = cooldownMs(next);
         cooldownUntil = Date.now() + ms;
         if (store.getNextQueued()) logger.info(`scheduler: cooling down ${Math.round(ms / 1000)}s before the next job`);
       }

@@ -85,10 +85,16 @@ class Browser {
   }
 }
 
-// Queue a regular host job for every host behind a match that has no
-// dossier yet. No minimum listing count: a 2-listing host is still expanded.
+// Queue regular host jobs, in waves: hosts behind a match with no dossier yet,
+// most registry licences first, but never more than HOST_EXPANSION_WAVE host
+// jobs waiting at once. As dossiers finish, index.js tops the wave back up —
+// so a 3k-licence import trickles through instead of flooding the queue.
+// No minimum listing count: a 2-listing host is still expanded.
 function queueHostExpansion(jobId) {
-  const hosts = reg.hostsToExpand();
+  const wave = Math.max(1, parseInt(process.env.HOST_EXPANSION_WAVE || '50', 10));
+  const room = wave - reg.queuedHostJobs();
+  if (room <= 0) return 0;
+  const hosts = reg.hostsToExpand().slice(0, room);
   for (const h of hosts) {
     const id = nanoid(10);
     const name = (h.hostName || `Host ${h.hostId}`).slice(0, 120);
@@ -96,25 +102,46 @@ function queueHostExpansion(jobId) {
     store.createJob({ id, urls: [url], name, type: 'host' });
     emit(id, 'job-created', { jobId: id, type: 'host', urls: [url], name, createdAt: nowSec() });
   }
-  if (hosts.length) progress(jobId, { phase: 'expand', queued: hosts.length });
+  if (hosts.length && jobId) progress(jobId, { phase: 'expand', queued: hosts.length });
   return hosts.length;
+}
+
+// One free-matching run handles at most REGISTRY_CHUNK listing visits, then
+// re-queues itself at the BACK of the queue, so host dossiers, syncs and the
+// tracker get their turns in between instead of waiting a whole day.
+function chunkSize() {
+  return Math.max(10, parseInt(process.env.REGISTRY_CHUNK || '100', 10));
+}
+
+function queueNextChunk(jobId) {
+  if (reg.queuedJobs('al-registry') > 0) return null;
+  const id = nanoid(10);
+  const name = 'AL registry: free matching (next chunk)';
+  store.createJob({ id, urls: ['registry'], name, type: 'al-registry' });
+  emit(id, 'job-created', { jobId: id, type: 'al-registry', urls: ['registry'], name, createdAt: nowSec() });
+  progress(jobId, { phase: 'chunk-queued', next: id });
+  return id;
 }
 
 async function runAlRegistryJob(job, { signal }) {
   const jobId = job.id;
   const browser = new Browser();
+  const budget = chunkSize();
+  let visits = 0;
   let errored = false;
+  let bingBlocked = false;
   try {
     // --- 0. dossiers (free, no browser) ---------------------------------
     const fromDossiers = reg.matchFromDossiers();
     progress(jobId, { phase: 'dossiers', matched: fromDossiers.length });
 
     // --- 1. hosts for found matches that never got one --------------------
-    const missing = reg.matchesMissingHost();
+    const missing = reg.matchesMissingHost().slice(0, budget);
     progress(jobId, { phase: 'hosts', total: missing.length, done: 0 });
     let done = 0;
     for (const { al, roomId } of missing) {
       if (signal?.aborted) return { cancelled: true };
+      visits++;
       try {
         const page = await browser.get();
         const v = await verifyListing(page, roomId, al, { signal });
@@ -138,8 +165,8 @@ async function runAlRegistryJob(job, { signal }) {
       await randomDelay(5000, 9000, signal).catch(() => {});
     }
 
-    // --- 2. bing (free) ---------------------------------------------------
-    const pending = reg.pendingAls('bing');
+    // --- 2. bing (free), within what is left of this chunk ------------------
+    const pending = reg.pendingAls('bing', Math.max(0, budget - visits));
     progress(jobId, { phase: 'bing', total: pending.length, done: 0 });
     done = 0;
     for (const al of pending) {
@@ -149,6 +176,7 @@ async function runAlRegistryJob(job, { signal }) {
         progress(jobId, { phase: 'bing', total: pending.length, done: ++done, al });
         continue;
       }
+      visits++;
       try {
         const page = await browser.get();
         const ids = await bingCandidates(page, al);
@@ -166,6 +194,14 @@ async function runAlRegistryJob(job, { signal }) {
         });
       } catch (err) {
         if (signal?.aborted) return { cancelled: true };
+        if (err.code === 'bing-blocked') {
+          // Stop here: the rest stay pending AND untried, so a later run
+          // retries them — nothing gets pushed to the paid step by a block.
+          bingBlocked = true;
+          logger.warn(`registry: Bing blocked at ${al}, stopping the Bing step`);
+          progress(jobId, { phase: 'bing-blocked', total: pending.length, done, al });
+          break;
+        }
         errored = true;
         logger.warn(`registry bing failed for ${al}:`, err.message);
         await browser.resetPage();
@@ -177,10 +213,18 @@ async function runAlRegistryJob(job, { signal }) {
     await browser.close();
   }
 
-  // --- 3. expand hosts (queues regular host jobs) ---------------------------
-  if (!signal?.aborted) queueHostExpansion(jobId);
-  progress(jobId, { phase: 'done' });
-  return { cancelled: !!signal?.aborted, errored };
+  if (signal?.aborted) return { cancelled: true, errored };
+
+  // --- 3. expand hosts (one wave of regular host jobs) ----------------------
+  queueHostExpansion(jobId);
+
+  // More work than one chunk? Go to the back of the queue and continue later.
+  const more =
+    reg.matchesMissingHost().length > 0 || (!bingBlocked && reg.pendingAls('bing', 1).length > 0);
+  if (more && visits > 0) queueNextChunk(jobId);
+
+  progress(jobId, { phase: 'done', bingBlocked, visits });
+  return { cancelled: false, errored };
 }
 
 async function runAlGoogleJob(job, { signal }) {
