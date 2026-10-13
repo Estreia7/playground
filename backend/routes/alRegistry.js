@@ -6,11 +6,13 @@ const store = require('../jobs/jobStore');
 const reg = require('../jobs/alRegistryStore');
 const scheduler = require('../jobs/scheduler');
 const { emit } = require('../jobs/jobManager');
-const { providerStatus } = require('../lib/searchProviders');
+const { providerStatus, costOf } = require('../lib/searchProviders');
 
 const router = express.Router();
 
-const GOOGLE_MAX_BATCH = 500;
+// One request may cover every pending licence: the worker splits it into
+// GOOGLE_CHUNK-sized turns, re-queued at the back of the queue.
+const GOOGLE_MAX_BATCH = 20000;
 
 function queueJob(type, urls, name) {
   const id = nanoid(10);
@@ -99,10 +101,17 @@ router.get('/al-registry/status', (req, res) => {
   res.json({
     counts: reg.pipelineCounts(source),
     bingPausedUntil: reg.bingBlockedUntil(),
+    bingPause: reg.bingPause(),
     cooldownUntil: sched.cooldownUntil,
     ...reg.queueSnapshot(sched.currentJobId),
     now: Math.floor(Date.now() / 1000),
   });
+});
+
+// Run history for the "what happened" log in the tab.
+router.get('/al-registry/runs', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 40, 200);
+  res.json({ runs: reg.runHistory(limit, costOf) });
 });
 
 router.get('/al-registry/providers', async (req, res) => {

@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { fmtTime, rntPortalUrl } from "./helpers";
 import { useRegistryState } from "./useRegistryState";
-import type { RegistryRow, RegistryStatus, SearchProvider } from "./registryTypes";
+import type { RegistryRow, RegistryStatus, RunSummary, SearchProvider } from "./registryTypes";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const PAGE = 150;
@@ -239,20 +239,20 @@ function ProvidersPanel({
   onSearch: (limit: number) => Promise<void>;
   onRefreshBalance: () => void;
 }) {
-  const [batch, setBatch] = useState(10);
+  const [batch, setBatch] = useState(10); // 0 = all pending
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const next = providers.find((p) => {
     const s = providerState(p).label;
     return s === "Ready" || s === "Not checked yet";
   });
-  const n = Math.min(batch, pendingForGoogle);
+  const n = batch === 0 ? pendingForGoogle : Math.min(batch, pendingForGoogle);
   const disabledReason = googleRunning
     ? "A Google search is already running."
     : !next
       ? "Every provider is out of credits or has no key."
       : pendingForGoogle === 0
-        ? "Nothing left for Google: the free steps cover every pending AL first."
+        ? "Nothing pending: every licence has been checked."
         : null;
 
   async function go() {
@@ -331,6 +331,7 @@ function ProvidersPanel({
               {v}
             </option>
           ))}
+          <option value={0}>All pending ({pendingForGoogle.toLocaleString("en-GB")})</option>
         </select>
         <motion.button
           type="button"
@@ -345,7 +346,7 @@ function ProvidersPanel({
       <p className="mt-2 text-[11px] text-[var(--mist)]" aria-live="polite">
         {disabledReason ||
           (next
-            ? `${pendingForGoogle} pending after Bing · about ${n * next.costPerQuery} ${next.unit}${n * next.costPerQuery === 1 ? "" : "s"} on ${PROVIDER_LABEL[next.name] || next.name}`
+            ? `${pendingForGoogle.toLocaleString("en-GB")} pending · about ${n * next.costPerQuery} ${next.unit}${n * next.costPerQuery === 1 ? "" : "s"} on ${PROVIDER_LABEL[next.name] || next.name}`
             : null)}
       </p>
       {error && (
@@ -541,12 +542,17 @@ function PipelinePanel({ status, noCredits }: { status: RegistryStatus | null; n
         )}
       </div>
 
-      {status.bingPausedUntil && (
+      {status.bingPause?.reason === "rest" ? (
+        <p className="mt-3 rounded-[10px] bg-[var(--ink-deep)]/60 px-3 py-2 text-xs text-[var(--mist)]">
+          Bing is resting until {clock(status.bingPause.until)}: a planned pause after each 40 searches, which keeps
+          Bing from blocking the server. Free matching continues by itself then.
+        </p>
+      ) : status.bingPausedUntil ? (
         <p className="mt-3 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
           Bing started blocking the server, so the free Bing step is paused until {clock(status.bingPausedUntil)}.
           Nothing was lost: those licences stay pending, and free matching resumes by itself then.
         </p>
-      )}
+      ) : null}
       {noCredits && (
         <p className="mt-3 rounded-[10px] bg-[var(--amber-dim)] px-3 py-2 text-xs text-[var(--amber)]">
           Every Google provider is out of credits. The remaining licences stay pending; add a key or wait for a
@@ -554,6 +560,120 @@ function PipelinePanel({ status, noCredits }: { status: RegistryStatus | null; n
         </p>
       )}
     </div>
+  );
+}
+
+// --- Run history (what each run did) ---------------------------------------------
+// The registry's own log: every free-matching and Google run with what it
+// searched, found, where Bing stopped it and what it cost — so blocks and
+// credit spend can be read in the app instead of the server logs.
+
+function duration(s: number | null) {
+  if (s == null) return "-";
+  if (s < 60) return `${s}s`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+}
+
+type Chip = { text: string; tone?: "ok" | "warn" | "bad" | "muted" };
+
+const CHIP_TONE: Record<NonNullable<Chip["tone"]>, string> = {
+  ok: "border-[var(--verdi)]/35 text-[var(--verdi)]",
+  warn: "border-[var(--amber)]/40 text-[var(--amber)]",
+  bad: "border-[var(--coral)]/40 text-[var(--coral)]",
+  muted: "border-[var(--tide)] text-[var(--mist)]",
+};
+
+function runChips(r: RunSummary): Chip[] {
+  const chips: Chip[] = [];
+  const b = r.bing;
+  const g = r.google;
+  if (r.hostsRead) chips.push({ text: `${r.hostsRead} hosts read`, tone: "muted" });
+  if (b.searched || b.errors) {
+    chips.push({ text: `Bing ${b.searched} searched · ${b.found} found`, tone: b.found ? "ok" : "muted" });
+  }
+  if (b.canaryChecks) {
+    chips.push(
+      b.canaryFailed
+        ? { text: `canary failed: quiet block`, tone: "warn" }
+        : { text: `canary ok ×${b.canaryChecks}`, tone: "muted" }
+    );
+  }
+  if (b.blocked) {
+    const why = /canary/.test(b.blocked.reason) ? "quietly blocked" : "blocked";
+    chips.push({
+      text: `Bing ${why} after ${b.blocked.after}${b.blocked.unmarked ? ` · ${b.blocked.unmarked} un-marked` : ""}`,
+      tone: "warn",
+    });
+  }
+  if (b.restUntil) chips.push({ text: `Bing resting until ${clock(b.restUntil)}`, tone: "muted" });
+  if (b.pausedUntil && !b.searched) {
+    chips.push({ text: `Bing ${b.pauseReason === "rest" ? "resting" : "paused"}, skipped`, tone: "muted" });
+  }
+  if (g.searched) {
+    chips.push({
+      text: `Google ${g.searched} searched · ${g.found} found${g.delisted ? ` · ${g.delisted} delisted` : ""}`,
+      tone: g.found ? "ok" : "muted",
+    });
+    const spend = Object.entries(g.providers)
+      .map(([p, v]) => `${PROVIDER_LABEL[p] || p} ${v.searches}${v.cached ? ` (+${v.cached} cached)` : ""}`)
+      .join(", ");
+    if (spend) chips.push({ text: `${g.credits} credits · ${spend}`, tone: "muted" });
+  }
+  if (g.outOfCredits) chips.push({ text: "out of Google credits", tone: "bad" });
+  if (r.hostsQueued) chips.push({ text: `${r.hostsQueued} host dossiers queued`, tone: "muted" });
+  if (r.continued) chips.push({ text: "continues in next run", tone: "muted" });
+  if (!chips.length) chips.push({ text: r.status === "queued" ? "waiting in queue" : "nothing to do", tone: "muted" });
+  return chips;
+}
+
+function RunHistory({ runs }: { runs: RunSummary[] | null }) {
+  const [showAll, setShowAll] = useState(false);
+  if (!runs || runs.length === 0) return null;
+  const list = showAll ? runs : runs.slice(0, 6);
+  return (
+    <section className="ha-panel p-4 md:p-5" aria-labelledby="ha-runs-h">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="ha-runs-h" className="ha-display text-sm font-semibold">
+          Run history
+        </h3>
+        <span className="text-[11px] text-[var(--mist)]">What each run searched, found and cost</span>
+      </div>
+      <ol className="mt-3 divide-y divide-[var(--tide)]/70">
+        {list.map((r) => (
+          <li key={r.id} className="grid gap-x-4 gap-y-1.5 py-2.5 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+            <div className="text-xs">
+              <div className="text-[var(--foam)]">{r.type === "al-google" ? "Google search" : "Free matching"}</div>
+              <div className="text-[11px] text-[var(--mist)]">
+                {r.startedAt ? `${fmtTime(r.startedAt)} · ${duration(r.durationS)}` : "queued"}
+                {r.status === "running" && <span className="text-[var(--verdi)]"> · running</span>}
+                {r.status === "error" && <span className="text-[var(--coral)]"> · error</span>}
+                {r.status === "cancelled" && <span> · cancelled</span>}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {runChips(r).map((c, i) => (
+                <span
+                  key={i}
+                  className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] ${CHIP_TONE[c.tone || "muted"]}`}
+                >
+                  {c.text}
+                </span>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {runs.length > 6 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="ha-focus mt-2 text-xs text-[var(--mist)] underline decoration-[var(--tide)] underline-offset-[3px] hover:text-[var(--foam)]"
+        >
+          {showAll ? "Show fewer" : `Show all ${runs.length} runs`}
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -569,7 +689,7 @@ const PHASE_LABEL: Record<string, string> = {
 };
 
 export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string) => void }) {
-  const { data, providers, source, setSource, progress, status, loadError, refreshProviders, importFile, runFree, runGoogle, recheck } =
+  const { data, providers, source, setSource, progress, status, runs, loadError, refreshProviders, importFile, runFree, runGoogle, recheck } =
     useRegistryState(true);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -636,7 +756,7 @@ export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string)
     providers && s ? (
       <ProvidersPanel
         providers={providers.providers}
-        pendingForGoogle={s.pendingAfterBing}
+        pendingForGoogle={s.pending}
         googleRunning={googleRunning}
         onSearch={async (limit) => {
           await runGoogle(limit);
@@ -790,6 +910,8 @@ export function RegistryView({ onOpenDossier }: { onOpenDossier: (jobId: string)
 
           {/* Narrow screens: credits right after coverage, before the long table. */}
           {providersPanel && <div className="lg:hidden">{providersPanel}</div>}
+
+          <RunHistory runs={runs} />
 
           {/* Table */}
           <section className="ha-panel overflow-hidden" aria-labelledby="ha-registry-table-h">

@@ -202,4 +202,8 @@ async function providerStatus({ refresh = false } = {}) {
   };
 }
 
-module.exports = { searchAl, providerStatus, usableProviders, CANARY };
+function costOf(name) {
+  return PROVIDERS[name]?.costPerQuery ?? 0;
+}
+
+module.exports = { searchAl, providerStatus, usableProviders, costOf, CANARY };

@@ -8,6 +8,7 @@ import type {
   RegistryPayload,
   RegistryProgress,
   RegistryStatus,
+  RunSummary,
 } from "./registryTypes";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -119,6 +120,24 @@ export function useRegistryState(active: boolean) {
   const [progress, setProgress] = useState<RegistryProgress | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<RegistryStatus | null>(null);
+  const [runs, setRuns] = useState<RunSummary[] | null>(null);
+
+  const refreshRuns = useCallback(async () => {
+    try {
+      setRuns((await api<{ runs: RunSummary[] }>("/al-registry/runs?limit=40")).runs);
+    } catch {
+      /* keep the last list */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
+    refreshRuns();
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") refreshRuns();
+    }, 30000);
+    return () => clearInterval(t);
+  }, [active, refreshRuns]);
 
   // Live pipeline/queue state straight from the server — survives reloads and
   // covers work started elsewhere (auto-resume, other tabs). Polled while the
@@ -179,6 +198,7 @@ export function useRegistryState(active: boolean) {
       timer = setTimeout(() => {
         refresh();
         refreshStatus();
+        refreshRuns();
         if (withProviders) refreshProviders();
       }, 600);
     };
@@ -197,7 +217,7 @@ export function useRegistryState(active: boolean) {
       if (timer) clearTimeout(timer);
       es.close();
     };
-  }, [active, refresh, refreshStatus, refreshProviders]);
+  }, [active, refresh, refreshStatus, refreshRuns, refreshProviders]);
 
   const importFile = useCallback(
     async (file: File) => {
@@ -245,6 +265,7 @@ export function useRegistryState(active: boolean) {
     setSource,
     progress,
     status,
+    runs,
     loadError,
     refresh,
     refreshProviders,

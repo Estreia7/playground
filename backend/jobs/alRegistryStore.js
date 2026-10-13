@@ -503,11 +503,33 @@ function bingBlockedUntil() {
   return s?.exhausted_until && s.exhausted_until > nowSec() ? s.exhausted_until : null;
 }
 
-function setBingBlocked(message) {
-  const hours = parseFloat(process.env.BING_BACKOFF_HOURS || '4');
+// kind: 'blocked' (Bing refused us) or 'rest' (planned pause after a full
+// window of searches). Both pause the Bing step for BING_BACKOFF_HOURS.
+function setBingBlocked(message, kind = 'blocked') {
+  const hours = parseFloat(process.env.BING_BACKOFF_HOURS || '6');
   const until = nowSec() + Math.round(hours * 3600);
-  setProviderState('bing', { exhausted_until: until, last_error: String(message || '').slice(0, 200) });
+  setProviderState('bing', {
+    exhausted_until: until,
+    last_error: `${kind}: ${String(message || '').slice(0, 200)}`,
+  });
   return until;
+}
+
+function bingPause() {
+  const s = getProviderState('bing');
+  if (!s?.exhausted_until || s.exhausted_until <= nowSec()) return null;
+  return { until: s.exhausted_until, reason: /^rest:/.test(s.last_error || '') ? 'rest' : 'blocked' };
+}
+
+// Licences Bing found before — the canary set for detecting quiet blocks.
+function bingCanaries(n = 2) {
+  return getDb()
+    .prepare(
+      `SELECT al_number AS al, room_id AS roomId FROM al_airbnb_matches
+        WHERE found_via = 'bing' AND status = 'found' AND room_id IS NOT NULL
+        ORDER BY RANDOM() LIMIT ?`
+    )
+    .all(n);
 }
 
 // --- Pipeline status (cheap; polled by the UI) -------------------------------------
@@ -580,6 +602,78 @@ function queueSnapshot(currentJobId) {
   };
 }
 
+// Run history: one summary per AL Registry job, rebuilt from its own progress
+// events — what each run did, where Bing stopped it, what Google cost.
+function runHistory(limit = 40, costOf = () => 0) {
+  const db = getDb();
+  const jobs = db
+    .prepare(
+      `SELECT * FROM jobs WHERE type IN ('al-registry', 'al-google')
+        ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(limit);
+  const evStmt = db.prepare(
+    `SELECT payload_json AS p, ts FROM job_events
+      WHERE job_id = ? AND event_type = 'al-registry' ORDER BY seq`
+  );
+  return jobs.map((j) => {
+    const ev = evStmt.all(j.id).map((e) => ({ ...JSON.parse(e.p), ts: e.ts }));
+    const bing = ev.filter((e) => e.phase === 'bing' && e.al);
+    const google = ev.filter((e) => e.phase === 'google' && e.al && !e.skipped);
+    const canary = ev.filter((e) => e.phase === 'bing-canary');
+    const blocked = ev.find((e) => e.phase === 'bing-blocked') || null;
+    const rest = ev.find((e) => e.phase === 'bing-rest') || null;
+    const paused = ev.find((e) => e.phase === 'bing-paused') || null;
+    const providers = {};
+    let credits = 0;
+    for (const g of google) {
+      if (!g.provider) continue;
+      providers[g.provider] = providers[g.provider] || { searches: 0, cached: 0 };
+      if (g.cached) providers[g.provider].cached++;
+      else {
+        providers[g.provider].searches++;
+        credits += costOf(g.provider);
+      }
+    }
+    const end = j.finished_at || (j.status === 'running' ? nowSec() : null);
+    return {
+      id: j.id,
+      type: j.type,
+      status: j.status,
+      name: j.name,
+      createdAt: j.created_at,
+      startedAt: j.started_at,
+      finishedAt: j.finished_at,
+      durationS: j.started_at && end ? end - j.started_at : null,
+      hostsRead: ev.filter((e) => e.phase === 'hosts' && e.al).length,
+      bing: {
+        searched: bing.filter((e) => !e.error && e.status).length,
+        found: bing.filter((e) => e.status === 'found').length,
+        errors: bing.filter((e) => e.error).length,
+        canaryChecks: canary.length,
+        canaryFailed: canary.filter((e) => !e.ok).length,
+        pausedUntil: paused ? paused.until : null,
+        pauseReason: paused ? paused.reason || 'blocked' : null,
+        blocked: blocked
+          ? { at: blocked.ts, al: blocked.al, after: blocked.done, reason: blocked.reason || 'blocked', unmarked: blocked.unmarked || 0, until: blocked.until }
+          : null,
+        restUntil: rest ? rest.until : null,
+      },
+      google: {
+        searched: google.length,
+        found: google.filter((e) => e.status === 'found').length,
+        delisted: google.filter((e) => e.status === 'delisted').length,
+        notFound: google.filter((e) => e.status === 'not_found').length,
+        providers,
+        credits,
+        outOfCredits: ev.some((e) => e.phase === 'paused' && e.reason === 'no-credits'),
+      },
+      hostsQueued: ev.filter((e) => e.phase === 'expand').reduce((n, e) => n + (e.queued || 0), 0),
+      continued: ev.some((e) => e.phase === 'chunk-queued'),
+    };
+  });
+}
+
 function queuedJobs(type) {
   return getDb()
     .prepare(`SELECT COUNT(*) AS n FROM jobs WHERE type = ? AND status = 'queued'`)
@@ -627,7 +721,10 @@ module.exports = {
   queuedHostJobs,
   bingBlockedUntil,
   setBingBlocked,
+  bingPause,
+  bingCanaries,
   pipelineCounts,
   queueSnapshot,
+  runHistory,
   activeJobs,
 };

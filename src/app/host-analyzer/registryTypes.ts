@@ -148,6 +148,7 @@ export type QueueJob = {
 export type RegistryStatus = {
   counts: PipelineCounts;
   bingPausedUntil: number | null;
+  bingPause: { until: number; reason: "rest" | "blocked" } | null;
   cooldownUntil: number | null;
   running: {
     id: string;
@@ -160,4 +161,39 @@ export type RegistryStatus = {
   queuedByType: Record<string, number>;
   registryQueued: QueueJob[];
   now: number;
+};
+
+// GET /al-registry/runs — one summary per registry job (the "what happened" log).
+export type RunSummary = {
+  id: string;
+  type: "al-registry" | "al-google";
+  status: string;
+  name: string;
+  createdAt: number;
+  startedAt: number | null;
+  finishedAt: number | null;
+  durationS: number | null;
+  hostsRead: number;
+  bing: {
+    searched: number;
+    found: number;
+    errors: number;
+    canaryChecks: number;
+    canaryFailed: number;
+    pausedUntil: number | null;
+    pauseReason: "rest" | "blocked" | null;
+    blocked: { at: number; al: string; after: number; reason: string; unmarked: number; until?: number } | null;
+    restUntil: number | null;
+  };
+  google: {
+    searched: number;
+    found: number;
+    delisted: number;
+    notFound: number;
+    providers: Record<string, { searches: number; cached: number }>;
+    credits: number;
+    outOfCredits: boolean;
+  };
+  hostsQueued: number;
+  continued: boolean;
 };
