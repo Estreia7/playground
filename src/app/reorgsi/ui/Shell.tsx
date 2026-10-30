@@ -80,6 +80,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </aside>
         {open && <div className="fixed inset-0 z-30 md:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
         <main className="rs-main">{children}</main>
+        <TabBar isCurrent={isCurrent} onMore={() => setOpen(true)} moreOpen={open} />
       </div>
     </NavContext.Provider>
   );
@@ -98,5 +99,46 @@ export function PageHeader({ title, sub, actions }: { title: string; sub?: React
       </div>
       {actions && <div className="actions">{actions}</div>}
     </header>
+  );
+}
+
+/* Phone navigation: a floating bar of frosted glass at the bottom of the
+   screen. The current page sits in a teal bubble that slides, with a little
+   overshoot, to whichever tab is tapped. The gear opens the full menu
+   (Consultores, Configuração, Sair), and is the current tab on those pages. */
+
+const TABS = [
+  { href: "/reorgsi", label: "Início", icon: IconHome, exact: true },
+  { href: "/reorgsi/negocios", label: "Negócios", icon: IconKey },
+  { href: "/reorgsi/analises", label: "Análises", icon: IconChart },
+  { href: "/reorgsi/conta-corrente", label: "Conta corrente", icon: IconLedger },
+];
+
+function TabBar({
+  isCurrent,
+  onMore,
+  moreOpen,
+}: {
+  isCurrent: (href: string, exact?: boolean) => boolean;
+  onMore: () => void;
+  moreOpen: boolean;
+}) {
+  const found = TABS.findIndex((t) => isCurrent(t.href, t.exact));
+  const index = moreOpen || found < 0 ? TABS.length : found;
+  return (
+    <nav className="rs-tabbar" aria-label="Navegação principal" style={{ ["--i" as string]: index }}>
+      <span className="bubble" aria-hidden="true" />
+      {TABS.map((t, i) => {
+        const Icon = t.icon;
+        return (
+          <Link key={t.href} href={t.href} className="tab" aria-label={t.label} aria-current={i === found ? "page" : undefined} data-on={i === index}>
+            <Icon size={24} />
+          </Link>
+        );
+      })}
+      <button type="button" className="tab" aria-label="Mais: consultores, configuração e sair" aria-expanded={moreOpen} data-on={index === TABS.length} onClick={onMore}>
+        <IconSettings size={24} />
+      </button>
+    </nav>
   );
 }
