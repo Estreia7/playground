@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { Db, FileRef } from "../core/types.ts";
 import type { Action } from "../core/actions.ts";
 import { Login } from "./Login.tsx";
@@ -48,6 +49,8 @@ const ERRORS: Record<string, string> = {
 };
 
 export function App({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [phase, setPhase] = useState<Phase>("checking");
   const [db, setDb] = useState<Db | null>(null);
   const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
@@ -82,9 +85,12 @@ export function App({ children }: { children: React.ReactNode }) {
       .catch(() => setPhase("login"));
   }, [load]);
 
+  // A fresh sign-in always lands on Início, whatever page asked for the password.
   const onSignedIn = useCallback(async () => {
-    if (await load()) setPhase("intro");
-  }, [load]);
+    if (!(await load())) return;
+    if (pathname !== "/reorgsi") router.replace("/reorgsi");
+    setPhase("intro");
+  }, [load, pathname, router]);
 
   const onIntroDone = useCallback(() => {
     try {
@@ -158,8 +164,9 @@ export function App({ children }: { children: React.ReactNode }) {
       }
       setDb(null);
       setPhase("login");
+      router.replace("/reorgsi");
     });
-  }, []);
+  }, [router]);
 
   if (phase === "checking") return <div className="min-h-dvh" style={{ background: "var(--ink)" }} aria-busy="true" />;
   if (phase === "login") return <Login onSignedIn={onSignedIn} />;
