@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Consultant, ConsultantStatus, Prize } from "../core/types.ts";
 import { PRIZE_NAMES, STATUS_LABEL, prizesOf } from "../core/types.ts";
-import { billingByConsultant, dealCountByConsultant, growth } from "../core/commission.ts";
+import { billingByConsultant, dealCountByConsultant, dealMixByConsultant, growth } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { Panel, PrizeChip, numberText, parseNumber } from "../ui/parts.tsx";
@@ -29,6 +29,7 @@ export default function ConsultantsPage() {
 
   const billing = useMemo(() => billingByConsultant(db, YEAR), [db]);
   const deals = useMemo(() => dealCountByConsultant(db), [db]);
+  const mix = useMemo(() => dealMixByConsultant(db), [db]);
 
   const rows = db.consultants
     .filter((c) => (filter ? c.status === filter : c.status !== "inativo"))
@@ -82,6 +83,9 @@ export default function ConsultantsPage() {
                 <th>Estado</th>
                 <th>Entrada</th>
                 <th className="right">Negócios</th>
+                <th className="right" title="Plenos: as duas partes do negócio. Partilhas: só uma parte. CB: processos bancários.">
+                  Plenos / Partilhas
+                </th>
                 <th className="right">Faturação {PREV}</th>
                 <th className="right">Faturação {YEAR}</th>
                 <th className="right">Crescimento</th>
@@ -118,6 +122,9 @@ export default function ConsultantsPage() {
                     ) : (
                       0
                     )}
+                  </td>
+                  <td className="right num">
+                    {mixLabel(mix.get(c.id))}
                   </td>
                   <td className="right num">{prev ? money(prev, 0) : "—"}</td>
                   <td className="right num font-semibold">{now ? money(now, 0) : "—"}</td>
@@ -272,4 +279,9 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
       </div>
     </Panel>
   );
+}
+
+function mixLabel(m: { plenos: number; partilhas: number; bancarios: number } | undefined): string {
+  if (!m) return "—";
+  return `${m.plenos} / ${m.partilhas}${m.bancarios ? ` · ${m.bancarios} CB` : ""}`;
 }

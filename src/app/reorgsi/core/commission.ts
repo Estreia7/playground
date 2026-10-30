@@ -162,6 +162,39 @@ export function dealCountByConsultant(db: Db): Map<string, number> {
   return out;
 }
 
+export interface DealMix {
+  /** Both sides of the deal held by this consultant. */
+  plenos: number;
+  /** Only one side: the other belongs to a colleague or an outside agency. */
+  partilhas: number;
+  /** Bank credit processes. */
+  bancarios: number;
+}
+
+/** Plenos, partilhas and bank processes per consultant, over every deal; they
+ *  add up to dealCountByConsultant. */
+export function dealMixByConsultant(db: Db): Map<string, DealMix> {
+  const out = new Map<string, DealMix>();
+  const get = (id: string) => {
+    let m = out.get(id);
+    if (!m) out.set(id, (m = { plenos: 0, partilhas: 0, bancarios: 0 }));
+    return m;
+  };
+  for (const d of db.deals) {
+    const a = teamId(d.angariacao);
+    const c = teamId(d.compradores);
+    if (d.transaction === "credito") {
+      for (const id of new Set([a, c].filter(Boolean) as string[])) get(id).bancarios++;
+    } else if (a && a === c) {
+      get(a).plenos++;
+    } else {
+      if (a) get(a).partilhas++;
+      if (c) get(c).partilhas++;
+    }
+  }
+  return out;
+}
+
 /** Year-to-date sum of a monthly series, up to and including month index `upTo`. */
 export function ytd(series: (number | null)[] | undefined, upTo: number): number {
   if (!series) return 0;
