@@ -1,6 +1,29 @@
-/* Stroke icons on a 24-unit grid, drawn for this project. The four glyphs of
-   the business — house, key, person, coin — are shared with the intro orb,
-   which draws the same paths on canvas. */
+import type { Icon as PhosphorIcon, IconWeight } from "@phosphor-icons/react/dist/lib/types";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
+import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr/CaretLeft";
+import { CaretRightIcon } from "@phosphor-icons/react/dist/ssr/CaretRight";
+import { ChartLineUpIcon } from "@phosphor-icons/react/dist/ssr/ChartLineUp";
+import { CoinsIcon } from "@phosphor-icons/react/dist/ssr/Coins";
+import { DownloadSimpleIcon } from "@phosphor-icons/react/dist/ssr/DownloadSimple";
+import { FileTextIcon } from "@phosphor-icons/react/dist/ssr/FileText";
+import { GearSixIcon } from "@phosphor-icons/react/dist/ssr/GearSix";
+import { HouseLineIcon } from "@phosphor-icons/react/dist/ssr/HouseLine";
+import { KeyIcon } from "@phosphor-icons/react/dist/ssr/Key";
+import { ListIcon } from "@phosphor-icons/react/dist/ssr/List";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr/MagnifyingGlass";
+import { PlusIcon } from "@phosphor-icons/react/dist/ssr/Plus";
+import { ReceiptIcon } from "@phosphor-icons/react/dist/ssr/Receipt";
+import { SquaresFourIcon } from "@phosphor-icons/react/dist/ssr/SquaresFour";
+import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
+import { UploadSimpleIcon } from "@phosphor-icons/react/dist/ssr/UploadSimple";
+import { UsersThreeIcon } from "@phosphor-icons/react/dist/ssr/UsersThree";
+import { XIcon } from "@phosphor-icons/react/dist/ssr/X";
+
+/* Interface icons come from Phosphor (MIT, phosphoricons.com). Navigation uses
+   the duotone weight so the sections read at a glance; actions stay regular.
+
+   The four glyphs of the business — house, key, person, coin — are kept as
+   paths here because the intro orb draws them on canvas. */
 
 export const GLYPHS = {
   house: "M4 11.2 12 4.5l8 6.7M6.5 9.4V19h11V9.4M10 19v-5h4v5",
@@ -9,122 +32,37 @@ export const GLYPHS = {
   coin: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM14.8 9.3a3.4 3.4 0 1 0 0 5.4M8.4 11h4.8M8.4 13h4.8",
 } as const;
 
-type P = { size?: number; className?: string };
+type P = { size?: number; className?: string; weight?: IconWeight };
 
-function Svg({ size = 20, className, children }: P & { children: React.ReactNode }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
+function icon(Glyph: PhosphorIcon, weight: IconWeight = "regular") {
+  const Wrapped = ({ size = 20, className, weight: w }: P) => (
+    <Glyph size={size} className={className} weight={w ?? weight} aria-hidden="true" />
   );
+  return Wrapped;
 }
 
-export const IconHouse = (p: P) => (
-  <Svg {...p}>
-    <path d={GLYPHS.house} />
-  </Svg>
-);
-export const IconKey = (p: P) => (
-  <Svg {...p}>
-    <path d={GLYPHS.key} />
-  </Svg>
-);
-export const IconPeople = (p: P) => (
-  <Svg {...p}>
-    <path d={GLYPHS.person} />
-  </Svg>
-);
-export const IconCoin = (p: P) => (
-  <Svg {...p}>
-    <path d={GLYPHS.coin} />
-  </Svg>
-);
-export const IconHome = (p: P) => (
-  <Svg {...p}>
-    <path d="M4 5h7v7H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 14h7v5H4z" />
-  </Svg>
-);
-export const IconChart = (p: P) => (
-  <Svg {...p}>
-    <path d="M4 20h16M7 16v-4M11.5 16V8M16 16v-6.5M19 5.5l-4 3-3.5-2.5L6 9.5" />
-  </Svg>
-);
-export const IconLedger = (p: P) => (
-  <Svg {...p}>
-    <path d="M6 3.5h12v17H6zM9 8h6M9 12h6M9 16h3" />
-  </Svg>
-);
-export const IconSettings = (p: P) => (
-  <Svg {...p}>
-    <path d="M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4" />
-  </Svg>
-);
-export const IconMenu = (p: P) => (
-  <Svg {...p}>
-    <path d="M4 7h16M4 12h16M4 17h16" />
-  </Svg>
-);
-export const IconClose = (p: P) => (
-  <Svg {...p}>
-    <path d="M6 6l12 12M18 6 6 18" />
-  </Svg>
-);
-export const IconPlus = (p: P) => (
-  <Svg {...p}>
-    <path d="M12 5v14M5 12h14" />
-  </Svg>
-);
-export const IconUpload = (p: P) => (
-  <Svg {...p}>
-    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 15v4.5h14V15" />
-  </Svg>
-);
-export const IconFile = (p: P) => (
-  <Svg {...p}>
-    <path d="M7 3.5h7l4 4v13H7zM14 3.5v4h4" />
-  </Svg>
-);
-export const IconExternal = (p: P) => (
-  <Svg {...p}>
-    <path d="M14 4.5h5.5V10M19.5 4.5 11 13M17 14v5.5H5V7.5h5.5" />
-  </Svg>
-);
-export const IconChevronLeft = (p: P) => (
-  <Svg {...p}>
-    <path d="m15 5-7 7 7 7" />
-  </Svg>
-);
-export const IconChevronRight = (p: P) => (
-  <Svg {...p}>
-    <path d="m9 5 7 7-7 7" />
-  </Svg>
-);
-export const IconDownload = (p: P) => (
-  <Svg {...p}>
-    <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14" />
-  </Svg>
-);
-export const IconTrash = (p: P) => (
-  <Svg {...p}>
-    <path d="M5 7h14M10 7V4.5h4V7M7 7l1 12.5h8L17 7" />
-  </Svg>
-);
-export const IconSearch = (p: P) => (
-  <Svg {...p}>
-    <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM16 16l4 4" />
-  </Svg>
-);
+// Navigation
+export const IconHome = icon(SquaresFourIcon, "duotone");
+export const IconKey = icon(KeyIcon, "duotone");
+export const IconPeople = icon(UsersThreeIcon, "duotone");
+export const IconChart = icon(ChartLineUpIcon, "duotone");
+export const IconLedger = icon(ReceiptIcon, "duotone");
+export const IconSettings = icon(GearSixIcon, "duotone");
+export const IconHouse = icon(HouseLineIcon, "duotone");
+export const IconCoin = icon(CoinsIcon, "duotone");
+
+// Actions
+export const IconMenu = icon(ListIcon);
+export const IconClose = icon(XIcon);
+export const IconPlus = icon(PlusIcon, "bold");
+export const IconUpload = icon(UploadSimpleIcon);
+export const IconFile = icon(FileTextIcon, "duotone");
+export const IconExternal = icon(ArrowSquareOutIcon);
+export const IconChevronLeft = icon(CaretLeftIcon, "bold");
+export const IconChevronRight = icon(CaretRightIcon, "bold");
+export const IconDownload = icon(DownloadSimpleIcon);
+export const IconTrash = icon(TrashIcon);
+export const IconSearch = icon(MagnifyingGlassIcon);
 
 /** Brand mark: a roof line held inside an orbit — the house at the centre of
  *  the team's work. */
