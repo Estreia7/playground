@@ -6,7 +6,7 @@ import { account, billingByConsultant, docProgress, growth, invoicesOf, lastFill
 import { useReorg } from "./ui/App.tsx";
 import { PageHeader } from "./ui/Shell.tsx";
 import { DealForm } from "./ui/forms.tsx";
-import { DocBar, PartyLabel } from "./ui/parts.tsx";
+import { DocBar, PartyLabel, Rank } from "./ui/parts.tsx";
 import { MONTH_SHORT, money, money0, monthName, percent } from "./ui/format.ts";
 import { IconPlus } from "./ui/Icons.tsx";
 
@@ -184,10 +184,13 @@ export default function HomePage() {
             <span className="aside">{YEAR}, pelos negócios</span>
           </div>
           <ol className="rs-card-body m-0 flex list-none flex-col gap-3">
-            {top.map(({ c, v }) => (
+            {top.map(({ c, v }, i) => (
               <li key={c!.id}>
                 <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="truncate font-semibold">{c!.name}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Rank n={i + 1} />
+                    <span className="truncate font-semibold">{c!.name}</span>
+                  </span>
                   <span className="num">{money0(v)}</span>
                 </div>
                 <div className="mt-1 h-2 rounded-full" style={{ background: "var(--canvas)" }}>

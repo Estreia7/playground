@@ -501,6 +501,34 @@ textarea.rs-input {
   white-space: nowrap;
 }
 
+/* A consultant from the manager's team, as opposed to an outside party. */
+.rs-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 3px;
+  border-radius: 999px;
+  background: var(--jade);
+  color: var(--ink);
+  font-weight: 650;
+  font-size: 13px;
+}
+
+.rs-person .av {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 /* ---------- the document bar (signature) ----------
    One segment per required document, so the bar reads as a checklist:
    jade = file attached, hatched jade = ticked without a file,

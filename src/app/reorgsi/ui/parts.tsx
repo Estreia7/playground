@@ -6,6 +6,7 @@ import { docProgress, requirementsFor } from "../core/commission.ts";
 import { IconClose } from "./Icons.tsx";
 import type { LabelledFile } from "./files/Files.tsx";
 import { PHASE_LABEL } from "../core/types.ts";
+import { initials } from "./format.ts";
 
 /* Small pieces shared by several screens. */
 
@@ -50,12 +51,46 @@ export function InvoiceStatusPill({ status }: { status: InvoiceStatus }) {
 
 export function PartyLabel({ db, party }: { db: Db; party?: Party }) {
   if (!party) return <span style={{ color: "var(--faint)" }}>—</span>;
-  const name =
-    party.kind === "team" ? (db.consultants.find((c) => c.id === party.consultantId)?.name ?? "—") : party.name;
+  if (party.kind === "external") {
+    return (
+      <span className="whitespace-nowrap">
+        <span style={{ color: "var(--muted)" }}>{party.name}</span>
+        {party.note && <span className="rs-sub">{party.note}</span>}
+      </span>
+    );
+  }
+  // The manager's own consultants stand out as a jade chip; outsiders stay plain grey.
+  const name = db.consultants.find((c) => c.id === party.consultantId)?.name ?? "—";
   return (
     <span className="whitespace-nowrap">
-      <span style={party.kind === "external" ? { color: "var(--muted)" } : { fontWeight: 600 }}>{name}</span>
+      <span className="rs-person" title="Consultor da equipa">
+        <span className="av" aria-hidden="true">
+          {initials(name)}
+        </span>
+        {name}
+      </span>
       {party.note && <span className="rs-sub">{party.note}</span>}
+    </span>
+  );
+}
+
+const MEDALS = ["#c9a35c", "#9fb3b8", "#b9825a"]; // gold, silver, bronze
+
+/** Ranking position, "1º", "2º"… with a medal before the first three. */
+export function Rank({ n }: { n: number }) {
+  const medal = MEDALS[n - 1];
+  return (
+    <span className="inline-flex min-w-11 items-center gap-1 whitespace-nowrap font-semibold" aria-label={`${n}.º lugar`}>
+      {medal ? (
+        <svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true">
+          <path d="M4 0h3l1.5 5L10 0h2L9.6 7H6.4z" fill="#345b63" fillOpacity="0.55" />
+          <circle cx="8" cy="11.5" r="5.5" fill={medal} />
+          <circle cx="8" cy="11.5" r="3.6" fill="none" stroke="#fff" strokeOpacity="0.55" strokeWidth="1" />
+        </svg>
+      ) : (
+        <span className="inline-block w-4" aria-hidden="true" />
+      )}
+      <span style={{ color: medal ? "var(--ink)" : "var(--muted)" }}>{n}º</span>
     </span>
   );
 }

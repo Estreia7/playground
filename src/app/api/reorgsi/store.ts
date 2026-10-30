@@ -76,7 +76,7 @@ export const FILE_ID = /^[A-Za-z0-9_-]{16}$/;
 export async function saveFile(name: string, mime: string, bytes: Buffer): Promise<FileRef> {
   const id = crypto.randomBytes(12).toString("base64url");
   await fs.mkdir(FILES_DIR, { recursive: true });
-  await fs.writeFile(path.join(FILES_DIR, `${id}.${ALLOWED[mime]}`), bytes);
+  await fs.writeFile(path.join(/*turbopackIgnore: true*/ FILES_DIR, `${id}.${ALLOWED[mime]}`), bytes);
   return { id, name, mime, size: bytes.length, uploadedAt: new Date().toISOString() };
 }
 
@@ -84,7 +84,7 @@ export async function readFile(id: string): Promise<{ bytes: Buffer; mime: strin
   if (!FILE_ID.test(id)) return null;
   for (const [mime, ext] of Object.entries(ALLOWED)) {
     try {
-      return { bytes: await fs.readFile(path.join(FILES_DIR, `${id}.${ext}`)), mime };
+      return { bytes: await fs.readFile(path.join(/*turbopackIgnore: true*/ FILES_DIR, `${id}.${ext}`)), mime };
     } catch {
       // not this extension
     }

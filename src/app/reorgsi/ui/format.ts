@@ -14,7 +14,8 @@ export const money0 = (n: number | undefined | null) => money(n, 0);
 
 export function percent(n: number | undefined | null, decimals = 2): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  const s = n.toFixed(decimals).replace(/\.?0+$/, "");
+  // Trim trailing decimal zeros only ("1.50" → "1.5"), never the integer's ("70" stays).
+  const s = decimals > 0 ? n.toFixed(decimals).replace(/0+$/, "").replace(/\.$/, "") : n.toFixed(0);
   return s.replace(".", ",") + " %";
 }
 

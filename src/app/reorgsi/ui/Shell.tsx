@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useReorg } from "./App.tsx";
 import { initials } from "./format.ts";
-import { IconHome, IconKey, IconLedger, IconMenu, IconPeople, IconSettings, Mark } from "./Icons.tsx";
+import { IconChart, IconHome, IconKey, IconLedger, IconMenu, IconPeople, IconSettings, Mark } from "./Icons.tsx";
 
 /* The frame around every screen. Every link stays inside /reorgsi: once in,
    the only way out is to sign out or close the tab. */
@@ -33,6 +33,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     { href: "/reorgsi", label: "Início", icon: <IconHome />, exact: true },
     { href: "/reorgsi/negocios", label: "Negócios", icon: <IconKey />, count: openDeals },
     { href: "/reorgsi/consultores", label: "Consultores", icon: <IconPeople />, count: active },
+    { href: "/reorgsi/analises", label: "Análises", icon: <IconChart /> },
     { href: "/reorgsi/conta-corrente", label: "Conta corrente", icon: <IconLedger /> },
   ];
 

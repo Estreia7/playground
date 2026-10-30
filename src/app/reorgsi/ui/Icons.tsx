@@ -55,6 +55,11 @@ export const IconHome = (p: P) => (
     <path d="M4 5h7v7H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 14h7v5H4z" />
   </Svg>
 );
+export const IconChart = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 20h16M7 16v-4M11.5 16V8M16 16v-6.5M19 5.5l-4 3-3.5-2.5L6 9.5" />
+  </Svg>
+);
 export const IconLedger = (p: P) => (
   <Svg {...p}>
     <path d="M6 3.5h12v17H6zM9 8h6M9 12h6M9 16h3" />
