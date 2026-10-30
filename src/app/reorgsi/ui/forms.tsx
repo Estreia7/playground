@@ -1,0 +1,382 @@
+"use client";
+
+import { useState } from "react";
+import type { Deal, DealStatus, Invoice, InvoicePhase, InvoiceStatus, Party, Transaction } from "../core/types.ts";
+import { PHASE_LABEL, TRANSACTION_LABEL } from "../core/types.ts";
+import { useReorg } from "./App.tsx";
+import { Panel, numberText, parseNumber } from "./parts.tsx";
+import { percent, today } from "./format.ts";
+
+/* The deal and invoice forms, both in a side panel. */
+
+function PartyField({
+  label,
+  value,
+  onChange,
+  optional = false,
+}: {
+  label: string;
+  value: Party | undefined;
+  onChange: (p: Party | undefined) => void;
+  optional?: boolean;
+}) {
+  const { db } = useReorg();
+  const team = db.consultants.filter((c) => c.status !== "inativo" || (value?.kind === "team" && value.consultantId === c.id));
+  const mode = !value ? "" : value.kind === "team" ? value.consultantId : "__external";
+  return (
+    <div className="rs-field">
+      {label}
+      <select
+        className="rs-select"
+        value={mode}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (!v) onChange(undefined);
+          else if (v === "__external") onChange({ kind: "external", name: value?.kind === "external" ? value.name : "", note: value?.note });
+          else onChange({ kind: "team", consultantId: v, note: value?.note });
+        }}
+      >
+        {optional && <option value="">Sem este lado</option>}
+        {!optional && !value && <option value="">Escolher…</option>}
+        <optgroup label="Equipa">
+          {team.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </optgroup>
+        <option value="__external">Outra agência ou consultor…</option>
+      </select>
+      {value?.kind === "external" && (
+        <input
+          className="rs-input"
+          placeholder="Nome da agência ou do consultor"
+          value={value.name}
+          onChange={(e) => onChange({ ...value, name: e.target.value })}
+          aria-label={`${label}: nome externo`}
+        />
+      )}
+      {value && (
+        <input
+          className="rs-input"
+          placeholder="Nota (ex.: ref C21 Heritage)"
+          value={value.note ?? ""}
+          onChange={(e) => onChange({ ...value, note: e.target.value || undefined })}
+          aria-label={`${label}: nota`}
+        />
+      )}
+    </div>
+  );
+}
+
+export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () => void; onSaved?: (id: string) => void }) {
+  const { db, dispatch, notify } = useReorg();
+  const [ref, setRef] = useState(deal?.ref ?? "");
+  const [listingUrl, setListingUrl] = useState(deal?.listingUrl ?? "");
+  const [transaction, setTransaction] = useState<Transaction>(deal?.transaction ?? "venda");
+  const [price, setPrice] = useState(numberText(deal?.price));
+  const [address, setAddress] = useState(deal?.address ?? "");
+  const [dealTypeId, setDealTypeId] = useState(deal?.dealTypeId ?? db.dealTypes.find((t) => t.active)?.id ?? "");
+  const [angariacao, setAngariacao] = useState<Party | undefined>(deal?.angariacao);
+  const [compradores, setCompradores] = useState<Party | undefined>(deal?.compradores);
+  const [commissionPct, setCommissionPct] = useState(numberText(deal?.commissionPct));
+  const [split, setSplit] = useState(String(deal?.listingSplitPct ?? 50));
+  const [status, setStatus] = useState<DealStatus>(deal?.status ?? "aberto");
+  const [notes, setNotes] = useState(deal?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const type = db.dealTypes.find((t) => t.id === dealTypeId);
+  const p = parseNumber(price);
+  const c = parseNumber(commissionPct);
+  const total = p != null && c != null ? (p * c) / 100 : undefined;
+
+  async function save() {
+    if (!angariacao || (angariacao.kind === "external" && !angariacao.name.trim())) {
+      notify("Indique quem fez a angariação.", true);
+      return;
+    }
+    if (!ref.trim() && !address.trim()) {
+      notify("Indique a referência ou a morada.", true);
+      return;
+    }
+    setSaving(true);
+    const res = await dispatch({
+      type: "deal.save",
+      deal: {
+        id: deal?.id,
+        ref,
+        listingUrl: listingUrl.trim() || undefined,
+        transaction,
+        price: p,
+        address,
+        dealTypeId,
+        angariacao,
+        compradores: type?.sides === "bank" ? undefined : compradores,
+        commissionPct: c,
+        listingSplitPct: Math.min(100, Math.max(0, parseNumber(split) ?? 50)),
+        status,
+        notes: notes.trim() || undefined,
+      },
+    });
+    setSaving(false);
+    if (res.ok) {
+      notify(deal ? "Negócio guardado." : "Negócio criado.");
+      onSaved?.(res.id ?? deal?.id ?? "");
+      onClose();
+    }
+  }
+
+  return (
+    <Panel
+      title={deal ? "Editar negócio" : "Novo negócio"}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="rs-btn primary" onClick={save} disabled={saving}>
+            {saving ? "A guardar…" : deal ? "Guardar negócio" : "Criar negócio"}
+          </button>
+          <button type="button" className="rs-btn ghost" onClick={onClose}>
+            Cancelar
+          </button>
+        </>
+      }
+    >
+      <div className="rs-grid-2">
+        <label className="rs-field">
+          Ref. do imóvel
+          <input className="rs-input" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="C0240-03577" />
+        </label>
+        <label className="rs-field">
+          Transação
+          <select className="rs-select" value={transaction} onChange={(e) => setTransaction(e.target.value as Transaction)}>
+            {Object.entries(TRANSACTION_LABEL).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label className="rs-field">
+        Link do anúncio
+        <input className="rs-input" type="url" inputMode="url" value={listingUrl} onChange={(e) => setListingUrl(e.target.value)} placeholder="https://…" />
+        <span className="hint">A captura do anúncio adiciona-se na tabela ou na página do negócio.</span>
+      </label>
+      <label className="rs-field">
+        {transaction === "credito" ? "Banco e cliente" : "Morada do imóvel"}
+        <input className="rs-input" value={address} onChange={(e) => setAddress(e.target.value)} />
+      </label>
+      <label className="rs-field">
+        Tipo de comissão
+        <select className="rs-select" value={dealTypeId} onChange={(e) => setDealTypeId(e.target.value)}>
+          {db.dealTypes
+            .filter((t) => t.active || t.id === dealTypeId)
+            .map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} ({percent(t.defaultManagerPct)})
+              </option>
+            ))}
+        </select>
+      </label>
+      <PartyField label={type?.sides === "bank" ? "Consultor do processo" : "Angariação"} value={angariacao} onChange={setAngariacao} />
+      {type?.sides !== "bank" && <PartyField label="Compradores" value={compradores} onChange={setCompradores} optional />}
+      <div className="rs-grid-2">
+        <label className="rs-field">
+          {transaction === "credito" ? "Montante" : transaction === "arrendamento" ? "Renda" : "Preço de venda"}
+          <input className="rs-input num" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0,00 €" />
+        </label>
+        <label className="rs-field">
+          % de comissão
+          <input className="rs-input num" inputMode="decimal" value={commissionPct} onChange={(e) => setCommissionPct(e.target.value)} placeholder="5" />
+          {total != null && <span className="hint num">Comissão total: {total.toLocaleString("pt-PT", { minimumFractionDigits: 2 })} €</span>}
+        </label>
+      </div>
+      {type?.sides !== "bank" && (
+        <label className="rs-field">
+          Divisão angariação / compradores
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={parseNumber(split) ?? 50}
+              onChange={(e) => setSplit(e.target.value)}
+              className="flex-1"
+              style={{ accentColor: "var(--teal)" }}
+              aria-valuetext={`${split}% angariação, ${100 - (parseNumber(split) ?? 50)}% compradores`}
+            />
+            <span className="num w-24 text-right text-sm">
+              {split} / {100 - (parseNumber(split) ?? 50)}
+            </span>
+          </div>
+        </label>
+      )}
+      <label className="rs-field">
+        Estado
+        <select className="rs-select" value={status} onChange={(e) => setStatus(e.target.value as DealStatus)}>
+          <option value="aberto">Em curso</option>
+          <option value="concluido">Concluído</option>
+          <option value="anulado">Anulado</option>
+        </select>
+      </label>
+      <label className="rs-field">
+        Notas
+        <textarea className="rs-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </label>
+    </Panel>
+  );
+}
+
+export function InvoiceForm({
+  dealId,
+  invoice,
+  defaultPct,
+  onClose,
+}: {
+  dealId: string;
+  invoice?: Invoice;
+  defaultPct: number;
+  onClose: () => void;
+}) {
+  const { dispatch, notify } = useReorg();
+  const [phase, setPhase] = useState<InvoicePhase>(invoice?.phase ?? "total");
+  const [number, setNumber] = useState(invoice?.number ?? "");
+  const [issuedAt, setIssuedAt] = useState(invoice?.issuedAt ?? today());
+  const [paidAt, setPaidAt] = useState(invoice?.paidAt ?? "");
+  const [month, setMonth] = useState(invoice?.settlementMonth ?? today().slice(0, 7));
+  const [value, setValue] = useState(numberText(invoice?.valueNoVat));
+  const [pct, setPct] = useState(numberText(invoice?.managerPctOverride));
+  const [status, setStatus] = useState<InvoiceStatus>(invoice?.status ?? "emitida");
+  const [flag, setFlag] = useState(invoice?.flag);
+  const [saving, setSaving] = useState(false);
+
+  const v = parseNumber(value);
+  const effectivePct = parseNumber(pct) ?? defaultPct;
+
+  async function save() {
+    if (v == null) {
+      notify("Indique o valor da fatura sem IVA.", true);
+      return;
+    }
+    setSaving(true);
+    const res = await dispatch({
+      type: "invoice.save",
+      invoice: {
+        id: invoice?.id,
+        dealId,
+        phase,
+        number: number.trim(),
+        issuedAt: issuedAt || undefined,
+        paidAt: paidAt || undefined,
+        settlementMonth: month,
+        valueNoVat: v,
+        managerPctOverride: parseNumber(pct),
+        status: status === "anulada" ? "anulada" : paidAt ? "paga" : status,
+        file: invoice?.file,
+        flag,
+      },
+    });
+    setSaving(false);
+    if (res.ok) {
+      notify(invoice ? "Fatura guardada." : "Fatura adicionada.");
+      onClose();
+    }
+  }
+
+  return (
+    <Panel
+      title={invoice ? `Fatura ${invoice.number}` : "Nova fatura"}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="rs-btn primary" onClick={save} disabled={saving}>
+            {saving ? "A guardar…" : invoice ? "Guardar fatura" : "Adicionar fatura"}
+          </button>
+          <button type="button" className="rs-btn ghost" onClick={onClose}>
+            Cancelar
+          </button>
+        </>
+      }
+    >
+      {flag && (
+        <div className="rounded-lg p-3 text-sm" style={{ background: "var(--amber-bg)", color: "#7a4b0e" }}>
+          {flag}
+          <button type="button" className="rs-btn sm ml-2" onClick={() => setFlag(undefined)}>
+            Marcar como verificada
+          </button>
+        </div>
+      )}
+      <div className="rs-grid-2">
+        <label className="rs-field">
+          Fase
+          <select className="rs-select" value={phase} onChange={(e) => setPhase(e.target.value as InvoicePhase)}>
+            {Object.entries(PHASE_LABEL).map(([k, l]) => (
+              <option key={k} value={k}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="rs-field">
+          N.º da fatura
+          <input className="rs-input" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="204|205" />
+        </label>
+      </div>
+      <div className="rs-grid-2">
+        <label className="rs-field">
+          Emissão
+          <input className="rs-input" type="date" value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)} />
+        </label>
+        <label className="rs-field">
+          Pagamento
+          <input
+            className="rs-input"
+            type="date"
+            value={paidAt}
+            onChange={(e) => {
+              setPaidAt(e.target.value);
+              if (e.target.value && !invoice) setMonth(e.target.value.slice(0, 7));
+            }}
+          />
+        </label>
+      </div>
+      <div className="rs-grid-2">
+        <label className="rs-field">
+          Valor sem IVA
+          <input className="rs-input num" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0,00" />
+        </label>
+        <label className="rs-field">
+          % do manager
+          <input
+            className="rs-input num"
+            inputMode="decimal"
+            value={pct}
+            onChange={(e) => setPct(e.target.value)}
+            placeholder={`${numberText(defaultPct)} (do tipo)`}
+          />
+          <span className="hint num">
+            Saldo: {v != null ? ((v * effectivePct) / 100).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €" : "—"}
+          </span>
+        </label>
+      </div>
+      <div className="rs-grid-2">
+        <label className="rs-field">
+          Mês na conta corrente
+          <input className="rs-input" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        </label>
+        <label className="rs-field">
+          Estado
+          <select className="rs-select" value={paidAt && status !== "anulada" ? "paga" : status} onChange={(e) => setStatus(e.target.value as InvoiceStatus)}>
+            <option value="emitida">Por pagar</option>
+            <option value="paga">Paga</option>
+            <option value="anulada">Anulada</option>
+          </select>
+        </label>
+      </div>
+      <p className="m-0 text-sm" style={{ color: "var(--muted)" }}>
+        O PDF da fatura adiciona-se na lista de faturas do negócio, a qualquer altura.
+      </p>
+    </Panel>
+  );
+}

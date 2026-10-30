@@ -2,6 +2,14 @@ import Link from "next/link";
 
 const experiments = [
   {
+    title: "ReorgSI — Real Estate Organization",
+    description:
+      "Equipa, negócios e comissões da Direção Comercial: documentos de cada venda com barra de progresso, faturas e capturas do anúncio sempre à mão, e a conta-corrente do manager. Acesso com palavra-passe.",
+    href: "/reorgsi",
+    status: "wip" as const,
+    image: "/reorgsi-cover.svg",
+  },
+  {
     title: "Padel — torneios e ranking",
     description:
       "Americano, Mexicano or fixed teams for any number of players: the draw, big score entry built for the phone at the court, and a club ranking that updates after every tournament.",

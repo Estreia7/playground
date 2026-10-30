@@ -59,3 +59,6 @@ next-env.d.ts
 
 # Crypto Desk runtime data (price history caches, XRP flow buckets) — downloaded, not source.
 /storage/crypto
+
+# ReorgSI team/commission data, uploaded documents and the source spreadsheets — private runtime data.
+/storage/reorgsi

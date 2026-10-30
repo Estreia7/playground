@@ -1,0 +1,40 @@
+<svg width="800" height="320" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ReorgSI">
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.2" r="1">
+      <stop offset="0" stop-color="#1d3a44"/>
+      <stop offset="0.45" stop-color="#152d35"/>
+      <stop offset="1" stop-color="#112031"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#345b63" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#345b63" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#bg)"/>
+  <circle cx="400" cy="160" r="150" fill="url(#glow)"/>
+  <g stroke="#78aab0" stroke-opacity="0.3" stroke-dasharray="2 7" fill="none">
+    <ellipse cx="400" cy="160" rx="160" ry="54" transform="rotate(-18 400 160)"/>
+    <ellipse cx="400" cy="160" rx="200" ry="56" transform="rotate(14 400 160)"/>
+    <ellipse cx="400" cy="160" rx="245" ry="54" transform="rotate(-5 400 160)"/>
+  </g>
+  <g fill="#d4ecdd">
+    <circle cx="400" cy="160" r="72" fill="#d4ecdd" fill-opacity="0.06"/>
+  </g>
+  <g fill="#d4ecdd" fill-opacity="0.7">
+    <circle cx="372" cy="112" r="2"/><circle cx="398" cy="104" r="2.2"/><circle cx="424" cy="110" r="2"/>
+    <circle cx="352" cy="134" r="2.2"/><circle cx="380" cy="132" r="2.6"/><circle cx="408" cy="130" r="2.8"/><circle cx="436" cy="134" r="2.4"/><circle cx="456" cy="140" r="1.8"/>
+    <circle cx="342" cy="160" r="2"/><circle cx="370" cy="158" r="2.8"/><circle cx="400" cy="158" r="3"/><circle cx="430" cy="158" r="2.8"/><circle cx="458" cy="162" r="2"/>
+    <circle cx="350" cy="186" r="2"/><circle cx="378" cy="186" r="2.6"/><circle cx="406" cy="188" r="2.6"/><circle cx="434" cy="186" r="2.2"/><circle cx="454" cy="182" r="1.6"/>
+    <circle cx="372" cy="208" r="1.8"/><circle cx="400" cy="214" r="2"/><circle cx="426" cy="208" r="1.8"/>
+  </g>
+  <g stroke="#d4ecdd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(222 176)"><circle r="20" fill="#112031" stroke="#78aab0" stroke-opacity="0.5" stroke-width="1"/><path transform="translate(-12 -12)" d="M4 11.2 12 4.5l8 6.7M6.5 9.4V19h11V9.4M10 19v-5h4v5"/></g>
+    <g transform="translate(560 112)"><circle r="20" fill="#112031" stroke="#78aab0" stroke-opacity="0.5" stroke-width="1"/><path transform="translate(-12 -12)" d="M12 11.4a3.4 3.4 0 1 0 0-6.8 3.4 3.4 0 0 0 0 6.8ZM5.5 19.5c.8-3.5 3.4-5.4 6.5-5.4s5.7 1.9 6.5 5.4"/></g>
+    <g transform="translate(610 214)"><circle r="20" fill="#112031" stroke="#78aab0" stroke-opacity="0.5" stroke-width="1"/><path transform="translate(-12 -12)" d="M14.8 9.2a4.2 4.2 0 1 0-1.6 3.3L19 18.3M16.6 15.9l1.8-1.8M14.6 13.9l1.6-1.6"/></g>
+    <g transform="translate(262 92)"><circle r="20" fill="#112031" stroke="#78aab0" stroke-opacity="0.5" stroke-width="1"/><path transform="translate(-12 -12)" d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM14.8 9.3a3.4 3.4 0 1 0 0 5.4M8.4 11h4.8M8.4 13h4.8"/></g>
+  </g>
+  <path d="M560 112 Q470 40 400 120" stroke="#d4ecdd" stroke-opacity="0.25" fill="none"/>
+  <circle cx="160" cy="70" r="5" fill="#d4ecdd" fill-opacity="0.8"/>
+  <circle cx="690" cy="60" r="4" fill="#d4ecdd" fill-opacity="0.6"/>
+  <circle cx="120" cy="250" r="3.5" fill="#6f9aa0"/>
+</svg>
