@@ -107,10 +107,11 @@ export function PageHeader({ title, sub, actions }: { title: string; sub?: React
    overshoot, to whichever tab is tapped. The gear opens the full menu
    (Consultores, Configuração, Sair), and is the current tab on those pages. */
 
+// Início sits in the middle, under the thumb.
 const TABS = [
-  { href: "/reorgsi", label: "Início", icon: IconHome, exact: true },
   { href: "/reorgsi/negocios", label: "Negócios", icon: IconKey },
   { href: "/reorgsi/analises", label: "Análises", icon: IconChart },
+  { href: "/reorgsi", label: "Início", icon: IconHome, exact: true },
   { href: "/reorgsi/conta-corrente", label: "Conta corrente", icon: IconLedger },
 ];
 
@@ -132,12 +133,12 @@ function TabBar({
         const Icon = t.icon;
         return (
           <Link key={t.href} href={t.href} className="tab" aria-label={t.label} aria-current={i === found ? "page" : undefined} data-on={i === index}>
-            <Icon size={24} />
+            <Icon size={20} />
           </Link>
         );
       })}
       <button type="button" className="tab" aria-label="Mais: consultores, configuração e sair" aria-expanded={moreOpen} data-on={index === TABS.length} onClick={onMore}>
-        <IconSettings size={24} />
+        <IconSettings size={20} />
       </button>
     </nav>
   );
