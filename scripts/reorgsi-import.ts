@@ -234,7 +234,7 @@ async function main() {
       status: p.section as ConsultantStatus,
       joinedAt: p.joinedAt,
       billingByYear: {},
-      prize: old?.prize,
+      prizes: old?.prize ? [{ name: old.prize, year: "2025" }] : undefined,
     };
     if (old?.prev) c.billingByYear["2024"] = old.prev;
     if (p.prev != null) c.billingByYear["2025"] = p.prev;
@@ -248,7 +248,7 @@ async function main() {
       status: "inativo",
       joinedAt: p.joinedAt,
       billingByYear: {},
-      prize: p.prize,
+      prizes: p.prize ? [{ name: p.prize, year: "2025" }] : undefined,
     };
     if (p.prev) c.billingByYear["2024"] = p.prev;
     if (p.curr != null) c.billingByYear["2025"] = p.curr;

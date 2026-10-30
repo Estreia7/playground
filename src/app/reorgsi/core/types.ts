@@ -14,8 +14,23 @@ export interface Consultant {
   joinedAt?: string;
   /** Billing figures carried over from the team sheet, by year ("2024": 78132). */
   billingByYear: Record<string, number>;
-  /** Prize tier on the team sheet (RUBY, EMERALD, CENTURION…). */
+  /** Prizes won, each with the year it was won for (RUBY 2025…). */
+  prizes?: Prize[];
+  /** Older records: one prize with no year. It came from the 2025 team sheet. */
   prize?: string;
+}
+
+export interface Prize {
+  name: string;
+  year: string;
+}
+
+export const PRIZE_NAMES = ["CENTURION", "EMERALD", "RUBY"];
+
+/** A consultant's prizes, newest first, reading the older single field too. */
+export function prizesOf(c: Consultant): Prize[] {
+  const list = c.prizes ?? (c.prize ? [{ name: c.prize, year: "2025" }] : []);
+  return [...list].sort((a, b) => b.year.localeCompare(a.year));
 }
 
 /** One side of a deal: someone on the team, or anyone else (an agency or an

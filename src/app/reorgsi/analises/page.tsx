@@ -2,23 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { Consultant } from "../core/types.ts";
+import type { Consultant, Db } from "../core/types.ts";
+import { prizesOf } from "../core/types.ts";
 import { PHASE_LABEL, STATUS_LABEL } from "../core/types.ts";
 import {
   activityYears,
-  backlogSeries,
   consultantStats,
   currentBacklog,
   teamStats,
   type BacklogItem,
-  type BacklogPoint,
   type ConsultantStats,
 } from "../core/analytics.ts";
 import { invoicesOf, lastFilledMonth, ytd } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
-import { DocBar, PartyLabel, Rank } from "../ui/parts.tsx";
-import { Bars, Legend } from "../ui/charts.tsx";
+import { DocBar, PartyLabel, PrizeChip, Rank } from "../ui/parts.tsx";
+import { Bars, Legend, LineCompare, cumulative, type Line } from "../ui/charts.tsx";
 import { MONTH_SHORT, date, initials, money, money0, monthName, percent } from "../ui/format.ts";
 
 /* Results and indicators: one consultant at a time, or the whole team as the
@@ -93,7 +92,7 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
   const { db } = useReorg();
   const consultant = db.consultants.find((c) => c.id === consultantId);
   const stats = useMemo(() => (consultant ? consultantStats(db, consultant, year) : null), [db, consultant, year]);
-  const series = useMemo(() => (consultant ? backlogSeries(db, year, consultant.id) : []), [db, consultant, year]);
+  const evolution = useMemo(() => (consultant ? consultantEvolution(db, consultant, year) : null), [db, consultant, year]);
   const backlog = useMemo(() => (consultant ? currentBacklog(db, consultant.id) : []), [db, consultant]);
 
   const groups: [string, Consultant[]][] = [
@@ -136,7 +135,9 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
                 <span className={`rs-pill ${consultant.status === "experiente" ? "jade" : consultant.status === "rookie" ? "teal" : ""}`}>
                   {STATUS_LABEL[consultant.status]}
                 </span>
-                {consultant.prize && <span className="rs-pill ink">{consultant.prize}</span>}
+                {prizesOf(consultant).map((p) => (
+                  <PrizeChip key={p.name + p.year} prize={p} />
+                ))}
               </div>
               <div className="text-[13px]" style={{ color: "var(--muted)" }}>
                 {consultant.joinedAt ? `Na equipa desde ${date(consultant.joinedAt)} · ${tenure(consultant.joinedAt)}` : "Data de entrada por preencher"}
@@ -161,7 +162,7 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
             </Kpi>
             <Kpi label="Negócios" value={String(stats.deals.length)}>
               <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-                {stats.asListing} angariação · {stats.asBuyer} compradores
+                {dealSplit(stats)}
               </span>
             </Kpi>
             <Kpi label="Gerado para o manager" value={money(stats.managerShare)}>
@@ -169,15 +170,17 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
                 Faturas pagas em {year}
               </span>
             </Kpi>
-            <Kpi label="Backlog" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))}>
+            <Kpi label="Por faturar" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))}>
               <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
                 {backlog.length} negócio{backlog.length === 1 ? "" : "s"} por fechar
               </span>
             </Kpi>
           </div>
 
+          {evolution && <EvolutionCard title="Backlog · evolução da faturação" {...evolution} />}
+
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-2">
-            <BacklogCard title="Backlog" series={series} items={backlog} />
+            <PendingCard items={backlog} />
             <section className="rs-card" aria-labelledby="cm-h">
               <div className="rs-card-head">
                 <h2 id="cm-h">Faturação mensal</h2>
@@ -201,9 +204,9 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
               <div className="rs-card-body">
                 <Mix
                   parts={[
-                    { label: "Os dois lados", value: stats.fullDeals, color: "#345b63" },
-                    { label: "Com outra agência", value: stats.sharedExternal, color: "#7fb59a" },
-                    { label: "Com colega da equipa", value: stats.sharedTeam, color: "#a9d4bb" },
+                    { label: "Plenos (as duas partes)", value: stats.fullDeals, color: "#345b63" },
+                    { label: "Partilhas com outra agência", value: stats.sharedExternal, color: "#7fb59a" },
+                    { label: "Partilhas com colega da equipa", value: stats.sharedTeam, color: "#a9d4bb" },
                     { label: "Processo bancário", value: stats.bank, color: "#c3d6d0" },
                   ]}
                 />
@@ -278,7 +281,7 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
                           <span className="rs-sub">{d.address}</span>
                         </td>
                         <td className="whitespace-nowrap">
-                          {d.transaction === "credito" ? "Processo" : listing && buyer ? "Os dois lados" : listing ? "Angariação" : "Compradores"}
+                          {d.transaction === "credito" ? "Processo bancário" : listing && buyer ? "Pleno" : listing ? "Partilha · angariação" : "Partilha · compradores"}
                         </td>
                         <td className="whitespace-nowrap">{last ? PHASE_LABEL[last.phase] : "—"}</td>
                         <td>
@@ -306,7 +309,6 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
 
 function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<typeof teamStats>; onOpen: (id: string) => void }) {
   const { db } = useReorg();
-  const series = useMemo(() => backlogSeries(db, year), [db, year]);
   const backlog = useMemo(() => currentBacklog(db), [db]);
   const dc = db.settings.dcReport[year];
   const upTo = lastFilledMonth(dc);
@@ -361,7 +363,7 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
             Faturas pagas em {year}
           </span>
         </Kpi>
-        <Kpi label="Backlog" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))}>
+        <Kpi label="Por faturar" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))}>
           <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
             {money(backlog.reduce((s, b) => s + b.managerPart, 0))} para o manager
           </span>
@@ -373,11 +375,13 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
         </Kpi>
       </div>
 
+      <EvolutionCard title="Backlog · evolução da faturação da equipa" {...teamEvolution(db, year)} />
+
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <BacklogCard title="Backlog da equipa" series={series} items={backlog} />
+        <PendingCard items={backlog} />
         <section className="rs-card" aria-labelledby="bp-h">
           <div className="rs-card-head">
-            <h2 id="bp-h">Backlog por consultor</h2>
+            <h2 id="bp-h">Por faturar por consultor</h2>
             <span className="aside">hoje</span>
           </div>
           <ol className="rs-card-body m-0 flex list-none flex-col gap-3">
@@ -458,9 +462,9 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
                 <th className="right">% da equipa</th>
                 <SortHead k="growth">Crescimento</SortHead>
                 <SortHead k="deals">Negócios</SortHead>
-                <th className="right">Ang. / Comp.</th>
+                <th className="right" title="Plenos: as duas partes do negócio. Partilhas: só uma parte.">Plenos / Partilhas</th>
                 <SortHead k="share">Saldo manager</SortHead>
-                <SortHead k="backlog">Backlog</SortHead>
+                <SortHead k="backlog">Por faturar</SortHead>
                 <th className="right">Docs completos</th>
               </tr>
             </thead>
@@ -490,7 +494,7 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
                   </td>
                   <td className="right num">{p.deals.length || "—"}</td>
                   <td className="right num">
-                    {p.asListing} / {p.asBuyer}
+                    {p.deals.length ? `${p.fullDeals} / ${p.sharedExternal + p.sharedTeam}${p.bank ? ` · ${p.bank} CB` : ""}` : "—"}
                   </td>
                   <td className="right num">{p.managerShare ? money(p.managerShare) : "—"}</td>
                   <td className="right num">{backlogByPerson.get(p.consultant.id) ? money0(backlogByPerson.get(p.consultant.id)) : "—"}</td>
@@ -559,76 +563,45 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
 
 /* ---------- shared pieces ---------- */
 
-function BacklogCard({ title, series, items }: { title: string; series: BacklogPoint[]; items: BacklogItem[] }) {
+/** Commission already won but not invoiced yet (the rest of a deal whose first part was billed). */
+function PendingCard({ items }: { items: BacklogItem[] }) {
   const { db } = useReorg();
   const [showAll, setShowAll] = useState(false);
-  const firm = series.map((p) => p.value - p.estimated);
-  const est = series.map((p) => p.estimated);
-  const anyFirm = firm.some((v) => v > 0);
-  const list = showAll ? items : items.slice(0, 5);
-  const headId = "bl-" + title.toLowerCase().replace(/[^a-z]+/g, "-");
+  const list = showAll ? items : items.slice(0, 6);
+  const total = items.reduce((s, b) => s + b.remaining, 0);
   return (
-    <section className="rs-card" aria-labelledby={headId}>
+    <section className="rs-card" aria-labelledby="pf-h">
       <div className="rs-card-head">
-        <h2 id={headId}>{title}</h2>
-        <span className="aside">
-          <Legend
-            items={[
-              ...(anyFirm ? [{ color: "#345b63", label: "Pela comissão acordada" }] : []),
-              { color: "#345b63", label: "Estimado (restante = 1.ª parte)", hatched: true },
-            ]}
-          />
-        </span>
+        <h2 id="pf-h">Por faturar</h2>
+        <span className="aside num">{money0(total)}</span>
       </div>
       <div className="rs-card-body">
-        <Bars
-          labels={series.map((p) => MONTH_SHORT[Number(p.month.slice(5, 7)) - 1])}
-          stacked
-          series={[
-            { name: "Acordado", color: "#345b63", values: firm },
-            { name: "Estimado", color: "#345b63", values: est, hatched: true },
-          ]}
-          detail={(i) => (
-            <>
-              <div className="mt-1 flex justify-between gap-3 border-t pt-1" style={{ borderColor: "rgba(255,255,255,.15)" }}>
-                <span style={{ color: "#9fc0b9" }}>Manager</span>
-                <span>{money(series[i].managerPart)}</span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span style={{ color: "#9fc0b9" }}>Negócios</span>
-                <span>{series[i].deals}</span>
-              </div>
-            </>
-          )}
-          ariaLabel={`${title}: valor por faturar no fim de cada mês`}
-        />
-        <p className="m-0 mt-1 text-[12.5px]" style={{ color: "var(--muted)" }}>
-          Comissão já ganha e ainda por faturar, no fim de cada mês.
+        <p className="m-0 text-[12.5px]" style={{ color: "var(--muted)" }}>
+          Restante comissão de negócios com a 1.ª parte já faturada. Sem % de comissão no negócio, a restante é estimada igual à 1.ª parte.
         </p>
-        {items.length > 0 && (
-          <ul className="m-0 mt-3 flex list-none flex-col p-0">
-            {list.map((b) => (
-              <li key={b.deal.id} className="flex items-center gap-3 border-t py-2 text-sm" style={{ borderColor: "var(--line)" }}>
-                <div className="min-w-0 flex-1">
-                  <Link className="rs-link" href={`/reorgsi/negocios/${b.deal.id}`}>
-                    {b.deal.ref || b.deal.address}
-                  </Link>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]" style={{ color: "var(--muted)" }}>
-                    <PartyLabel db={db} party={b.deal.angariacao} />
-                    <span>desde {monthName(b.since).toLowerCase()}</span>
-                  </div>
+        {items.length === 0 && <p className="rs-empty m-0">Nada por faturar neste momento.</p>}
+        <ul className="m-0 mt-2 flex list-none flex-col p-0">
+          {list.map((b) => (
+            <li key={b.deal.id} className="flex items-center gap-3 border-t py-2 text-sm" style={{ borderColor: "var(--line)" }}>
+              <div className="min-w-0 flex-1">
+                <Link className="rs-link" href={`/reorgsi/negocios/${b.deal.id}`}>
+                  {b.deal.ref || b.deal.address}
+                </Link>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]" style={{ color: "var(--muted)" }}>
+                  <PartyLabel db={db} party={b.deal.angariacao} />
+                  <span>desde {monthName(b.since).toLowerCase()}</span>
                 </div>
-                <div className="text-right">
-                  <div className="num font-semibold">{money0(b.remaining)}</div>
-                  <div className="text-[12px]" style={{ color: "var(--muted)" }}>
-                    {b.estimated ? "estimado" : "acordado"}
-                  </div>
+              </div>
+              <div className="text-right">
+                <div className="num font-semibold">{money0(b.remaining)}</div>
+                <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+                  {b.estimated ? "estimado" : "acordado"}
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        {items.length > 5 && (
+              </div>
+            </li>
+          ))}
+        </ul>
+        {items.length > 6 && (
           <button type="button" className="rs-btn ghost sm mt-1" onClick={() => setShowAll(!showAll)}>
             {showAll ? "Mostrar menos" : `Ver os ${items.length}`}
           </button>
@@ -636,6 +609,115 @@ function BacklogCard({ title, series, items }: { title: string; series: BacklogP
       </div>
     </section>
   );
+}
+
+interface Evolution {
+  lines: Line[];
+  /** Index of the last month with this year's figures. */
+  upTo: number;
+  note: string;
+}
+
+/* The backlog chart: billing accumulated through the year against the year
+   before, so it shows at a glance whether the year is ahead or behind. */
+function EvolutionCard({ title, lines, upTo, note }: Evolution & { title: string }) {
+  const [now, prev] = lines;
+  const a = now?.values[upTo] ?? null;
+  const b = prev?.values[upTo] ?? null;
+  const diff = a != null && b != null ? a - b : null;
+  return (
+    <section className="rs-card" aria-labelledby="ev-h">
+      <div className="rs-card-head flex-wrap">
+        <h2 id="ev-h">{title}</h2>
+        <span className="aside flex flex-wrap items-center gap-3 text-[12.5px]">
+          {lines.map((l) => (
+            <span key={l.name} className="inline-flex items-center gap-1.5">
+              <svg width="18" height="6" aria-hidden="true">
+                <line
+                  x1="1"
+                  x2="17"
+                  y1="3"
+                  y2="3"
+                  stroke={l.color}
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeDasharray={l.dashed ? "5 3" : l.dotted ? "1.5 3.5" : undefined}
+                />
+              </svg>
+              {l.name}
+            </span>
+          ))}
+        </span>
+      </div>
+      <div className="rs-card-body">
+        {diff != null && upTo >= 0 && (
+          <p className="m-0 mb-2 text-sm">
+            <span className="font-bold" style={{ color: diff >= 0 ? "#2f7a57" : "var(--amber)" }}>
+              {diff >= 0 ? "+" : "−"}
+              {money0(Math.abs(diff))}
+              {b ? ` (${diff >= 0 ? "+" : "−"}${percent(Math.abs(diff / b) * 100, 1)})` : ""}
+            </span>{" "}
+            <span style={{ color: "var(--muted)" }}>
+              face a {prev.name.split(" ")[0]} até {MONTH_SHORT[upTo]}: {diff >= 0 ? "estamos à frente" : "estamos atrás"}
+            </span>
+          </p>
+        )}
+        <LineCompare labels={MONTH_SHORT} lines={lines} ariaLabel={`${title}: faturação acumulada por mês`} />
+        <p className="m-0 mt-1 text-[12.5px]" style={{ color: "var(--muted)" }}>
+          {note}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+const NOW_LINE = { color: "#345b63", area: "rgba(212,236,221,0.55)", points: true };
+const PREV_LINE = { color: "#7f9fb0", dashed: true };
+
+/** Team: the Report DC figures, accumulated, against last year and the target pace. */
+function teamEvolution(db: Db, year: string): Evolution {
+  const prevYear = String(Number(year) - 1);
+  const dc = db.settings.dcReport[year] ?? [];
+  const dcPrev = db.settings.dcReport[prevYear] ?? [];
+  const upTo = lastFilledMonth(dc);
+  const target = db.settings.targets[year];
+  const lines: Line[] = [
+    { name: year, values: cumulative(dc, upTo), ...NOW_LINE },
+    { name: prevYear, values: cumulative(dcPrev, lastFilledMonth(dcPrev)), ...PREV_LINE },
+  ];
+  if (target) {
+    lines.push({ name: "Objetivo", values: MONTH_SHORT.map((_, i) => (target * (i + 1)) / 12), color: "#c9a35c", dotted: true });
+  }
+  return { lines, upTo, note: "Faturação Report DC acumulada mês a mês. A linha do objetivo é o ritmo constante até ao objetivo anual." };
+}
+
+/** One consultant: billing from the deals, accumulated, against last year. Last
+ *  year comes from the deals when there are any, otherwise from the team
+ *  sheet's annual figure spread evenly (its pace). */
+function consultantEvolution(db: Db, consultant: Consultant, year: string): Evolution {
+  const prevYear = String(Number(year) - 1);
+  const now = new Date();
+  const upTo = year === String(now.getFullYear()) ? now.getMonth() : 11;
+  const stats = consultantStats(db, consultant, year);
+  const prev = consultantStats(db, consultant, prevYear);
+  const annual = consultant.billingByYear[prevYear] ?? 0;
+  const lines: Line[] = [{ name: year, values: cumulative(stats.billedByMonth, upTo), ...NOW_LINE }];
+  let note = "Faturação pelos negócios, acumulada mês a mês.";
+  if (prev.billed > 0) {
+    lines.push({ name: prevYear, values: cumulative(prev.billedByMonth), ...PREV_LINE });
+  } else if (annual > 0) {
+    lines.push({ name: `${prevYear} (ritmo)`, values: MONTH_SHORT.map((_, i) => (annual * (i + 1)) / 12), ...PREV_LINE });
+    note += ` ${prevYear} só tem o total anual (${money0(annual)}), por isso aparece como ritmo constante.`;
+  } else {
+    note += ` Sem faturação em ${prevYear} para comparar.`;
+  }
+  return { lines, upTo, note };
+}
+
+function dealSplit(s: ConsultantStats): string {
+  const parts = [`${s.fullDeals} plenos`, `${s.sharedExternal + s.sharedTeam} partilhas`];
+  if (s.bank) parts.push(`${s.bank} bancário${s.bank > 1 ? "s" : ""}`);
+  return parts.join(" · ");
 }
 
 function Kpi({

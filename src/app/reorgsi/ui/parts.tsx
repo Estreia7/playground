@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { Db, Deal, DealStatus, InvoiceStatus, Party } from "../core/types.ts";
+import type { Db, Deal, DealStatus, InvoiceStatus, Party, Prize } from "../core/types.ts";
 import { docProgress, requirementsFor } from "../core/commission.ts";
 import { IconClose } from "./Icons.tsx";
 import type { LabelledFile } from "./files/Files.tsx";
@@ -70,6 +70,31 @@ export function PartyLabel({ db, party }: { db: Db; party?: Party }) {
         {name}
       </span>
       {party.note && <span className="rs-sub">{party.note}</span>}
+    </span>
+  );
+}
+
+/* Prize tiers keep the colours of their names, toned to sit with the palette. */
+const PRIZE_TONES: Record<string, { bg: string; fg: string; dot: string }> = {
+  CENTURION: { bg: "#f3ead6", fg: "#6b4d12", dot: "#c9a35c" },
+  EMERALD: { bg: "#dcefe4", fg: "#1d5e45", dot: "#2f8a63" },
+  RUBY: { bg: "#f6e0e4", fg: "#8a2a3d", dot: "#b8435a" },
+};
+
+/** "Ruby 25": the prize and the year it was won for. */
+export function PrizeChip({ prize }: { prize: Prize }) {
+  const key = prize.name.toUpperCase();
+  const tone = PRIZE_TONES[key] ?? { bg: "var(--canvas)", fg: "var(--ink-2)", dot: "var(--teal)" };
+  const label = key.charAt(0) + key.slice(1).toLowerCase();
+  return (
+    <span
+      className="rs-pill"
+      style={{ background: tone.bg, color: tone.fg }}
+      title={`${label} ${prize.year}`}
+      aria-label={`Prémio ${label} ${prize.year}`}
+    >
+      <span className="inline-block h-2 w-2 rounded-full" style={{ background: tone.dot }} aria-hidden="true" />
+      {label} {prize.year.slice(-2)}
     </span>
   );
 }

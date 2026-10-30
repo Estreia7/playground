@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { Consultant, ConsultantStatus } from "../core/types.ts";
-import { STATUS_LABEL } from "../core/types.ts";
+import type { Consultant, ConsultantStatus, Prize } from "../core/types.ts";
+import { PRIZE_NAMES, STATUS_LABEL, prizesOf } from "../core/types.ts";
 import { billingByConsultant, dealCountByConsultant, growth } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
-import { Panel, numberText, parseNumber } from "../ui/parts.tsx";
+import { Panel, PrizeChip, numberText, parseNumber } from "../ui/parts.tsx";
 import { date, initials, money, percent } from "../ui/format.ts";
-import { IconPlus } from "../ui/Icons.tsx";
+import { IconClose, IconPlus } from "../ui/Icons.tsx";
 
 /* The team: who is in it, in which stage, and what they billed. This year's
    billing comes from the deals; earlier years from the team sheet. */
@@ -101,7 +101,9 @@ export default function ConsultantsPage() {
                         {initials(c.name)}
                       </span>
                       <span className="font-semibold">{c.name}</span>
-                      {c.prize && <span className="rs-pill ink">{c.prize}</span>}
+                      {prizesOf(c).map((p) => (
+                        <PrizeChip key={p.name + p.year} prize={p} />
+                      ))}
                     </div>
                   </td>
                   <td>
@@ -145,6 +147,9 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
   const [status, setStatus] = useState<ConsultantStatus>(consultant?.status ?? "rookie");
   const [joinedAt, setJoinedAt] = useState(consultant?.joinedAt ?? "");
   const [prev, setPrev] = useState(numberText(consultant?.billingByYear[PREV]));
+  const [prizes, setPrizes] = useState<Prize[]>(() => (consultant ? prizesOf(consultant) : []));
+  const [prizeName, setPrizeName] = useState(PRIZE_NAMES[0]);
+  const [prizeYear, setPrizeYear] = useState(PREV);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -156,7 +161,7 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
     else billingByYear[PREV] = p;
     const res = await dispatch({
       type: "consultant.save",
-      consultant: { ...consultant, id: consultant?.id, name, status, joinedAt: joinedAt || undefined, billingByYear },
+      consultant: { ...consultant, id: consultant?.id, name, status, joinedAt: joinedAt || undefined, billingByYear, prizes, prize: undefined },
     });
     setSaving(false);
     if (res.ok) {
@@ -218,6 +223,52 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
           Faturação {PREV}
           <input className="rs-input num" inputMode="decimal" value={prev} onChange={(e) => setPrev(e.target.value)} placeholder="0,00" />
         </label>
+      </div>
+      <div className="rs-field">
+        Prémios
+        <div className="flex flex-wrap items-center gap-1.5">
+          {prizes.length === 0 && <span className="hint">Sem prémios.</span>}
+          {prizes.map((p) => (
+            <span key={p.name + p.year} className="inline-flex items-center">
+              <PrizeChip prize={p} />
+              <button
+                type="button"
+                className="rs-btn ghost sm"
+                style={{ minHeight: 24, padding: "0 4px" }}
+                onClick={() => setPrizes(prizes.filter((x) => x !== p))}
+                aria-label={`Remover ${p.name} ${p.year}`}
+              >
+                <IconClose size={13} />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select className="rs-select" style={{ width: "auto" }} value={prizeName} onChange={(e) => setPrizeName(e.target.value)} aria-label="Prémio">
+            {PRIZE_NAMES.map((n) => (
+              <option key={n} value={n}>
+                {n.charAt(0) + n.slice(1).toLowerCase()}
+              </option>
+            ))}
+          </select>
+          <input
+            className="rs-input num"
+            style={{ width: 96 }}
+            inputMode="numeric"
+            value={prizeYear}
+            onChange={(e) => setPrizeYear(e.target.value.replace(/D/g, "").slice(0, 4))}
+            aria-label="Ano do prémio"
+          />
+          <button
+            type="button"
+            className="rs-btn sm"
+            disabled={prizeYear.length !== 4 || prizes.some((p) => p.name === prizeName && p.year === prizeYear)}
+            onClick={() => setPrizes([...prizes, { name: prizeName, year: prizeYear }].sort((a, b) => b.year.localeCompare(a.year)))}
+          >
+            Adicionar prémio
+          </button>
+        </div>
+        <span className="hint">Aparece como "Ruby 25": o prémio e o ano em que foi ganho.</span>
       </div>
     </Panel>
   );

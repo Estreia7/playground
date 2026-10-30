@@ -4,10 +4,10 @@ import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
 import type { Payout } from "../core/types.ts";
 import { PHASE_LABEL } from "../core/types.ts";
-import { account, managerShare, partyName } from "../core/commission.ts";
+import { account, managerShare } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
-import { Panel, numberText, parseNumber } from "../ui/parts.tsx";
+import { Panel, PartyLabel, numberText, parseNumber } from "../ui/parts.tsx";
 import { DropSlot, FileThumb } from "../ui/files/Files.tsx";
 import { date, money, monthName, today } from "../ui/format.ts";
 import { IconPlus } from "../ui/Icons.tsx";
@@ -187,9 +187,17 @@ export default function AccountPage() {
                     "—"
                   )}{" "}
                   · {PHASE_LABEL[inv.phase]} · fatura {inv.number}
-                  <span className="rs-sub">
-                    {deal ? `${partyName(db, deal.angariacao)}${deal.compradores ? " / " + partyName(db, deal.compradores) : ""}` : ""}
-                  </span>
+                  {deal && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12.5px]">
+                      <PartyLabel db={db} party={deal.angariacao} />
+                      {deal.compradores && (
+                        <>
+                          <span style={{ color: "var(--faint)" }} aria-hidden="true">/</span>
+                          <PartyLabel db={db} party={deal.compradores} />
+                        </>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td className="right num text-[13px]">{money(managerShare(inv, deal, db.dealTypes))}</td>
                 <td colSpan={3} />

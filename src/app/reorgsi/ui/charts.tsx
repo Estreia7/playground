@@ -143,6 +143,144 @@ export function Bars({
   );
 }
 
+/* Cumulative comparison: this year as a solid line over a soft area, last
+   year (or its pace) dashed behind it, an optional target pace dotted. The
+   last value of each line is written at its end, so the gap reads at a
+   glance. Nulls end a line (months not closed yet). */
+
+export interface Line {
+  name: string;
+  values: (number | null)[];
+  color: string;
+  dashed?: boolean;
+  dotted?: boolean;
+  area?: string;
+  points?: boolean;
+}
+
+export function LineCompare({ labels, lines, height = 240, ariaLabel }: { labels: string[]; lines: Line[]; height?: number; ariaLabel: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(640);
+  const [hover, setHover] = useState<number | null>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(280, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const H = height;
+  const pad = { l: 46, r: 64, t: 14, b: 26 };
+  const n = labels.length;
+  const rawMax = Math.max(1, ...lines.flatMap((l) => l.values.map((v) => v ?? 0)));
+  const step = niceStep(rawMax);
+  const max = Math.ceil(rawMax / step) * step;
+  const x = (i: number) => pad.l + ((W - pad.l - pad.r) * i) / Math.max(1, n - 1);
+  const y = (v: number) => pad.t + (H - pad.t - pad.b) * (1 - v / max);
+  const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
+
+  const pathOf = (vals: (number | null)[]) => {
+    let d = "";
+    vals.forEach((v, i) => {
+      if (v == null) return;
+      d += `${d ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
+    });
+    return d;
+  };
+  const lastIndex = (vals: (number | null)[]) => {
+    for (let i = vals.length - 1; i >= 0; i--) if (vals[i] != null) return i;
+    return -1;
+  };
+
+  return (
+    <div className="relative" ref={box}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block" role="img" aria-label={ariaLabel}>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="#e6efec" strokeDasharray={t ? "3 4" : undefined} />
+            <text x={pad.l - 8} y={y(t) + 4} textAnchor="end" fontSize="10.5" fill="#8aa0a4">
+              {short(t)}
+            </text>
+          </g>
+        ))}
+        {[...lines].reverse().map((l) => {
+          const li = lastIndex(l.values);
+          if (li < 0) return null;
+          const d = pathOf(l.values);
+          return (
+            <g key={l.name}>
+              {l.area && <path d={`${d}L${x(li)},${y(0)}L${x(0)},${y(0)}Z`} fill={l.area} />}
+              <path
+                d={d}
+                fill="none"
+                stroke={l.color}
+                strokeWidth={l.dashed || l.dotted ? 1.6 : 2.4}
+                strokeDasharray={l.dashed ? "6 5" : l.dotted ? "2 5" : undefined}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {l.points &&
+                l.values.map((v, i) =>
+                  v == null ? null : <circle key={i} cx={x(i)} cy={y(v)} r={hover === i ? 4.5 : 3} fill="#fff" stroke={l.color} strokeWidth="1.8" />,
+                )}
+              <text x={x(li) + 7} y={y(l.values[li]!) + 4} fontSize="11.5" fontWeight="700" fill={l.color}>
+                {short(l.values[li]!)}
+              </text>
+            </g>
+          );
+        })}
+        {labels.map((label, i) => (
+          <g key={label}>
+            <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="#5b7176">
+              {label}
+            </text>
+            <rect
+              x={x(i) - (W - pad.l - pad.r) / (2 * Math.max(1, n - 1))}
+              y={pad.t}
+              width={(W - pad.l - pad.r) / Math.max(1, n - 1)}
+              height={H - pad.t - pad.b}
+              fill="transparent"
+              tabIndex={0}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              onFocus={() => setHover(i)}
+              onBlur={() => setHover(null)}
+              aria-label={`${label}: ${lines.map((l) => `${l.name} ${l.values[i] == null ? "sem dados" : money0(l.values[i]!)}`).join(", ")}`}
+              style={{ outline: "none" }}
+            />
+          </g>
+        ))}
+        {hover != null && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="#c3d6d0" pointerEvents="none" />}
+      </svg>
+      {hover != null && (
+        <div
+          className="pointer-events-none absolute top-0 z-10 rounded-lg px-3 py-2 text-[12.5px] shadow-lg"
+          style={{ left: `clamp(0px, ${x(hover) - 100}px, ${W - 200}px)`, width: 200, background: "var(--ink)", color: "#fff" }}
+        >
+          <div className="mb-0.5 font-semibold capitalize">Até {labels[hover]}</div>
+          {lines.map((l) => (
+            <div key={l.name} className="flex justify-between gap-3">
+              <span style={{ color: "#9fc0b9" }}>{l.name}</span>
+              <span>{l.values[hover] == null ? "—" : money0(l.values[hover]!)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Running total; months after `upTo` become null so the line stops there. */
+export function cumulative(values: (number | null)[], upTo = values.length - 1): (number | null)[] {
+  let s = 0;
+  return values.map((v, i) => {
+    if (i > upTo) return null;
+    s += v ?? 0;
+    return s;
+  });
+}
+
 function niceStep(max: number): number {
   const raw = max / 4;
   const pow = Math.pow(10, Math.floor(Math.log10(raw)));
