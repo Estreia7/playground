@@ -347,3 +347,22 @@ export function activityYears(db: Db): string[] {
   years.add(String(new Date().getFullYear()));
   return [...years].sort().reverse();
 }
+
+/** Every year a consultant has billing in: from invoices where the app has
+ *  them, otherwise the yearly figure from the team spreadsheet. */
+export function billingYears(db: Db): string[] {
+  const years = new Set(activityYears(db));
+  for (const c of db.consultants) for (const y of Object.keys(c.billingByYear)) years.add(y);
+  return [...years].sort().reverse();
+}
+
+/** All-time billing: each year counted once, from invoices when the app has
+ *  that year's invoices, from the spreadsheet figure when it does not. */
+export function allTimeBilled(db: Db, consultant: Consultant): number {
+  const invoiceYears = new Set(db.invoices.map((i) => i.settlementMonth.slice(0, 4)));
+  let total = 0;
+  for (const y of billingYears(db)) {
+    total += invoiceYears.has(y) ? consultantStats(db, consultant, y).billed : (consultant.billingByYear[y] ?? 0);
+  }
+  return cents(total);
+}

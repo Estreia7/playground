@@ -2611,3 +2611,13 @@ textarea.rs-input {
   flex: none;
   white-space: nowrap;
 }
+
+.rs-rankby .period {
+  width: 120px;
+}
+
+.rs-rankby .note {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--faint);
+}

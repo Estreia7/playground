@@ -7,6 +7,8 @@ import { prizesOf } from "../core/types.ts";
 import { PHASE_LABEL, STATUS_LABEL } from "../core/types.ts";
 import {
   activityYears,
+  allTimeBilled,
+  billingYears,
   consultantStats,
   currentBacklog,
   teamStats,
@@ -316,15 +318,44 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
   const target = db.settings.targets[year] ?? 0;
   const active = team.people.filter((p) => p.consultant.status !== "inativo").length;
   const unassigned = Math.max(0, team.managerShare - team.people.reduce((s, p) => s + p.managerShare, 0));
+  // The ranking has its own period: all time by default, or one year.
+  const [period, setPeriod] = useState("");
+  const periods = useMemo(() => billingYears(db), [db]);
+  const firstInvoiceYear = useMemo(() => db.invoices.map((i) => i.settlementMonth.slice(0, 4)).sort()[0], [db.invoices]);
+  const invoiceYears = useMemo(() => new Set(db.invoices.map((i) => i.settlementMonth.slice(0, 4))), [db.invoices]);
+  const sheetOnly = Boolean(period) && !invoiceYears.has(period);
+  const rankTeam = useMemo(() => {
+    if (period && invoiceYears.has(period)) return teamStats(db, period);
+    if (period) {
+      // A year before the app has invoices: only the spreadsheet billing exists.
+      const prev = String(Number(period) - 1);
+      const people = db.consultants
+        .filter((c) => c.billingByYear[period])
+        .map((c) => {
+          const billed = c.billingByYear[period] ?? 0;
+          const previous = c.billingByYear[prev] ?? 0;
+          return { ...consultantStats(db, c, period), billed, previous, growth: previous ? billed / previous - 1 : null };
+        });
+      return { ...teamStats(db, period), people, billed: people.reduce((s, x) => s + x.billed, 0) };
+    }
+    // All time: deals and counts from every invoice the app has; billing per
+    // year from invoices, or the spreadsheet figure for years before them.
+    const all = teamStats(db, "");
+    const people = all.people.map((p) => ({ ...p, billed: allTimeBilled(db, p.consultant), growth: null }));
+    return { ...all, people, billed: people.reduce((s, p) => s + p.billed, 0) };
+  }, [db, period, invoiceYears]);
+
   const backlogByPerson = useMemo(() => {
     const out = new Map<string, number>();
-    for (const p of team.people) {
+    for (const p of rankTeam.people) {
       const v = currentBacklog(db, p.consultant.id).reduce((s, b) => s + b.remaining, 0);
       if (v > 0) out.set(p.consultant.id, v);
     }
     return out;
-  }, [db, team.people]);
-  const [sort, setSort] = useState<RankBy>("billed");
+  }, [db, rankTeam.people]);
+  const [sortChoice, setSort] = useState<RankBy>("billed");
+  // Growth needs a year to compare with; over all time it falls back to billing.
+  const sort: RankBy = !period && sortChoice === "growth" ? "billed" : sortChoice;
 
   const valueOf = (s: ConsultantStats, by: RankBy): number =>
     by === "billed"
@@ -344,7 +375,7 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
   // Growth can be negative and still rank; only people with no figure at all get no position.
   const ranked = (s: ConsultantStats) => (sort === "growth" ? s.growth != null : sortValue(s) > 0);
   // Ties (two people with 3 plenos) are settled by billing.
-  const rows = [...team.people].sort((a, b) => sortValue(b) - sortValue(a) || b.billed - a.billed);
+  const rows = [...rankTeam.people].sort((a, b) => sortValue(b) - sortValue(a) || b.billed - a.billed);
 
   const SortHead = ({ k, children }: { k: typeof sort; children: React.ReactNode }) => (
     <th className="right" aria-sort={sort === k ? "descending" : "none"}>
@@ -466,14 +497,32 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
           <span className="aside">Clique num nome para ver o detalhe</span>
         </div>
         <div className="rs-rankby">
+          <Select
+            compact
+            className="period"
+            value={period}
+            onChange={setPeriod}
+            ariaLabel="Período do ranking"
+            options={[{ value: "", label: "Sempre" }, ...periods.map((y) => ({ value: y, label: y }))]}
+          />
           <span className="lbl" id="rk-by">Ranking por</span>
           <div className="rs-seg" role="group" aria-labelledby="rk-by">
-            {RANK_BY.map(([k, label]) => (
+            {RANK_BY.filter(([k]) => period || k !== "growth").map(([k, label]) => (
               <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)}>
                 {label}
               </button>
             ))}
           </div>
+          {sheetOnly && (
+            <span className="note">
+              {period} é anterior às faturas na app: faturação e crescimento pela folha da equipa, sem negócios.
+            </span>
+          )}
+          {!period && firstInvoiceYear && (
+            <span className="note">
+              Faturação antes de {firstInvoiceYear} pela folha da equipa; negócios, plenos e partilhas desde {firstInvoiceYear}.
+            </span>
+          )}
         </div>
         <div className="rs-table-wrap">
           <table className="rs-table">
@@ -482,7 +531,7 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
                 <th>Posição</th>
                 <th>Consultor</th>
                 <th>Estado</th>
-                <SortHead k="billed">Faturação {year}</SortHead>
+                <SortHead k="billed">{period ? `Faturação ${period}` : "Faturação total"}</SortHead>
                 <th className="right">% da equipa</th>
                 <SortHead k="growth">Crescimento</SortHead>
                 <SortHead k="deals">Negócios</SortHead>
@@ -513,7 +562,7 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
                     </span>
                   </td>
                   <td className="right num font-semibold">{p.billed ? money0(p.billed) : "—"}</td>
-                  <td className="right num">{team.billed && p.billed ? percent((p.billed / team.billed) * 100, 1) : "—"}</td>
+                  <td className="right num">{rankTeam.billed && p.billed ? percent((p.billed / rankTeam.billed) * 100, 1) : "—"}</td>
                   <td className="right num" style={{ color: p.growth == null ? "var(--faint)" : p.growth >= 0 ? "#2f7a57" : "var(--amber)" }}>
                     {p.growth == null ? "—" : signed(p.growth)}
                   </td>
