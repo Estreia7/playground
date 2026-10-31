@@ -20,10 +20,12 @@
     "leaflet": "^1.9.4",
     "lightweight-charts": "^5.2.1",
     "next": "16.2.2",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.4",
     "react-countup": "^6.5.3",
     "react-dom": "19.2.4",
     "react-leaflet": "^5.0.0",
+    "scanic": "^1.7.1",
     "thinking-orbs": "^0.3.2",
     "three": "^0.183.2",
     "ws": "^8.22.0"

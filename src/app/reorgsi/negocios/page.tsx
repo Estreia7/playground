@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { Db, Deal, FileRef, Invoice } from "../core/types.ts";
+import type { Db, Deal, Invoice } from "../core/types.ts";
 import { PHASE_LABEL, STATUS_LABEL } from "../core/types.ts";
-import { dealBilled, dealShare, invoicesOf, requirementsFor } from "../core/commission.ts";
+import { dealBilled, dealShare, invoicesOf } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { DealForm } from "../ui/forms.tsx";
-import { DealStatusPill, DocBar, PartyLabel, dealFiles } from "../ui/parts.tsx";
+import { DealStatusPill, DocRing, PartyLabel, dealFiles } from "../ui/parts.tsx";
 import { DropSlot, FileThumb, type LabelledFile } from "../ui/files/Files.tsx";
+import { DocsDialog } from "../ui/files/DocsDialog.tsx";
 import { money, monthName } from "../ui/format.ts";
 import { PersonPicker } from "../ui/PersonPicker.tsx";
-import { IconExternal, IconPlus, IconSearch } from "../ui/Icons.tsx";
+import { Select } from "../ui/Select.tsx";
+import { IconClose, IconExternal, IconPlus, IconSearch } from "../ui/Icons.tsx";
 
 /* All deals, laid out like the spreadsheet the team already knows, with the
    files one hover away and every empty slot ready for a paste. */
@@ -26,28 +28,48 @@ function search(db: Db, d: Deal): string {
   return fold(`${d.ref} ${d.address} ${names} ${invoicesOf(db, d.id).map((i) => i.number).join(" ")}`);
 }
 
+/** The month the page opens on: this calendar month, or the latest month with
+ *  invoices while this one has none yet. */
+function currentMonth(db: Db): string {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  if (db.invoices.some((i) => i.settlementMonth === ym)) return ym;
+  return db.invoices.map((i) => i.settlementMonth).sort().pop() ?? ym;
+}
+
 export default function DealsPage() {
   const { db } = useReorg();
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"" | Deal["status"]>("aberto");
+  const [status, setStatus] = useState<"" | Deal["status"]>("");
   const [type, setType] = useState("");
   const [person, setPerson] = useState("");
-  const [month, setMonth] = useState("");
+  const [month, setMonth] = useState(() => currentMonth(db));
   const [creating, setCreating] = useState(false);
+  const [docsFor, setDocsFor] = useState<string | null>(null);
+  const docsDeal = docsFor ? db.deals.find((d) => d.id === docsFor) : undefined;
 
   // Arriving from a consultant's row: show all of that person's deals.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("consultor");
     if (id) {
       setPerson(id);
-      setStatus("");
+      setMonth("");
     }
   }, []);
 
   const months = useMemo(
-    () => [...new Set(db.invoices.map((i) => i.settlementMonth))].sort().reverse(),
-    [db.invoices],
+    () => [...new Set([...db.invoices.map((i) => i.settlementMonth), currentMonth(db)])].sort().reverse(),
+    [db],
   );
+
+  const filtered = Boolean(status || type || person);
+  const clearFilters = () => {
+    setQ("");
+    setStatus("");
+    setType("");
+    setPerson("");
+    setMonth(currentMonth(db));
+  };
 
   const rows = useMemo(() => {
     const needle = fold(q.trim());
@@ -60,7 +82,12 @@ export default function DealsPage() {
           (d.angariacao.kind === "team" && d.angariacao.consultantId === person) ||
           (d.compradores?.kind === "team" && d.compradores.consultantId === person),
       )
-      .filter((d) => !month || db.invoices.some((i) => i.dealId === d.id && i.settlementMonth === month))
+      .filter((d) => {
+        if (!month) return true;
+        const own = db.invoices.filter((i) => i.dealId === d.id);
+        // A new deal has no invoice yet: it belongs to the month it was created.
+        return own.length ? own.some((i) => i.settlementMonth === month) : d.createdAt.startsWith(month);
+      })
       .filter((d) => !needle || search(db, d).includes(needle))
       .map((d) => ({ deal: d, invoices: invoicesOf(db, d.id) }))
       .sort((a, b) => lastDate(b.invoices, b.deal).localeCompare(lastDate(a.invoices, a.deal)));
@@ -102,10 +129,10 @@ export default function DealsPage() {
           <div className="rs-seg" role="group" aria-label="Estado">
             {(
               [
+                ["", "Todos"],
                 ["aberto", "Em curso"],
                 ["concluido", "Concluídos"],
                 ["anulado", "Anulados"],
-                ["", "Todos"],
               ] as const
             ).map(([v, l]) => (
               <button key={l} type="button" aria-pressed={status === v} onClick={() => setStatus(v)}>
@@ -113,14 +140,18 @@ export default function DealsPage() {
               </button>
             ))}
           </div>
-          <select className="rs-select" value={type} onChange={(e) => setType(e.target.value)} aria-label="Tipo de comissão">
-            <option value="">Todos os tipos</option>
-            {db.dealTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+          <div className="rs-seg" role="group" aria-label="Tipo de negócio">
+            <button type="button" aria-pressed={type === ""} onClick={() => setType("")}>
+              Todos os tipos
+            </button>
+            {db.dealTypes
+              .filter((t) => t.active || t.id === type)
+              .map((t) => (
+                <button key={t.id} type="button" aria-pressed={type === t.id} onClick={() => setType(t.id)}>
+                  {t.name}
+                </button>
+              ))}
+          </div>
           <div style={{ width: 230 }}>
             <PersonPicker
               compact
@@ -133,14 +164,21 @@ export default function DealsPage() {
               ]}
             />
           </div>
-          <select className="rs-select" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mês da conta corrente">
-            <option value="">Todos os meses</option>
-            {months.map((m) => (
-              <option key={m} value={m}>
-                {monthName(m)}
-              </option>
-            ))}
-          </select>
+          <Select
+            compact
+            style={{ width: 180 }}
+            value={month}
+            onChange={setMonth}
+            ariaLabel="Mês da conta corrente"
+            options={[{ value: "", label: "Todos os meses" }, ...months.map((m) => ({ value: m, label: monthName(m) }))]}
+          />
+          {filtered && (
+            <button type="button" className="rs-clear" onClick={clearFilters}>
+              <span className="dot" aria-hidden="true" />
+              Limpar filtros
+              <IconClose size={14} />
+            </button>
+          )}
         </div>
 
         <div className="rs-table-wrap">
@@ -150,6 +188,7 @@ export default function DealsPage() {
                 <th>Ref. do imóvel</th>
                 <th>Anúncio</th>
                 <th>Fase</th>
+                <th>Tipo</th>
                 <th>Angariação</th>
                 <th>Compradores</th>
                 <th className="right">Preço</th>
@@ -161,14 +200,14 @@ export default function DealsPage() {
             </thead>
             <tbody>
               {rows.map(({ deal, invoices }) => (
-                <DealRow key={deal.id} db={db} deal={deal} invoices={invoices} />
+                <DealRow key={deal.id} db={db} deal={deal} invoices={invoices} onDocs={() => setDocsFor(deal.id)} />
               ))}
             </tbody>
           </table>
           {rows.length === 0 && (
             <div className="rs-empty">
               Nenhum negócio com estes filtros.{" "}
-              <button type="button" className="rs-link" style={{ background: "none", border: 0, cursor: "pointer", font: "inherit" }} onClick={() => { setQ(""); setStatus(""); setType(""); setPerson(""); setMonth(""); }}>
+              <button type="button" className="rs-link" style={{ background: "none", border: 0, cursor: "pointer", font: "inherit" }} onClick={clearFilters}>
                 Limpar filtros
               </button>
             </div>
@@ -177,6 +216,7 @@ export default function DealsPage() {
       </section>
 
       {creating && <DealForm onClose={() => setCreating(false)} />}
+      {docsDeal && <DocsDialog deal={docsDeal} onClose={() => setDocsFor(null)} />}
     </>
   );
 }
@@ -186,25 +226,12 @@ function lastDate(invoices: Invoice[], deal: Deal): string {
   return last?.issuedAt ?? last?.settlementMonth ?? deal.createdAt;
 }
 
-function DealRow({ db, deal, invoices }: { db: Db; deal: Deal; invoices: Invoice[] }) {
+function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices: Invoice[]; onDocs: () => void }) {
   const { dispatch, upload, notify } = useReorg();
   const files = dealFiles(db, deal);
   const last = invoices[invoices.length - 1];
   const flagged = invoices.some((i) => i.flag);
-  const docsWithFiles = requirementsFor(deal, db.docRequirements)
-    .map((r) => ({ r, f: deal.documents[r.id]?.file }))
-    .filter((x): x is { r: typeof x.r; f: FileRef } => Boolean(x.f));
   const invoiceNeedingFile = invoices.find((i) => !i.file && i.status !== "anulada");
-  // Required documents first, then optional ones, skipping what is filed or not applicable.
-  const nextDoc = requirementsFor(deal, db.docRequirements)
-    .sort((a, b) => Number(b.required) - Number(a.required))
-    .find((r) => !["ficheiro", "na"].includes(deal.documents[r.id]?.state ?? ""));
-
-  async function attachDoc(reqId: string, name: string, file: File) {
-    const ref = await upload(file);
-    if (ref && (await dispatch({ type: "deal.doc", dealId: deal.id, reqId, entry: { state: "ficheiro", file: ref } })).ok)
-      notify(`${name} guardado.`);
-  }
 
   async function attachShot(file: File) {
     const ref = await upload(file);
@@ -247,6 +274,9 @@ function DealRow({ db, deal, invoices }: { db: Db; deal: Deal; invoices: Invoice
         </div>
       </td>
       <td>
+        <span className="rs-pill teal whitespace-nowrap">{db.dealTypes.find((t) => t.id === deal.dealTypeId)?.name ?? "—"}</span>
+      </td>
+      <td>
         <PartyLabel db={db} party={deal.angariacao} />
       </td>
       <td>
@@ -263,17 +293,7 @@ function DealRow({ db, deal, invoices }: { db: Db; deal: Deal; invoices: Invoice
         )}
       </td>
       <td>
-        <DocBar db={db} deal={deal} />
-        {(docsWithFiles.length > 0 || nextDoc) && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {docsWithFiles.map(({ r, f }) => (
-              <FileThumb key={r.id} file={f} label={`${r.name} · ${deal.ref || deal.address}`} set={files} />
-            ))}
-            {nextDoc && (
-              <DropSlot label={nextDoc.name} onFile={(f) => attachDoc(nextDoc.id, nextDoc.name, f)} text={nextDoc.name} />
-            )}
-          </div>
-        )}
+        <DocRing db={db} deal={deal} onOpen={onDocs} />
       </td>
       <td>
         <div className="flex flex-wrap items-center gap-1">

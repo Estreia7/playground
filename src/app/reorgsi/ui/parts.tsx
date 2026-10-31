@@ -37,6 +37,54 @@ export function DocBar({ db, deal, large = false, showLabel = true }: { db: Db; 
   );
 }
 
+/** Compact version for tables: a small ring with the percentage and
+ *  "X de Y ficheiros carregados" under it. Which documents count comes from
+ *  Configuração › Documentos for the deal's type. */
+export function DocRing({ db, deal, compact = false, onOpen }: { db: Db; deal: Deal; compact?: boolean; onOpen?: () => void }) {
+  const p = docProgress(deal, db.docRequirements);
+  if (p.total === 0 && !onOpen) return <span className="rs-docbar-label">Sem documentos obrigatórios</span>;
+  const pct = p.total === 0 ? 100 : Math.round((p.done / p.total) * 100);
+  const color = pct === 100 ? "#2f8a63" : pct === 0 ? "var(--line-strong)" : "#e08a1e";
+  const r = 15.5;
+  const c = 2 * Math.PI * r;
+  const ring = (
+      <svg className="rs-ring-svg" width="40" height="40" viewBox="0 0 40 40" role="img" aria-label={`Documentos ${pct}%`}>
+        <circle cx="20" cy="20" r={r} fill="none" stroke="var(--line)" strokeWidth="3.5" />
+        <circle
+          className="arc"
+          cx="20"
+          cy="20"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - pct / 100)}
+          transform="rotate(-90 20 20)"
+        />
+        <text className="pct num" x="20" y="20" dy="0.35em" textAnchor="middle" fill="var(--ink-2)">
+          {pct}%
+        </text>
+      </svg>
+  );
+  const text = p.total === 0 ? "Sem documentos obrigatórios" : `${p.done} de ${p.total} ficheiros carregados`;
+  if (compact) return ring;
+  if (onOpen)
+    return (
+      <button type="button" className="rs-ring rs-ring-btn" onClick={onOpen} aria-label={`Documentos: ${text}. Abrir para carregar`}>
+        {ring}
+        <span className="txt num">{text}</span>
+      </button>
+    );
+  return (
+    <div className="rs-ring">
+      {ring}
+      <span className="txt num">{text}</span>
+    </div>
+  );
+}
+
 export function DealStatusPill({ status }: { status: DealStatus }) {
   if (status === "concluido") return <span className="rs-pill jade">Concluído</span>;
   if (status === "anulado") return <span className="rs-pill red">Anulado</span>;

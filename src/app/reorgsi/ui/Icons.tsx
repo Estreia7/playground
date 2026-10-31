@@ -2,6 +2,14 @@ import type { Icon as PhosphorIcon, IconWeight } from "@phosphor-icons/react/dis
 import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr/CaretLeft";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/ssr/CaretRight";
+import { CheckCircleIcon } from "@phosphor-icons/react/dist/ssr/CheckCircle";
+import { CloudArrowUpIcon } from "@phosphor-icons/react/dist/ssr/CloudArrowUp";
+import { EyeIcon } from "@phosphor-icons/react/dist/ssr/Eye";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/ssr/ArrowClockwise";
+import { CameraIcon } from "@phosphor-icons/react/dist/ssr/Camera";
+import { ImagesIcon } from "@phosphor-icons/react/dist/ssr/Images";
+import { ScanIcon } from "@phosphor-icons/react/dist/ssr/Scan";
+import { CheckIcon } from "@phosphor-icons/react/dist/ssr/Check";
 import { ChartLineUpIcon } from "@phosphor-icons/react/dist/ssr/ChartLineUp";
 import { CoinsIcon } from "@phosphor-icons/react/dist/ssr/Coins";
 import { DownloadSimpleIcon } from "@phosphor-icons/react/dist/ssr/DownloadSimple";
@@ -63,6 +71,14 @@ export const IconChevronRight = icon(CaretRightIcon, "bold");
 export const IconDownload = icon(DownloadSimpleIcon);
 export const IconTrash = icon(TrashIcon);
 export const IconSearch = icon(MagnifyingGlassIcon);
+export const IconCheck = icon(CheckIcon, "bold");
+export const IconCheckCircle = icon(CheckCircleIcon, "fill");
+export const IconCloudUpload = icon(CloudArrowUpIcon, "duotone");
+export const IconEye = icon(EyeIcon);
+export const IconCamera = icon(CameraIcon, "fill");
+export const IconRotate = icon(ArrowClockwiseIcon, "bold");
+export const IconImages = icon(ImagesIcon);
+export const IconScan = icon(ScanIcon, "bold");
 
 /** Brand mark: a roof line held inside an orbit — the house at the centre of
  *  the team's work. */

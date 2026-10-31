@@ -8,6 +8,7 @@ import { PageHeader } from "../ui/Shell.tsx";
 import { Panel, numberText, parseNumber } from "../ui/parts.tsx";
 import { MONTH_SHORT, money, percent } from "../ui/format.ts";
 import { IconChevronLeft, IconChevronRight, IconPlus } from "../ui/Icons.tsx";
+import { Select } from "../ui/Select.tsx";
 
 /* The rules the numbers follow: what each kind of deal pays the manager,
    which documents a deal needs, and the targets the dashboard measures
@@ -142,13 +143,12 @@ function DealTypeForm({ type, onClose }: { type?: DealType; onClose: () => void 
       </label>
       <label className="rs-field">
         Que lados são da equipa
-        <select className="rs-select" value={sides} onChange={(e) => setSides(e.target.value as DealSides)}>
-          {(Object.keys(SIDES_LABEL) as DealSides[]).map((s) => (
-            <option key={s} value={s}>
-              {SIDES_LABEL[s]}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={sides}
+          onChange={(v) => setSides(v as DealSides)}
+          ariaLabel="Lados"
+          options={(Object.keys(SIDES_LABEL) as DealSides[]).map((s) => ({ value: s, label: SIDES_LABEL[s] }))}
+        />
       </label>
       <label className="rs-field">
         % do manager sobre a fatura sem IVA
@@ -337,13 +337,7 @@ function Targets() {
       <section className="rs-card">
         <div className="rs-card-head">
           <h2>Faturação Report DC</h2>
-          <select className="rs-select ml-auto" style={{ width: "auto", minHeight: 34 }} value={year} onChange={(e) => pick(e.target.value)} aria-label="Ano">
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+          <Select compact className="ml-auto" style={{ width: 100 }} value={year} onChange={pick} ariaLabel="Ano" options={years.map((y) => ({ value: y, label: y }))} />
         </div>
         <div className="rs-card-body flex flex-col gap-4">
           <label className="rs-field" style={{ maxWidth: 260 }}>

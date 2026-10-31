@@ -21,7 +21,7 @@ export const fileUrl = (f: FileRef, download = false) => `/api/reorgsi/files/${f
 const portalRoot = () => document.querySelector(".rs") ?? document.body;
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
 
-function kb(size: number): string {
+export function kb(size: number): string {
   return size > 1024 * 1024 ? (size / 1024 / 1024).toFixed(1).replace(".", ",") + " MB" : Math.round(size / 1024) + " KB";
 }
 
@@ -32,6 +32,9 @@ export interface LabelledFile {
 
 type Open = (items: LabelledFile[], index: number) => void;
 const LightboxContext = createContext<Open>(() => undefined);
+
+/** Opens the full-screen viewer on a set of files. */
+export const useLightbox = () => useContext(LightboxContext);
 
 export function LightboxProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<{ items: LabelledFile[]; index: number } | null>(null);

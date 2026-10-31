@@ -10,6 +10,7 @@ import { PageHeader } from "../ui/Shell.tsx";
 import { Panel, PrizeChip, numberText, parseNumber } from "../ui/parts.tsx";
 import { date, initials, money, percent } from "../ui/format.ts";
 import { IconClose, IconPlus } from "../ui/Icons.tsx";
+import { Select } from "../ui/Select.tsx";
 
 /* The team: who is in it, in which stage, and what they billed. This year's
    billing comes from the deals; earlier years from the team sheet. */
@@ -251,13 +252,13 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select className="rs-select" style={{ width: "auto" }} value={prizeName} onChange={(e) => setPrizeName(e.target.value)} aria-label="Prémio">
-            {PRIZE_NAMES.map((n) => (
-              <option key={n} value={n}>
-                {n.charAt(0) + n.slice(1).toLowerCase()}
-              </option>
-            ))}
-          </select>
+          <Select
+            style={{ width: 150 }}
+            value={prizeName}
+            onChange={setPrizeName}
+            ariaLabel="Prémio"
+            options={PRIZE_NAMES.map((n) => ({ value: n, label: n.charAt(0) + n.slice(1).toLowerCase() }))}
+          />
           <input
             className="rs-input num"
             style={{ width: 96 }}

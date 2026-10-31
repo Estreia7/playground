@@ -24,7 +24,7 @@ export type DispatchResult = { ok: true; id?: string } | { ok: false; error: str
 interface Ctx {
   db: Db;
   dispatch: (action: Action) => Promise<DispatchResult>;
-  upload: (file: File) => Promise<FileRef | null>;
+  upload: (file: File, onProgress?: (fraction: number) => void) => Promise<FileRef | null>;
   notify: (message: string, error?: boolean) => void;
   logout: () => void;
 }
@@ -44,8 +44,9 @@ const ERRORS: Record<string, string> = {
   invalid: "Faltam dados obrigatórios ou há um valor inválido.",
   notFound: "Este registo já não existe. Atualize a página.",
   unauthorized: "A sessão terminou. Introduza a palavra-passe outra vez.",
-  type: "Formato não suportado. Use PDF, JPG, PNG ou WebP.",
+  type: "Formato não suportado ou ficheiro danificado. Use PDF, JPG, PNG ou WebP.",
   size: "O ficheiro tem mais de 15 MB.",
+  empty: "O ficheiro está vazio.",
 };
 
 export function App({ children }: { children: React.ReactNode }) {
@@ -130,13 +131,26 @@ export function App({ children }: { children: React.ReactNode }) {
   );
 
   const upload = useCallback(
-    async (raw: File): Promise<FileRef | null> => {
+    async (raw: File, onProgress?: (fraction: number) => void): Promise<FileRef | null> => {
       try {
         const file = await prepareUpload(raw);
         const form = new FormData();
         form.append("file", file);
-        const res = await fetch("/api/reorgsi/files", { method: "POST", body: form });
-        const body = (await res.json().catch(() => ({}))) as { file?: FileRef; error?: string };
+        // XHR rather than fetch: it reports how much of the body has been sent.
+        const res = await new Promise<{ status: number; ok: boolean; text: string }>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/reorgsi/files");
+          xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
+          xhr.onload = () => resolve({ status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300, text: xhr.responseText });
+          xhr.onerror = () => reject(new Error("network"));
+          xhr.send(form);
+        });
+        let body: { file?: FileRef; error?: string } = {};
+        try {
+          body = JSON.parse(res.text);
+        } catch {
+          // not JSON: handled below as a failed upload
+        }
         if (res.status === 401) setPhase("login");
         if (!res.ok || !body.file) {
           notify(ERRORS[body.error ?? ""] ?? "O envio falhou. Tente outra vez.", true);

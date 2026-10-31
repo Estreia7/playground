@@ -7,6 +7,7 @@ import { useReorg } from "./App.tsx";
 import { Panel, numberText, parseNumber } from "./parts.tsx";
 import { PersonPicker } from "./PersonPicker.tsx";
 import { percent, today } from "./format.ts";
+import { Select } from "./Select.tsx";
 
 /* The deal and invoice forms, both in a side panel. */
 
@@ -142,13 +143,12 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
         </label>
         <label className="rs-field">
           Transação
-          <select className="rs-select" value={transaction} onChange={(e) => setTransaction(e.target.value as Transaction)}>
-            {Object.entries(TRANSACTION_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={transaction}
+            onChange={(v) => setTransaction(v as Transaction)}
+            ariaLabel="Transação"
+            options={Object.entries(TRANSACTION_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+          />
         </label>
       </div>
       <label className="rs-field">
@@ -162,15 +162,14 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
       </label>
       <label className="rs-field">
         Tipo de comissão
-        <select className="rs-select" value={dealTypeId} onChange={(e) => setDealTypeId(e.target.value)}>
-          {db.dealTypes
+        <Select
+          value={dealTypeId}
+          onChange={setDealTypeId}
+          ariaLabel="Tipo de negócio"
+          options={db.dealTypes
             .filter((t) => t.active || t.id === dealTypeId)
-            .map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({percent(t.defaultManagerPct)})
-              </option>
-            ))}
-        </select>
+            .map((t) => ({ value: t.id, label: t.name, hint: percent(t.defaultManagerPct) }))}
+        />
       </label>
       <PartyField label={type?.sides === "bank" ? "Consultor do processo" : "Angariação"} value={angariacao} onChange={setAngariacao} />
       {type?.sides !== "bank" && <PartyField label="Compradores" value={compradores} onChange={setCompradores} optional />}
@@ -208,11 +207,16 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
       )}
       <label className="rs-field">
         Estado
-        <select className="rs-select" value={status} onChange={(e) => setStatus(e.target.value as DealStatus)}>
-          <option value="aberto">Em curso</option>
-          <option value="concluido">Concluído</option>
-          <option value="anulado">Anulado</option>
-        </select>
+        <Select
+          value={status}
+          onChange={(v) => setStatus(v as DealStatus)}
+          ariaLabel="Estado"
+          options={[
+            { value: "aberto", label: "Em curso" },
+            { value: "concluido", label: "Concluído" },
+            { value: "anulado", label: "Anulado" },
+          ]}
+        />
       </label>
       <label className="rs-field">
         Notas
@@ -304,13 +308,12 @@ export function InvoiceForm({
       <div className="rs-grid-2">
         <label className="rs-field">
           Fase
-          <select className="rs-select" value={phase} onChange={(e) => setPhase(e.target.value as InvoicePhase)}>
-            {Object.entries(PHASE_LABEL).map(([k, l]) => (
-              <option key={k} value={k}>
-                {l}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={phase}
+            onChange={(v) => setPhase(v as InvoicePhase)}
+            ariaLabel="Fase"
+            options={Object.entries(PHASE_LABEL).map(([k, l]) => ({ value: k, label: l }))}
+          />
         </label>
         <label className="rs-field">
           N.º da fatura
@@ -361,11 +364,16 @@ export function InvoiceForm({
         </label>
         <label className="rs-field">
           Estado
-          <select className="rs-select" value={paidAt && status !== "anulada" ? "paga" : status} onChange={(e) => setStatus(e.target.value as InvoiceStatus)}>
-            <option value="emitida">Por pagar</option>
-            <option value="paga">Paga</option>
-            <option value="anulada">Anulada</option>
-          </select>
+          <Select
+            value={paidAt && status !== "anulada" ? "paga" : status}
+            onChange={(v) => setStatus(v as InvoiceStatus)}
+            ariaLabel="Estado da fatura"
+            options={[
+              { value: "emitida", label: "Por pagar" },
+              { value: "paga", label: "Paga" },
+              { value: "anulada", label: "Anulada" },
+            ]}
+          />
         </label>
       </div>
       <p className="m-0 text-sm" style={{ color: "var(--muted)" }}>

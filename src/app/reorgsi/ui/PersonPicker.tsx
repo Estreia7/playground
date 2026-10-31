@@ -99,7 +99,8 @@ export function PersonPicker({
 
   let lastGroup: string | undefined;
   return (
-    <div className={`rs-combo ${compact ? "compact" : ""} ${open ? "open" : ""}`}>
+    // Inside a <label>, a click would otherwise be forwarded to the input and reopen the list.
+    <div className={`rs-combo ${compact ? "compact" : ""} ${open ? "open" : ""}`} onClick={(e) => e.preventDefault()}>
       <span className="lead" aria-hidden="true">
         {!open && avatar ? <span className="av">{initials(selected.label)}</span> : <IconSearch size={16} />}
       </span>

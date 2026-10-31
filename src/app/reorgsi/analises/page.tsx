@@ -20,6 +20,7 @@ import { DocBar, PartyLabel, PrizeChip, Rank } from "../ui/parts.tsx";
 import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { Bars, Legend, LineCompare, cumulative, type Line } from "../ui/charts.tsx";
 import { MONTH_SHORT, date, initials, money, money0, monthName, percent } from "../ui/format.ts";
+import { Select } from "../ui/Select.tsx";
 
 /* Results and indicators: one consultant at a time, or the whole team as the
    manager sees it. Both views share the year and the backlog chart. */
@@ -59,13 +60,7 @@ export default function AnalysesPage() {
         title="Análises"
         sub={view === "manager" ? `Indicadores da equipa de ${db.settings.managerName}` : "Resultados e indicadores por consultor"}
         actions={
-          <select className="rs-select" style={{ width: "auto" }} value={year} onChange={(e) => setYear(e.target.value)} aria-label="Ano">
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+          <Select style={{ width: 110 }} value={year} onChange={setYear} ariaLabel="Ano" options={years.map((y) => ({ value: y, label: y }))} />
         }
       />
 
