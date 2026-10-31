@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Schibsted_Grotesk, Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./theme.css";
 
 /* Type: three faces, three jobs.
@@ -13,21 +13,22 @@ import "./theme.css";
    whose digits shift width as they tick is unreadable at a glance, which is
    the only way anyone reads a trading screen. */
 
-const display = Schibsted_Grotesk({
+const display = localFont({
+  src: "../../fonts/schibsted-grotesk.woff2",
   variable: "--font-fx-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: "400 900",
 });
 
-const body = Geist({
+const body = localFont({
+  src: "../../fonts/geist.woff2",
   variable: "--font-fx-body",
-  subsets: ["latin"],
+  weight: "100 900",
 });
 
-const mono = Geist_Mono({
+const mono = localFont({
+  src: "../../fonts/geist-mono.woff2",
   variable: "--font-fx-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {

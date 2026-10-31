@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Schibsted_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { App } from "./ui/App.tsx";
 import "./theme.css";
 
-const sans = Schibsted_Grotesk({
+const sans = localFont({
+  src: "../../fonts/schibsted-grotesk.woff2",
   variable: "--font-rs",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: "400 900",
 });
 
 export const metadata: Metadata = {

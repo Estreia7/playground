@@ -1,25 +1,30 @@
 import type { Metadata } from "next";
-import { Fraunces, Public_Sans, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./theme.css";
 
 // latin-ext carries the Portuguese diacritics (ã, ç, õ, ê).
 // Variable font: `axes` requires the weight axis to stay variable, which also
 // gives us WONK — the wonky serif forms that echo painted tile lettering.
-const display = Fraunces({
+// The "full" Fraunces file keeps the SOFT, WONK and opsz axes as well as weight.
+const display = localFont({
+  src: "../../fonts/fraunces.woff2",
   variable: "--font-lfp-display",
-  subsets: ["latin", "latin-ext"],
-  axes: ["SOFT", "WONK", "opsz"],
+  weight: "100 900",
 });
 
-const body = Public_Sans({
+const body = localFont({
+  src: "../../fonts/public-sans.woff2",
   variable: "--font-lfp-body",
-  subsets: ["latin", "latin-ext"],
+  weight: "100 900",
 });
 
-const mono = IBM_Plex_Mono({
+const mono = localFont({
+  src: [
+    { path: "../../fonts/ibm-plex-mono-400.woff2", weight: "400" },
+    { path: "../../fonts/ibm-plex-mono-500.woff2", weight: "500" },
+    { path: "../../fonts/ibm-plex-mono-600.woff2", weight: "600" },
+  ],
   variable: "--font-lfp-mono",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {

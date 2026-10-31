@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Chakra_Petch, Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { CryptoNav } from "./ui/Nav.tsx";
 import "./theme.css";
 
@@ -8,18 +8,21 @@ import "./theme.css";
    an exchange board rather than a fintech brochure. Geist for reading and
    Geist Mono for every price, so digits line up in columns as they tick. */
 
-const display = Chakra_Petch({
+const display = localFont({
+  src: [
+    { path: "../../fonts/chakra-petch-500.woff2", weight: "500" },
+    { path: "../../fonts/chakra-petch-600.woff2", weight: "600" },
+    { path: "../../fonts/chakra-petch-700.woff2", weight: "700" },
+  ],
   variable: "--font-cx-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
 });
 
-const body = Geist({ variable: "--font-cx-body", subsets: ["latin"] });
+const body = localFont({ src: "../../fonts/geist.woff2", variable: "--font-cx-body", weight: "100 900" });
 
-const mono = Geist_Mono({
+const mono = localFont({
+  src: "../../fonts/geist-mono.woff2",
   variable: "--font-cx-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {

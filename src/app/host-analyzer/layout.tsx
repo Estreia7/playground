@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
-import { Sora, Instrument_Sans, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./theme.css";
 
-const display = Sora({
+const display = localFont({
+  src: "../../fonts/sora.woff2",
   variable: "--font-ha-display",
-  subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
+  weight: "100 800",
 });
 
-const body = Instrument_Sans({
+const body = localFont({
+  src: "../../fonts/instrument-sans.woff2",
   variable: "--font-ha-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
 });
 
-const mono = IBM_Plex_Mono({
+const mono = localFont({
+  src: [
+    { path: "../../fonts/ibm-plex-mono-400.woff2", weight: "400" },
+    { path: "../../fonts/ibm-plex-mono-500.woff2", weight: "500" },
+    { path: "../../fonts/ibm-plex-mono-600.woff2", weight: "600" },
+  ],
   variable: "--font-ha-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
