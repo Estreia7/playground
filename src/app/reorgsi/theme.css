@@ -2120,3 +2120,99 @@ textarea.rs-input {
   opacity: 0.4;
   cursor: default;
 }
+
+/* Documents window on a phone: a bottom sheet whose header (and its close
+   button) stays put while the list scrolls. There is nothing to drag a file
+   from, so the drop zone gives way to the camera, which becomes the main action. */
+
+.rs-docs > header {
+  position: sticky;
+  top: -20px;
+  z-index: 2;
+  margin: -20px -20px 16px;
+  padding: 20px 20px 12px;
+  background: var(--paper);
+}
+
+@media (max-width: 560px), (hover: none) and (pointer: coarse) {
+  .rs-bigdrop {
+    display: none;
+  }
+
+  .rs-btn.rs-scanbtn {
+    margin-top: 0;
+    min-height: 52px;
+    border: 0;
+    background: var(--teal);
+    color: #fff;
+  }
+
+  .rs-btn.rs-scanbtn .hint {
+    color: var(--jade);
+  }
+}
+
+@media (max-width: 560px) {
+  .rs-docs > header {
+    top: -18px;
+    margin: -18px -14px 12px;
+    padding: 22px 14px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rs-docs > header::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 38px;
+    height: 4px;
+    margin-left: -19px;
+    border-radius: 999px;
+    background: var(--line-strong);
+  }
+
+  .rs-docs > header .rs-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background: var(--canvas);
+  }
+
+  .rs-doclist > li {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .rs-doclist .tile {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  /* Pending documents keep their two buttons on the same line, icon only. */
+  .rs-doclist > li:not(.done) {
+    flex-wrap: nowrap;
+  }
+
+  .rs-doclist > li:not(.done) .actions {
+    width: auto;
+  }
+
+  .rs-loadbtn .lbl {
+    display: none;
+  }
+
+  .rs-btn.rs-loadbtn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  /* A filed document has five actions: they get their own row, under the name. */
+  .rs-doclist > li.done .actions {
+    padding-left: 46px;
+    justify-content: flex-start;
+  }
+}

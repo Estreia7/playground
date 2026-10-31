@@ -258,9 +258,9 @@ export function DocsDialog({ deal, onClose }: { deal: Deal; onClose: () => void 
                       <button type="button" className="rs-iconbtn" onClick={() => setScanning(r)} aria-label={`Digitalizar ${r.name}`} title="Digitalizar com a câmara">
                         <IconScan size={17} />
                       </button>
-                      <button type="button" className="rs-btn sm" onClick={() => choose(r)}>
+                      <button type="button" className="rs-btn sm rs-loadbtn" onClick={() => choose(r)} aria-label={`Carregar ${r.name}`}>
                         <IconUpload size={15} />
-                        Carregar
+                        <span className="lbl">Carregar</span>
                       </button>
                     </>
                   )}
