@@ -11,7 +11,7 @@ import { DealForm } from "../ui/forms.tsx";
 import { DealStatusPill, DocRing, PartyLabel, dealFiles } from "../ui/parts.tsx";
 import { DropSlot, FileThumb, type LabelledFile } from "../ui/files/Files.tsx";
 import { DocsDialog } from "../ui/files/DocsDialog.tsx";
-import { money, monthName } from "../ui/format.ts";
+import { money, money0, monthName } from "../ui/format.ts";
 import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { Select } from "../ui/Select.tsx";
 import { IconClose, IconExternal, IconPlus, IconSearch } from "../ui/Icons.tsx";
@@ -113,7 +113,7 @@ export default function DealsPage() {
 
       <section className="rs-card">
         <div className="rs-filters">
-          <label className="relative flex items-center">
+          <label className="rs-f-search relative flex items-center">
             <span className="pointer-events-none absolute left-2.5" style={{ color: "var(--faint)" }}>
               <IconSearch size={16} />
             </span>
@@ -152,7 +152,7 @@ export default function DealsPage() {
                 </button>
               ))}
           </div>
-          <div style={{ width: 230 }}>
+          <div className="rs-f-person">
             <PersonPicker
               compact
               value={person}
@@ -166,7 +166,7 @@ export default function DealsPage() {
           </div>
           <Select
             compact
-            style={{ width: 180 }}
+            className="rs-f-month"
             value={month}
             onChange={setMonth}
             ariaLabel="Mês da conta corrente"
@@ -182,18 +182,16 @@ export default function DealsPage() {
         </div>
 
         <div className="rs-table-wrap">
-          <table className="rs-table">
+          <table className="rs-table rs-deals">
             <thead>
               <tr>
                 <th>Ref. do imóvel</th>
-                <th>Anúncio</th>
                 <th>Fase</th>
                 <th>Tipo</th>
-                <th>Angariação</th>
-                <th>Compradores</th>
+                <th>Angariação · Compradores</th>
                 <th className="right">Preço</th>
-                <th className="right">Faturado s/IVA</th>
-                <th className="right">Saldo manager</th>
+                <th className="right wrap">Faturado s/IVA</th>
+                <th className="right wrap">Saldo manager</th>
                 <th>Documentos</th>
                 <th>Faturas</th>
               </tr>
@@ -245,20 +243,18 @@ function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices:
 
   return (
     <tr>
-      <td>
+      <td className="c-ref" data-label="Ref. do imóvel">
         <Link className="row-link" href={`/reorgsi/negocios/${deal.id}`}>
           {deal.ref || (deal.transaction === "credito" ? "Crédito" : "Sem ref.")}
         </Link>
         <span className="rs-sub" title={deal.address}>
           {deal.address}
         </span>
-      </td>
-      <td>
-        <div className="flex items-center gap-1.5">
+        <div className="mt-1.5 flex items-center gap-1">
           {deal.listingShot ? (
             <FileThumb file={deal.listingShot} label={`Anúncio · ${deal.ref || deal.address}`} set={files} />
           ) : deal.transaction !== "credito" ? (
-            <DropSlot label="Captura do anúncio" onFile={attachShot} text="Captura" />
+            <DropSlot label="Captura do anúncio" onFile={attachShot} text="Anúncio" />
           ) : null}
           {deal.listingUrl && (
             <a className="rs-btn ghost sm" href={deal.listingUrl} target="_blank" rel="noopener noreferrer" aria-label={`Abrir anúncio de ${deal.ref}`}>
@@ -267,24 +263,28 @@ function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices:
           )}
         </div>
       </td>
-      <td>
+      <td className="c-phase" data-label="Fase">
         <div className="flex flex-col items-start gap-1">
-          {last ? <span className="text-[13px] whitespace-nowrap">{PHASE_LABEL[last.phase]}</span> : <span style={{ color: "var(--faint)" }}>Sem fatura</span>}
+          {last ? <span className="text-[12.5px]">{PHASE_LABEL[last.phase]}</span> : <span style={{ color: "var(--faint)" }}>Sem fatura</span>}
           <DealStatusPill status={deal.status} />
         </div>
       </td>
-      <td>
-        <span className="rs-pill teal whitespace-nowrap">{db.dealTypes.find((t) => t.id === deal.dealTypeId)?.name ?? "—"}</span>
+      <td className="c-type" data-label="Tipo">
+        <span className="rs-pill teal">{db.dealTypes.find((t) => t.id === deal.dealTypeId)?.name ?? "—"}</span>
       </td>
-      <td>
-        <PartyLabel db={db} party={deal.angariacao} />
+      <td className="c-sides" data-label="Angariação · Compradores">
+        <div className="side">
+          <span className="k" title="Angariação">Ang.</span>
+          <PartyLabel db={db} party={deal.angariacao} />
+        </div>
+        <div className="side">
+          <span className="k" title="Compradores">Comp.</span>
+          <PartyLabel db={db} party={deal.compradores} />
+        </div>
       </td>
-      <td>
-        <PartyLabel db={db} party={deal.compradores} />
-      </td>
-      <td className="right num">{money(deal.price)}</td>
-      <td className="right num">{money(dealBilled(db, deal))}</td>
-      <td className="right num font-semibold">
+      <td className="right num c-price" data-label="Preço">{money0(deal.price)}</td>
+      <td className="right num c-billed" data-label="Faturado s/IVA">{money(dealBilled(db, deal))}</td>
+      <td className="right num font-semibold c-share" data-label="Saldo manager">
         {money(dealShare(db, deal))}
         {flagged && (
           <span className="rs-flag block" title={invoices.find((i) => i.flag)?.flag}>
@@ -292,10 +292,10 @@ function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices:
           </span>
         )}
       </td>
-      <td>
+      <td className="c-docs" data-label="Documentos">
         <DocRing db={db} deal={deal} onOpen={onDocs} />
       </td>
-      <td>
+      <td className="c-inv" data-label="Faturas">
         <div className="flex flex-wrap items-center gap-1">
           {invoices
             .filter((i) => i.file)

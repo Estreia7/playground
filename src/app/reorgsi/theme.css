@@ -2216,3 +2216,373 @@ textarea.rs-input {
     justify-content: flex-start;
   }
 }
+
+/* The filter bar sizes plain inputs to their content; the pickers fill their own box instead. */
+.rs-filters .rs-combo > .rs-input {
+  width: 100%;
+}
+
+/* ---------- Negócios: dense table, cards on a phone ---------- */
+
+.rs-filters .rs-f-person {
+  width: 230px;
+}
+
+.rs-filters .rs-f-month {
+  width: 180px;
+}
+
+.rs-deals {
+  font-size: 12.5px;
+}
+
+.rs-deals th {
+  padding: 9px 7px;
+  font-size: 11.5px;
+}
+
+.rs-deals td {
+  padding: 8px 7px;
+}
+
+.rs-deals th:first-child,
+.rs-deals td:first-child {
+  padding-left: 14px;
+}
+
+.rs-deals th:last-child,
+.rs-deals td:last-child {
+  padding-right: 14px;
+}
+
+.rs-deals .rs-sub {
+  max-width: 22ch;
+  font-size: 11.5px;
+}
+
+.rs-deals .rs-pill {
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.rs-deals .c-type .rs-pill {
+  max-width: 120px;
+  white-space: normal;
+}
+
+.rs-deals .rs-person {
+  height: 24px;
+  padding-right: 8px;
+  font-size: 12px;
+}
+
+.rs-deals .rs-person .av {
+  width: 18px;
+  height: 18px;
+  font-size: 8.5px;
+}
+
+.rs-deals .rs-drop {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.rs-deals .rs-ring .txt {
+  max-width: 96px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.rs-deals th.wrap {
+  white-space: normal;
+  min-width: 64px;
+}
+
+.rs-deals .c-sides .side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rs-deals .c-sides .side + .side {
+  margin-top: 4px;
+}
+
+.rs-deals .c-sides .k {
+  width: 34px;
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--faint);
+}
+
+.rs-deals .c-inv > div {
+  max-width: 130px;
+}
+
+.rs-deals .c-price,
+.rs-deals .c-billed,
+.rs-deals .c-share {
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  /* Filters: search on its own line, chip groups scroll sideways inside
+     themselves, the two dropdowns share a line. */
+  .rs-filters .rs-f-search {
+    width: 100%;
+  }
+
+  .rs-filters .rs-f-search .rs-input {
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .rs-filters .rs-seg {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .rs-filters .rs-seg button {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .rs-filters .rs-f-person,
+  .rs-filters .rs-f-month {
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+  }
+
+  /* One card per deal. */
+  .rs-deals thead {
+    display: none;
+  }
+
+  .rs-deals,
+  .rs-deals tbody {
+    display: block;
+  }
+
+  .rs-deals tr {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px 16px;
+    padding: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rs-deals tbody tr:hover td {
+    background: none;
+  }
+
+  .rs-deals td,
+  .rs-deals td:first-child,
+  .rs-deals td:last-child {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .rs-deals td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--faint);
+  }
+
+  .rs-deals td.c-ref {
+    grid-column: 1 / -1;
+    order: -2;
+    font-size: 14px;
+  }
+
+  .rs-deals td.c-ref::before {
+    display: none;
+  }
+
+  .rs-deals td.c-ref .rs-sub {
+    max-width: none;
+  }
+
+  .rs-deals td.c-type {
+    order: -1;
+  }
+
+  .rs-deals td.c-phase {
+    order: -1;
+  }
+
+  .rs-deals td.c-docs,
+  .rs-deals td.c-inv,
+  .rs-deals td.c-shot {
+    grid-column: span 1;
+  }
+
+  .rs-deals .rs-ring .txt {
+    max-width: none;
+  }
+
+  .rs-deals td.c-share {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .rs-deals td.c-sides {
+    grid-column: 1 / -1;
+  }
+
+  .rs-deals td.c-sides::before {
+    display: none;
+  }
+
+  .rs-deals .c-sides .k {
+    width: 76px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 1180px) {
+  /* Room for the full word on a card. */
+  .rs-deals .c-sides .k {
+    font-size: 0;
+  }
+
+  .rs-deals .c-sides .k::after {
+    content: attr(title);
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 1181px) {
+  .rs-deals .rs-sub {
+    max-width: 19ch;
+  }
+
+  .rs-deals .c-sides {
+    max-width: 180px;
+  }
+
+  /* External names may wrap; team chips stay whole. */
+  .rs-deals .c-sides .side > .whitespace-nowrap {
+    white-space: normal;
+    min-width: 0;
+  }
+
+  .rs-deals .c-sides .rs-person {
+    white-space: nowrap;
+  }
+
+  .rs-deals .c-inv > div {
+    width: 104px;
+  }
+}
+
+@media (min-width: 1181px) {
+  .rs-deals th,
+  .rs-deals td {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .rs-deals th:first-child,
+  .rs-deals td:first-child {
+    padding-left: 12px;
+  }
+
+  .rs-deals th:last-child,
+  .rs-deals td:last-child {
+    padding-right: 12px;
+  }
+}
+
+.rs-deals .c-inv .rs-drop {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  justify-content: flex-start;
+}
+
+/* Deal card: fixed places, so every card reads the same way. */
+@media (max-width: 1180px) {
+  .rs-deals tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 14px;
+  }
+
+  .rs-deals td.right {
+    text-align: left;
+  }
+
+  .rs-deals td.c-ref {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    order: 0;
+  }
+
+  .rs-deals td.c-share {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+    font-size: 15px;
+  }
+
+  .rs-deals td.c-type {
+    grid-column: 1;
+    grid-row: 2;
+    order: 0;
+  }
+
+  .rs-deals td.c-phase {
+    grid-column: 2 / 4;
+    grid-row: 2;
+    order: 0;
+  }
+
+  .rs-deals td.c-phase > div {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rs-deals td.c-sides {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .rs-deals td.c-price {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .rs-deals td.c-billed {
+    grid-column: 2;
+    grid-row: 4;
+  }
+
+  .rs-deals td.c-docs {
+    grid-column: 3;
+    grid-row: 4 / 6;
+  }
+
+  .rs-deals td.c-inv {
+    grid-column: 1 / 3;
+    grid-row: 5;
+  }
+
+  .rs-deals .c-inv > div {
+    width: auto;
+  }
+}
