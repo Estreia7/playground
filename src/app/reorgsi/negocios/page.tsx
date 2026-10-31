@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Db, Deal, FileRef, Invoice } from "../core/types.ts";
-import { PHASE_LABEL } from "../core/types.ts";
+import { PHASE_LABEL, STATUS_LABEL } from "../core/types.ts";
 import { dealBilled, dealShare, invoicesOf, requirementsFor } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
@@ -11,6 +11,7 @@ import { DealForm } from "../ui/forms.tsx";
 import { DealStatusPill, DocBar, PartyLabel, dealFiles } from "../ui/parts.tsx";
 import { DropSlot, FileThumb, type LabelledFile } from "../ui/files/Files.tsx";
 import { money, monthName } from "../ui/format.ts";
+import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { IconExternal, IconPlus, IconSearch } from "../ui/Icons.tsx";
 
 /* All deals, laid out like the spreadsheet the team already knows, with the
@@ -120,14 +121,18 @@ export default function DealsPage() {
               </option>
             ))}
           </select>
-          <select className="rs-select" value={person} onChange={(e) => setPerson(e.target.value)} aria-label="Consultor">
-            <option value="">Toda a equipa</option>
-            {db.consultants.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div style={{ width: 230 }}>
+            <PersonPicker
+              compact
+              value={person}
+              onChange={setPerson}
+              ariaLabel="Consultor"
+              options={[
+                { value: "", label: "Toda a equipa", person: false },
+                ...db.consultants.map((c) => ({ value: c.id, label: c.name, hint: STATUS_LABEL[c.status] })),
+              ]}
+            />
+          </div>
           <select className="rs-select" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mês da conta corrente">
             <option value="">Todos os meses</option>
             {months.map((m) => (

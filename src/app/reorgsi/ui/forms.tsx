@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import type { Deal, DealStatus, Invoice, InvoicePhase, InvoiceStatus, Party, Transaction } from "../core/types.ts";
-import { PHASE_LABEL, TRANSACTION_LABEL } from "../core/types.ts";
+import { PHASE_LABEL, STATUS_LABEL, TRANSACTION_LABEL } from "../core/types.ts";
 import { useReorg } from "./App.tsx";
 import { Panel, numberText, parseNumber } from "./parts.tsx";
+import { PersonPicker } from "./PersonPicker.tsx";
 import { percent, today } from "./format.ts";
 
 /* The deal and invoice forms, both in a side panel. */
@@ -26,27 +27,20 @@ function PartyField({
   return (
     <div className="rs-field">
       {label}
-      <select
-        className="rs-select"
+      <PersonPicker
         value={mode}
-        onChange={(e) => {
-          const v = e.target.value;
+        ariaLabel={label}
+        onChange={(v) => {
           if (!v) onChange(undefined);
           else if (v === "__external") onChange({ kind: "external", name: value?.kind === "external" ? value.name : "", note: value?.note });
           else onChange({ kind: "team", consultantId: v, note: value?.note });
         }}
-      >
-        {optional && <option value="">Sem este lado</option>}
-        {!optional && !value && <option value="">Escolher…</option>}
-        <optgroup label="Equipa">
-          {team.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </optgroup>
-        <option value="__external">Outra agência ou consultor…</option>
-      </select>
+        options={[
+          ...(optional ? [{ value: "", label: "Sem este lado", person: false }] : []),
+          ...team.map((c) => ({ value: c.id, label: c.name, group: "Equipa", hint: STATUS_LABEL[c.status] })),
+          { value: "__external", label: "Outra agência ou consultor…", group: "Fora da equipa", person: false },
+        ]}
+      />
       {value?.kind === "external" && (
         <input
           className="rs-input"

@@ -1034,6 +1034,214 @@ textarea.rs-input {
   font-weight: 600;
 }
 
+/* ---------- searchable person picker ---------- */
+
+.rs-combo {
+  position: relative;
+  width: 100%;
+}
+
+.rs-combo > .rs-input {
+  padding-left: 40px;
+  padding-right: 34px;
+  text-overflow: ellipsis;
+}
+
+.rs-combo .lead {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  color: var(--faint);
+  pointer-events: none;
+}
+
+.rs-combo .av,
+.rs-combo-list .av {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rs-combo .lead .av {
+  animation: rs-pop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+.rs-combo .caret {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.rs-combo .caret svg {
+  transition: transform 0.2s ease;
+}
+
+.rs-combo.open .caret svg {
+  transform: rotate(180deg);
+}
+
+.rs-combo.compact > .rs-input {
+  min-height: 36px;
+  font-size: 13.5px;
+}
+
+.rs-combo.compact .av {
+  width: 22px;
+  height: 22px;
+  font-size: 9.5px;
+}
+
+.rs-combo-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(360px, 90vw);
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px -18px rgba(17, 32, 49, 0.35), 0 2px 6px rgba(17, 32, 49, 0.06);
+  transform-origin: top center;
+  animation: rs-drop 0.16s ease-out both;
+}
+
+.rs-combo-list .group {
+  padding: 8px 8px 4px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--faint);
+}
+
+.rs-combo-list .opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.rs-combo-list .opt.active {
+  background: var(--canvas);
+}
+
+.rs-combo-list .opt[aria-selected="true"] {
+  background: var(--jade);
+  font-weight: 650;
+}
+
+.rs-combo-list .av.blank {
+  background: var(--canvas);
+  border: 1px dashed var(--line-strong);
+}
+
+.rs-combo-list .name {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.rs-combo-list mark {
+  background: none;
+  color: var(--teal);
+  font-weight: 750;
+  text-decoration: underline;
+  text-decoration-color: var(--jade-deep);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.rs-combo-list .hint {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.rs-combo-list .empty {
+  padding: 12px 10px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+@keyframes rs-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes rs-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Switching consultant: the profile and the figures arrive in a short cascade. */
+
+.rs-swap > :not(.rs-kpis),
+.rs-swap .rs-kpis > * {
+  animation: rs-swap-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.rs-swap > :nth-child(2) { animation-delay: 0.12s; }
+.rs-swap > :nth-child(3) { animation-delay: 0.18s; }
+.rs-swap > :nth-child(n + 4) { animation-delay: 0.24s; }
+.rs-swap .rs-kpis > :nth-child(1) { animation-delay: 0.02s; }
+.rs-swap .rs-kpis > :nth-child(2) { animation-delay: 0.06s; }
+.rs-swap .rs-kpis > :nth-child(3) { animation-delay: 0.1s; }
+.rs-swap .rs-kpis > :nth-child(4) { animation-delay: 0.14s; }
+.rs-swap .rs-kpis > :nth-child(5) { animation-delay: 0.18s; }
+
+.rs-profile > * {
+  animation: rs-swap-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.rs-profile > :first-child {
+  animation-name: rs-pop;
+}
+
+.rs-profile > :nth-child(2) { animation-delay: 0.06s; }
+
+@keyframes rs-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rs *,
   .rs *::before,

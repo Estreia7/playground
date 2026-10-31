@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Consultant, Db } from "../core/types.ts";
 import { prizesOf } from "../core/types.ts";
 import { PHASE_LABEL, STATUS_LABEL } from "../core/types.ts";
@@ -17,6 +17,7 @@ import { invoicesOf, lastFilledMonth, ytd } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { DocBar, PartyLabel, PrizeChip, Rank } from "../ui/parts.tsx";
+import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { Bars, Legend, LineCompare, cumulative, type Line } from "../ui/charts.tsx";
 import { MONTH_SHORT, date, initials, money, money0, monthName, percent } from "../ui/format.ts";
 
@@ -106,22 +107,15 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
       <section className="rs-card flex flex-wrap items-center gap-4 p-4">
         <label className="rs-field" style={{ minWidth: 240 }}>
           Consultor
-          <select className="rs-select" value={consultantId} onChange={(e) => onPick(e.target.value)}>
-            {groups.map(([label, list]) =>
-              list.length ? (
-                <optgroup key={label} label={label}>
-                  {list.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null,
-            )}
-          </select>
+          <PersonPicker
+            value={consultantId}
+            onChange={onPick}
+            ariaLabel="Consultor"
+            options={groups.flatMap(([group, list]) => list.map((c) => ({ value: c.id, label: c.name, group })))}
+          />
         </label>
         {consultant && (
-          <div className="flex min-w-0 items-center gap-3">
+          <div key={consultant.id} className="rs-profile flex min-w-0 items-center gap-3">
             <span
               className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full text-sm font-bold"
               style={{ background: "var(--jade)", color: "var(--ink)" }}
@@ -148,9 +142,9 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
       </section>
 
       {stats && consultant && (
-        <>
+        <div key={consultant.id} className="rs-swap flex flex-col gap-4">
           <div className="rs-kpis" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginBottom: 0 }}>
-            <Kpi label={`Faturação ${year}`} value={money0(stats.billed)} hero>
+            <Kpi label={`Faturação ${year}`} value={money0(stats.billed)} count={stats.billed} format={money0} hero>
               <span className="text-[12.5px]" style={{ color: "#9fc0b9" }}>
                 {stats.previous ? `${money0(stats.previous)} em ${Number(year) - 1}` : `Sem faturação em ${Number(year) - 1}`}
               </span>
@@ -160,17 +154,17 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
                 face a {Number(year) - 1}
               </span>
             </Kpi>
-            <Kpi label="Negócios" value={String(stats.deals.length)}>
+            <Kpi label="Negócios" value={String(stats.deals.length)} count={stats.deals.length} format={(n) => String(Math.round(n))}>
               <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
                 {dealSplit(stats)}
               </span>
             </Kpi>
-            <Kpi label="Gerado para o manager" value={money(stats.managerShare)}>
+            <Kpi label="Gerado para o manager" value={money(stats.managerShare)} count={stats.managerShare} format={money}>
               <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
                 Faturas pagas em {year}
               </span>
             </Kpi>
-            <Kpi label="Por faturar" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))}>
+            <Kpi label="Por faturar" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))} count={backlog.reduce((s, b) => s + b.remaining, 0)} format={money0}>
               <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
                 {backlog.length} negócio{backlog.length === 1 ? "" : "s"} por fechar
               </span>
@@ -299,7 +293,7 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
               {stats.deals.length === 0 && <div className="rs-empty">Sem negócios em {year}.</div>}
             </div>
           </section>
-        </>
+        </div>
       )}
     </div>
   );
@@ -720,19 +714,52 @@ function dealSplit(s: ConsultantStats): string {
   return parts.join(" · ");
 }
 
+/** Counts a figure up from where it was, so a new consultant reads as a change. */
+function useCountUp(target: number | undefined, ms = 700): number | undefined {
+  const [shown, setShown] = useState(target == null ? undefined : 0);
+  const from = useRef(0);
+  useEffect(() => {
+    if (target == null) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      from.current = target;
+      setShown(target);
+      return;
+    }
+    const start = performance.now();
+    const origin = from.current;
+    let frame = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / ms);
+      const v = origin + (target - origin) * (1 - Math.pow(1 - t, 3));
+      from.current = v;
+      setShown(v);
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [target, ms]);
+  return shown;
+}
+
 function Kpi({
   label,
   value,
+  count,
+  format,
   hero = false,
   tone,
   children,
 }: {
   label: string;
   value: string;
+  count?: number;
+  format?: (n: number) => string;
   hero?: boolean;
   tone?: "up" | "down";
   children?: React.ReactNode;
 }) {
+  const tweened = useCountUp(count);
+  if (tweened != null && format && tweened !== count) value = format(tweened);
   return (
     <div className={`rs-card rs-kpi ${hero ? "hero" : ""}`}>
       <span className="label">{label}</span>
