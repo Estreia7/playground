@@ -118,10 +118,15 @@ export function PersonPicker({
         placeholder={open ? placeholder : selected ? undefined : placeholder}
         value={open ? query : (selected?.label ?? "")}
         onFocus={show}
-        onClick={() => !open && show()}
+        // Still focused after a pick, so focus will not fire again: a click reopens.
+        onMouseDown={() => !open && show()}
         onBlur={close}
         onChange={(e) => {
-          setQuery(e.target.value);
+          let typed = e.target.value;
+          // Typing straight after a pick: the box still shows the chosen name,
+          // and the new letters are a fresh search, not an addition to it.
+          if (!open && selected && typed.startsWith(selected.label)) typed = typed.slice(selected.label.length);
+          setQuery(typed);
           setActive(0);
           setOpen(true);
         }}

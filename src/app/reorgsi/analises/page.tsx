@@ -27,6 +27,17 @@ import { Select } from "../ui/Select.tsx";
 
 type View = "consultores" | "manager";
 
+type RankBy = "billed" | "deals" | "plenos" | "partilhas" | "share" | "backlog" | "growth";
+const RANK_BY: [RankBy, string][] = [
+  ["billed", "Faturação"],
+  ["deals", "Negócios"],
+  ["plenos", "Plenos"],
+  ["partilhas", "Partilhas"],
+  ["share", "Saldo manager"],
+  ["backlog", "Por faturar"],
+  ["growth", "Crescimento"],
+];
+
 export default function AnalysesPage() {
   const { db } = useReorg();
   const years = useMemo(() => activityYears(db), [db]);
@@ -313,13 +324,27 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
     }
     return out;
   }, [db, team.people]);
-  const [sort, setSort] = useState<"billed" | "share" | "growth" | "deals" | "backlog">("billed");
+  const [sort, setSort] = useState<RankBy>("billed");
 
-  const sortValue = (s: ConsultantStats) =>
-    sort === "billed" ? s.billed : sort === "share" ? s.managerShare : sort === "growth" ? (s.growth ?? -Infinity) : sort === "deals" ? s.deals.length : (backlogByPerson.get(s.consultant.id) ?? 0);
+  const valueOf = (s: ConsultantStats, by: RankBy): number =>
+    by === "billed"
+      ? s.billed
+      : by === "share"
+        ? s.managerShare
+        : by === "growth"
+          ? (s.growth ?? -Infinity)
+          : by === "deals"
+            ? s.deals.length
+            : by === "plenos"
+              ? s.fullDeals
+              : by === "partilhas"
+                ? s.sharedExternal + s.sharedTeam
+                : (backlogByPerson.get(s.consultant.id) ?? 0);
+  const sortValue = (s: ConsultantStats) => valueOf(s, sort);
   // Growth can be negative and still rank; only people with no figure at all get no position.
   const ranked = (s: ConsultantStats) => (sort === "growth" ? s.growth != null : sortValue(s) > 0);
-  const rows = [...team.people].sort((a, b) => sortValue(b) - sortValue(a));
+  // Ties (two people with 3 plenos) are settled by billing.
+  const rows = [...team.people].sort((a, b) => sortValue(b) - sortValue(a) || b.billed - a.billed);
 
   const SortHead = ({ k, children }: { k: typeof sort; children: React.ReactNode }) => (
     <th className="right" aria-sort={sort === k ? "descending" : "none"}>
@@ -437,8 +462,18 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
 
       <section className="rs-card" aria-labelledby="rk-h">
         <div className="rs-card-head">
-          <h2 id="rk-h">Indicadores por consultor</h2>
+          <h2 id="rk-h">Ranking por consultor</h2>
           <span className="aside">Clique num nome para ver o detalhe</span>
+        </div>
+        <div className="rs-rankby">
+          <span className="lbl" id="rk-by">Ranking por</span>
+          <div className="rs-seg" role="group" aria-labelledby="rk-by">
+            {RANK_BY.map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="rs-table-wrap">
           <table className="rs-table">
@@ -451,7 +486,8 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
                 <th className="right">% da equipa</th>
                 <SortHead k="growth">Crescimento</SortHead>
                 <SortHead k="deals">Negócios</SortHead>
-                <th className="right" title="Plenos: as duas partes do negócio. Partilhas: só uma parte.">Plenos / Partilhas</th>
+                <SortHead k="plenos">Plenos</SortHead>
+                <SortHead k="partilhas">Partilhas</SortHead>
                 <SortHead k="share">Saldo manager</SortHead>
                 <SortHead k="backlog">Por faturar</SortHead>
                 <th className="right">Docs completos</th>
@@ -481,10 +517,12 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
                   <td className="right num" style={{ color: p.growth == null ? "var(--faint)" : p.growth >= 0 ? "#2f7a57" : "var(--amber)" }}>
                     {p.growth == null ? "—" : signed(p.growth)}
                   </td>
-                  <td className="right num">{p.deals.length || "—"}</td>
                   <td className="right num">
-                    {p.deals.length ? `${p.fullDeals} / ${p.sharedExternal + p.sharedTeam}${p.bank ? ` · ${p.bank} CB` : ""}` : "—"}
+                    {p.deals.length || "—"}
+                    {p.bank > 0 && <span className="rs-sub">{p.bank} CB</span>}
                   </td>
+                  <td className="right num">{p.deals.length ? p.fullDeals : "—"}</td>
+                  <td className="right num">{p.deals.length ? p.sharedExternal + p.sharedTeam : "—"}</td>
                   <td className="right num">{p.managerShare ? money(p.managerShare) : "—"}</td>
                   <td className="right num">{backlogByPerson.get(p.consultant.id) ? money0(backlogByPerson.get(p.consultant.id)) : "—"}</td>
                   <td className="right num">{p.deals.length ? `${p.docsComplete}/${p.deals.length}` : "—"}</td>

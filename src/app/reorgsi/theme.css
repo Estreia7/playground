@@ -2586,3 +2586,28 @@ textarea.rs-input {
     width: auto;
   }
 }
+
+.rs-rankby {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 0 16px 12px;
+}
+
+.rs-rankby .lbl {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rs-rankby .rs-seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rs-rankby .rs-seg button {
+  flex: none;
+  white-space: nowrap;
+}
