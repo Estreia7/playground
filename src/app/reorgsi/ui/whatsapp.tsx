@@ -3,7 +3,7 @@ import { money0 } from "./format.ts";
 
 /* Asking a consultant for missing documents over WhatsApp: the message comes
    from the template in Configuração › Templates, filled with the deal, and
-   opens in WhatsApp ready to send. */
+   is copied, ready to paste into WhatsApp. */
 
 export const DEFAULT_DOC_REQUEST = `{saudacao} {nome},
 
@@ -45,15 +45,22 @@ export function docRequestText(db: Db, deal: Deal, consultantName: string, docs:
   });
 }
 
-/** Digits only, with the Portuguese country code added to a 9-digit number. */
-export function waNumber(phone?: string): string {
-  const digits = (phone ?? "").replace(/\D/g, "").replace(/^00/, "");
-  return digits.length === 9 ? `351${digits}` : digits;
-}
-
-/** Without a number WhatsApp asks who to send it to. */
-export function waLink(phone: string | undefined, text: string): string {
-  return `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(text)}`;
+/** Clipboard API first; a hidden textarea where it is unavailable. */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.setAttribute("readonly", "");
+    el.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand("copy");
+    el.remove();
+    return ok;
+  }
 }
 
 /** The WhatsApp mark (Simple Icons, CC0). */

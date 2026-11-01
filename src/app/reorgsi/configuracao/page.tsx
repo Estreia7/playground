@@ -435,7 +435,7 @@ function Templates() {
       <section className="rs-card">
         <div className="rs-card-head">
           <h2>Pedido de documentos</h2>
-          <span className="aside">WhatsApp, a partir do Início</span>
+          <span className="aside">Copiada no Início, para colar no WhatsApp</span>
         </div>
         <div className="rs-card-body flex flex-col gap-3">
           <label className="rs-field">

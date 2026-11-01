@@ -10,7 +10,7 @@ import { PageHeader } from "./ui/Shell.tsx";
 import { DealForm } from "./ui/forms.tsx";
 import { DocRing, PartyLabel, Rank } from "./ui/parts.tsx";
 import { DocsDialog } from "./ui/files/DocsDialog.tsx";
-import { WhatsAppLogo, docRequestText, waLink } from "./ui/whatsapp.tsx";
+import { WhatsAppLogo, copyText, docRequestText } from "./ui/whatsapp.tsx";
 import { MONTH_SHORT, money, money0, monthName, percent } from "./ui/format.ts";
 import { IconCoin, IconFile, IconPlus, IconUpload } from "./ui/Icons.tsx";
 
@@ -164,6 +164,7 @@ function teamOf(db: Db, d: Deal) {
  *  required documents not yet uploaded and the invoices issued but unpaid.
  *  Documents can be uploaded right here, in the same window as on Negócios. */
 function Attention({ db }: { db: Db }) {
+  const { notify } = useReorg();
   const [filter, setFilter] = useState<NeedFilter>("all");
   const [showAll, setShowAll] = useState(false);
   const [docsFor, setDocsFor] = useState<string | null>(null);
@@ -200,6 +201,11 @@ function Attention({ db }: { db: Db }) {
   const withInv = needs.filter((n) => n.unpaid.length > 0).length;
   const shown = needs.filter((n) => (filter === "docs" ? n.docs.length > 0 : filter === "inv" ? n.unpaid.length > 0 : true));
   const LIMIT = 6;
+
+  async function copyRequest(name: string, text: string) {
+    if (await copyText(text)) notify(`Mensagem para ${name.split(" ")[0]} copiada. Cole-a no WhatsApp.`);
+    else notify("Não foi possível copiar a mensagem.", true);
+  }
   const visible = showAll ? shown : shown.slice(0, LIMIT);
 
   return (
@@ -268,18 +274,16 @@ function Attention({ db }: { db: Db }) {
                   <span key={c.id} className="rs-att-person">
                     <PartyLabel db={db} party={{ kind: "team", consultantId: c.id }} />
                     {docs.length > 0 && filter !== "inv" && (
-                      <a
+                      <button
+                        type="button"
                         className="rs-wa"
-                        href={waLink(c.phone, docRequestText(db, d, c.name, docs))}
-                        // Built again on click so the greeting follows the clock.
-                        onClick={(e) => (e.currentTarget.href = waLink(c.phone, docRequestText(db, d, c.name, docs)))}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`Pedir documentos a ${c.name} pelo WhatsApp`}
-                        title={c.phone ? `Pedir documentos a ${c.name} pelo WhatsApp` : `Sem telemóvel de ${c.name}: o WhatsApp vai perguntar a quem enviar`}
+                        // Written at click time so the greeting follows the clock.
+                        onClick={() => copyRequest(c.name, docRequestText(db, d, c.name, docs))}
+                        aria-label={`Copiar mensagem para ${c.name} a pedir os documentos`}
+                        title={`Copiar mensagem para ${c.name}`}
                       >
                         <WhatsAppLogo size={19} />
-                      </a>
+                      </button>
                     )}
                   </span>
                 ))

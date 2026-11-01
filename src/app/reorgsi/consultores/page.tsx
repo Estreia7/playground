@@ -154,7 +154,6 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
   const [name, setName] = useState(consultant?.name ?? "");
   const [status, setStatus] = useState<ConsultantStatus>(consultant?.status ?? "rookie");
   const [joinedAt, setJoinedAt] = useState(consultant?.joinedAt ?? "");
-  const [phone, setPhone] = useState(consultant?.phone ?? "");
   const [prev, setPrev] = useState(numberText(consultant?.billingByYear[PREV]));
   const [prizes, setPrizes] = useState<Prize[]>(() => (consultant ? prizesOf(consultant) : []));
   const [prizeName, setPrizeName] = useState(PRIZE_NAMES[0]);
@@ -170,7 +169,7 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
     else billingByYear[PREV] = p;
     const res = await dispatch({
       type: "consultant.save",
-      consultant: { ...consultant, id: consultant?.id, name, status, joinedAt: joinedAt || undefined, phone: phone.trim() || undefined, billingByYear, prizes, prize: undefined },
+      consultant: { ...consultant, id: consultant?.id, name, status, joinedAt: joinedAt || undefined, billingByYear, prizes, prize: undefined },
     });
     setSaving(false);
     if (res.ok) {
@@ -211,11 +210,6 @@ function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onCl
       <label className="rs-field">
         Nome
         <input className="rs-input" value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <label className="rs-field">
-        Telemóvel
-        <input className="rs-input num" type="tel" inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="912 345 678" />
-        <span className="hint">Usado para pedir documentos pelo WhatsApp.</span>
       </label>
       <div className="rs-field">
         Estado
