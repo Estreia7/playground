@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { account, billingByConsultant, docProgress, growth, invoicesOf, lastFilledMonth, managerShare, sharesByMonth, ytd } from "./core/commission.ts";
+import { account, billingByConsultant, docProgress, growth, invoicesOf, lastFilledMonth, managerShare, requirementsFor, sharesByMonth, ytd } from "./core/commission.ts";
+import type { Db, Deal, DocRequirement, Invoice } from "./core/types.ts";
+import { PHASE_LABEL } from "./core/types.ts";
 import { useReorg } from "./ui/App.tsx";
 import { PageHeader } from "./ui/Shell.tsx";
 import { DealForm } from "./ui/forms.tsx";
-import { DocBar, PartyLabel, Rank } from "./ui/parts.tsx";
+import { DocRing, PartyLabel, Rank } from "./ui/parts.tsx";
+import { DocsDialog } from "./ui/files/DocsDialog.tsx";
 import { MONTH_SHORT, money, money0, monthName, percent } from "./ui/format.ts";
-import { IconPlus } from "./ui/Icons.tsx";
+import { IconCoin, IconFile, IconPlus, IconUpload } from "./ui/Icons.tsx";
 
 /* The manager's morning view: how the year is going against the target, what
    is owed to them, and which deals still need something. */
@@ -33,19 +36,6 @@ export default function HomePage() {
   const shares = sharesByMonth(db);
 
   const open = db.deals.filter((d) => d.status === "aberto");
-  const backlog = useMemo(() => {
-    return db.deals
-      .filter((d) => d.status !== "anulado")
-      .map((d) => {
-        const p = docProgress(d, db.docRequirements);
-        const unpaid = invoicesOf(db, d.id).filter((i) => i.status === "emitida");
-        return { d, p, unpaid, unpaidShare: unpaid.reduce((s, i) => s + managerShare(i, d, db.dealTypes), 0) };
-      })
-      .filter((x) => x.p.missing > 0 || x.p.ratio < 1 || x.unpaid.length > 0)
-      .sort((a, b) => b.p.missing - a.p.missing || a.p.ratio - b.p.ratio)
-      .slice(0, 8);
-  }, [db]);
-
   const top = useMemo(() => {
     const billing = billingByConsultant(db, YEAR);
     return [...billing]
@@ -112,71 +102,8 @@ export default function HomePage() {
         </Link>
       </div>
 
-      <section className="rs-card mb-4" aria-labelledby="dc-h">
-        <div className="rs-card-head">
-          <h2 id="dc-h">Faturação mensal</h2>
-          <span className="aside flex items-center gap-3 text-[12.5px]">
-            <Legend color="var(--teal)" label={YEAR} />
-            <Legend color="var(--jade-deep)" label={PREV} />
-          </span>
-        </div>
-        <div className="rs-card-body">
-          <MonthlyChart now={dcNow} prev={dcPrev} />
-        </div>
-      </section>
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <section className="rs-card" aria-labelledby="bl-h">
-          <div className="rs-card-head">
-            <h2 id="bl-h">Backlog</h2>
-            <Link href="/reorgsi/negocios" className="rs-link aside">
-              Ver negócios
-            </Link>
-          </div>
-          <div className="rs-table-wrap">
-            <table className="rs-table">
-              <thead>
-                <tr>
-                  <th>Negócio</th>
-                  <th>Angariação</th>
-                  <th>Documentos</th>
-                  <th className="right">Por receber</th>
-                </tr>
-              </thead>
-              <tbody>
-                {backlog.map(({ d, unpaid, unpaidShare }) => (
-                  <tr key={d.id}>
-                    <td>
-                      <Link className="row-link" href={`/reorgsi/negocios/${d.id}`}>
-                        {d.ref || "Sem ref."}
-                      </Link>
-                      <span className="rs-sub">{d.address}</span>
-                    </td>
-                    <td>
-                      <PartyLabel db={db} party={d.angariacao} />
-                    </td>
-                    <td>
-                      <DocBar db={db} deal={d} />
-                    </td>
-                    <td className="right num">
-                      {unpaid.length ? (
-                        <>
-                          {money(unpaidShare)}
-                          <span className="rs-sub">
-                            {unpaid.length} fatura{unpaid.length > 1 ? "s" : ""} por pagar
-                          </span>
-                        </>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {backlog.length === 0 && <div className="rs-empty">Nada pendente. Todos os negócios têm os documentos e as faturas em dia.</div>}
-          </div>
-        </section>
+      <div className="mb-4 grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Attention db={db} />
 
         <section className="rs-card" aria-labelledby="top-h">
           <div className="rs-card-head">
@@ -203,8 +130,153 @@ export default function HomePage() {
         </section>
       </div>
 
+      <section className="rs-card" aria-labelledby="dc-h">
+        <div className="rs-card-head">
+          <h2 id="dc-h">Faturação mensal</h2>
+          <span className="aside flex items-center gap-3 text-[12.5px]">
+            <Legend color="var(--teal)" label={YEAR} />
+            <Legend color="var(--jade-deep)" label={PREV} />
+          </span>
+        </div>
+        <div className="rs-card-body">
+          <MonthlyChart now={dcNow} prev={dcPrev} />
+        </div>
+      </section>
+
       {creating && <DealForm onClose={() => setCreating(false)} />}
     </>
+  );
+}
+
+type Need = { d: Deal; docs: DocRequirement[]; unpaid: { inv: Invoice; share: number; days: number | null }[] };
+type NeedFilter = "all" | "docs" | "inv";
+
+const DAY = 86_400_000;
+
+/** Every live deal that still needs something, naming exactly what: the
+ *  required documents not yet uploaded and the invoices issued but unpaid.
+ *  Documents can be uploaded right here, in the same window as on Negócios. */
+function Attention({ db }: { db: Db }) {
+  const [filter, setFilter] = useState<NeedFilter>("all");
+  const [showAll, setShowAll] = useState(false);
+  const [docsFor, setDocsFor] = useState<string | null>(null);
+  const docsDeal = docsFor ? db.deals.find((d) => d.id === docsFor) : undefined;
+
+  const needs = useMemo<Need[]>(() => {
+    const now = Date.now();
+    return db.deals
+      .filter((d) => d.status !== "anulado")
+      .map((d) => ({
+        d,
+        docs: requirementsFor(d, db.docRequirements).filter((r) => {
+          const state = d.documents[r.id]?.state;
+          return r.required && state !== "ficheiro" && state !== "confirmado" && state !== "na";
+        }),
+        unpaid: invoicesOf(db, d.id)
+          .filter((i) => i.status === "emitida")
+          .map((inv) => ({
+            inv,
+            share: managerShare(inv, d, db.dealTypes),
+            days: inv.issuedAt ? Math.floor((now - new Date(inv.issuedAt).getTime()) / DAY) : null,
+          })),
+      }))
+      .filter((n) => n.docs.length > 0 || n.unpaid.length > 0)
+      .sort(
+        (a, b) =>
+          Number(b.d.status === "aberto") - Number(a.d.status === "aberto") ||
+          b.docs.length + b.unpaid.length - (a.docs.length + a.unpaid.length) ||
+          b.d.createdAt.localeCompare(a.d.createdAt),
+      );
+  }, [db]);
+
+  const withDocs = needs.filter((n) => n.docs.length > 0).length;
+  const withInv = needs.filter((n) => n.unpaid.length > 0).length;
+  const shown = needs.filter((n) => (filter === "docs" ? n.docs.length > 0 : filter === "inv" ? n.unpaid.length > 0 : true));
+  const LIMIT = 6;
+  const visible = showAll ? shown : shown.slice(0, LIMIT);
+
+  return (
+    <section className="rs-card rs-att" aria-labelledby="att-h">
+      <div className="rs-card-head">
+        <h2 id="att-h">Precisa de atenção</h2>
+        {needs.length > 0 && <span className="rs-att-count num">{needs.length}</span>}
+        <Link href="/reorgsi/negocios" className="rs-link aside">
+          Ver negócios
+        </Link>
+      </div>
+
+      {needs.length > 0 && (
+        <div className="rs-att-filters">
+          <div className="rs-seg" role="group" aria-label="Mostrar">
+            {(
+              [
+                ["all", "Tudo", needs.length],
+                ["docs", "Documentos", withDocs],
+                ["inv", "Faturas por pagar", withInv],
+              ] as [NeedFilter, string, number][]
+            ).map(([k, label, n]) => (
+              <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)}>
+                {label} <span className="num">{n}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <ul className="rs-att-list">
+        {visible.map(({ d, docs, unpaid }) => (
+          <li key={d.id} className="rs-att-row">
+            <DocRing db={db} deal={d} compact />
+            <div className="main">
+              <div className="head">
+                <Link className="row-link" href={`/reorgsi/negocios/${d.id}`}>
+                  {d.ref || "Sem ref."}
+                </Link>
+                <span className="addr">{d.address}</span>
+              </div>
+              <ul className="needs" aria-label="O que falta">
+                {(filter !== "inv" ? docs : []).map((r) => (
+                  <li key={r.id} className="need doc">
+                    <IconFile size={14} />
+                    Falta {r.name}
+                  </li>
+                ))}
+                {(filter !== "docs" ? unpaid : []).map(({ inv, share, days }) => (
+                  <li key={inv.id} className="need inv">
+                    <IconCoin size={14} />
+                    Fatura {inv.number} ({PHASE_LABEL[inv.phase]}) por pagar
+                    {days != null && days > 0 && <span className="since"> · há {days} dia{days > 1 ? "s" : ""}</span>}
+                    {share > 0 && <span className="num"> · {money(share)}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="who">
+              <PartyLabel db={db} party={d.angariacao} />
+            </div>
+            {docs.length > 0 && filter !== "inv" ? (
+              <button type="button" className="rs-btn sm act" onClick={() => setDocsFor(d.id)} aria-label={`Carregar documentos de ${d.ref || d.address}`}>
+                <IconUpload size={15} />
+                <span className="lbl">Carregar</span>
+              </button>
+            ) : (
+              <Link className="rs-btn sm act" href={`/reorgsi/negocios/${d.id}`} aria-label={`Abrir ${d.ref || d.address}`}>
+                <span className="lbl">Abrir</span>
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {needs.length === 0 && <div className="rs-empty">Nada pendente. Todos os negócios têm os documentos e as faturas em dia.</div>}
+      {shown.length > LIMIT && (
+        <button type="button" className="rs-att-more" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "Mostrar menos" : `Mostrar todos (${shown.length})`}
+        </button>
+      )}
+
+      {docsDeal && <DocsDialog deal={docsDeal} onClose={() => setDocsFor(null)} />}
+    </section>
   );
 }
 
