@@ -10,6 +10,7 @@ import { PageHeader } from "./ui/Shell.tsx";
 import { DealForm } from "./ui/forms.tsx";
 import { DocRing, PartyLabel, Rank } from "./ui/parts.tsx";
 import { DocsDialog } from "./ui/files/DocsDialog.tsx";
+import { WhatsAppLogo, docRequestText, waLink } from "./ui/whatsapp.tsx";
 import { MONTH_SHORT, money, money0, monthName, percent } from "./ui/format.ts";
 import { IconCoin, IconFile, IconPlus, IconUpload } from "./ui/Icons.tsx";
 
@@ -153,6 +154,12 @@ type NeedFilter = "all" | "docs" | "inv";
 
 const DAY = 86_400_000;
 
+/** The team consultants on a deal, each once: the people to ask for documents. */
+function teamOf(db: Db, d: Deal) {
+  const ids = [d.angariacao, d.compradores].flatMap((p) => (p?.kind === "team" ? [p.consultantId] : []));
+  return [...new Set(ids)].flatMap((id) => db.consultants.filter((c) => c.id === id));
+}
+
 /** Every live deal that still needs something, naming exactly what: the
  *  required documents not yet uploaded and the invoices issued but unpaid.
  *  Documents can be uploaded right here, in the same window as on Negócios. */
@@ -238,21 +245,45 @@ function Attention({ db }: { db: Db }) {
                 {(filter !== "inv" ? docs : []).map((r) => (
                   <li key={r.id} className="need doc">
                     <IconFile size={14} />
-                    Falta {r.name}
+                    <span>Falta {r.name}</span>
                   </li>
                 ))}
                 {(filter !== "docs" ? unpaid : []).map(({ inv, share, days }) => (
                   <li key={inv.id} className="need inv">
                     <IconCoin size={14} />
-                    Fatura {inv.number} ({PHASE_LABEL[inv.phase]}) por pagar
-                    {days != null && days > 0 && <span className="since"> · há {days} dia{days > 1 ? "s" : ""}</span>}
-                    {share > 0 && <span className="num"> · {money(share)}</span>}
+                    <span>
+                      Fatura {inv.number} ({PHASE_LABEL[inv.phase]}) por pagar
+                      {days != null && days > 0 && <span className="since"> · há {days} dia{days > 1 ? "s" : ""}</span>}
+                      {share > 0 && <span className="num"> · {money(share)}</span>}
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
             <div className="who">
-              <PartyLabel db={db} party={d.angariacao} />
+              {teamOf(db, d).length === 0 ? (
+                <PartyLabel db={db} party={d.angariacao} />
+              ) : (
+                teamOf(db, d).map((c) => (
+                  <span key={c.id} className="rs-att-person">
+                    <PartyLabel db={db} party={{ kind: "team", consultantId: c.id }} />
+                    {docs.length > 0 && filter !== "inv" && (
+                      <a
+                        className="rs-wa"
+                        href={waLink(c.phone, docRequestText(db, d, c.name, docs))}
+                        // Built again on click so the greeting follows the clock.
+                        onClick={(e) => (e.currentTarget.href = waLink(c.phone, docRequestText(db, d, c.name, docs)))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Pedir documentos a ${c.name} pelo WhatsApp`}
+                        title={c.phone ? `Pedir documentos a ${c.name} pelo WhatsApp` : `Sem telemóvel de ${c.name}: o WhatsApp vai perguntar a quem enviar`}
+                      >
+                        <WhatsAppLogo size={19} />
+                      </a>
+                    )}
+                  </span>
+                ))
+              )}
             </div>
             {docs.length > 0 && filter !== "inv" ? (
               <button type="button" className="rs-btn sm act" onClick={() => setDocsFor(d.id)} aria-label={`Carregar documentos de ${d.ref || d.address}`}>

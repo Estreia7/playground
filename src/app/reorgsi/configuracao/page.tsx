@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DealSides, DealType, DocRequirement } from "../core/types.ts";
 import { SIDES_LABEL } from "../core/types.ts";
 import { useReorg } from "../ui/App.tsx";
@@ -9,25 +9,27 @@ import { Panel, numberText, parseNumber } from "../ui/parts.tsx";
 import { MONTH_SHORT, money, percent } from "../ui/format.ts";
 import { IconChevronLeft, IconChevronRight, IconPlus } from "../ui/Icons.tsx";
 import { Select } from "../ui/Select.tsx";
+import { DEFAULT_DOC_REQUEST, TEMPLATE_VARS, WhatsAppLogo, fillTemplate, greeting } from "../ui/whatsapp.tsx";
 
 /* The rules the numbers follow: what each kind of deal pays the manager,
    which documents a deal needs, and the targets the dashboard measures
    against. Changing a type's % recalculates every invoice that does not
    carry its own. */
 
-type Tab = "tipos" | "documentos" | "objetivos";
+type Tab = "tipos" | "documentos" | "objetivos" | "templates";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("tipos");
   return (
     <>
-      <PageHeader title="Configuração" sub="Tipos de comissão, documentos obrigatórios e objetivos" />
-      <div className="rs-seg mb-4" role="tablist" aria-label="Secções">
+      <PageHeader title="Configuração" sub="Tipos de comissão, documentos obrigatórios, objetivos e mensagens" />
+      <div className="rs-seg rs-tabs mb-4" role="tablist" aria-label="Secções">
         {(
           [
             ["tipos", "Tipos de comissão"],
             ["documentos", "Documentos"],
             ["objetivos", "Objetivos e histórico"],
+            ["templates", "Templates"],
           ] as const
         ).map(([v, l]) => (
           <button key={v} type="button" role="tab" aria-selected={tab === v} aria-pressed={tab === v} onClick={() => setTab(v)}>
@@ -38,6 +40,7 @@ export default function SettingsPage() {
       {tab === "tipos" && <DealTypes />}
       {tab === "documentos" && <Documents />}
       {tab === "objetivos" && <Targets />}
+      {tab === "templates" && <Templates />}
     </>
   );
 }
@@ -386,6 +389,95 @@ function Targets() {
           Guardar objetivos
         </button>
       </div>
+    </div>
+  );
+}
+
+/** The WhatsApp message that asks a consultant for missing documents, with
+ *  the deal's details filled in where the {variables} are. */
+function Templates() {
+  const { db, dispatch, notify } = useReorg();
+  const saved = db.settings.templates?.docRequest || DEFAULT_DOC_REQUEST;
+  const [text, setText] = useState(saved);
+  const area = useRef<HTMLTextAreaElement>(null);
+  const sample = fillTemplate(text, {
+    saudacao: greeting(),
+    nome: "Sérgio",
+    documentos: ["• BC Proprietário", "• CPCV / Escritura"].join("\n"),
+    valor: "245 000 €",
+    morada: "Rua da Misericórdia, Lagos",
+    ref: "C0240-03689",
+    gestor: db.settings.managerName.split(" ")[0],
+  });
+
+  function insert(key: string) {
+    const el = area.current;
+    const token = `{${key}}`;
+    if (!el) return setText((t) => t + token);
+    const { selectionStart: a, selectionEnd: b } = el;
+    setText(text.slice(0, a) + token + text.slice(b));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(a + token.length, a + token.length);
+    });
+  }
+
+  async function save() {
+    const res = await dispatch({
+      type: "settings.save",
+      settings: { templates: { ...db.settings.templates, docRequest: text.trim() === DEFAULT_DOC_REQUEST.trim() ? undefined : text } },
+    });
+    if (res.ok) notify("Template guardado.");
+  }
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <section className="rs-card">
+        <div className="rs-card-head">
+          <h2>Pedido de documentos</h2>
+          <span className="aside">WhatsApp, a partir do Início</span>
+        </div>
+        <div className="rs-card-body flex flex-col gap-3">
+          <label className="rs-field">
+            Mensagem
+            <textarea ref={area} className="rs-input rs-template" rows={11} value={text} onChange={(e) => setText(e.target.value)} />
+          </label>
+          <div className="rs-field">
+            Inserir no cursor
+            <div className="rs-vars">
+              {TEMPLATE_VARS.map(([key, hint]) => (
+                <button key={key} type="button" className="rs-var" onClick={() => insert(key)} title={hint}>
+                  {`{${key}}`}
+                </button>
+              ))}
+            </div>
+            <span className="hint">{"{saudacao}"} muda com a hora: bom dia até às 13h, boa tarde até às 20h, depois boa noite.</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="rs-btn primary" onClick={save} disabled={text === saved}>
+              Guardar template
+            </button>
+            <button type="button" className="rs-btn ghost" onClick={() => setText(DEFAULT_DOC_REQUEST)} disabled={text === DEFAULT_DOC_REQUEST}>
+              Repor o texto original
+            </button>
+          </div>
+        </div>
+      </section>
+      <section className="rs-card">
+        <div className="rs-card-head">
+          <h2>Pré-visualização</h2>
+          <span className="aside">com um negócio de exemplo</span>
+        </div>
+        <div className="rs-card-body">
+          <div className="rs-wa-preview">
+            <div className="who">
+              <WhatsAppLogo size={16} />
+              Sérgio Belchior
+            </div>
+            <div className="bubble">{sample}</div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

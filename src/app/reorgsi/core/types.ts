@@ -12,6 +12,8 @@ export interface Consultant {
   name: string;
   status: ConsultantStatus;
   joinedAt?: string;
+  /** Mobile number for WhatsApp, as typed ("912 345 678" or "+351…"). */
+  phone?: string;
   /** Billing figures carried over from the team sheet, by year ("2024": 78132). */
   billingByYear: Record<string, number>;
   /** Prizes won, each with the year it was won for (RUBY 2025…). */
@@ -141,6 +143,8 @@ export interface Settings {
   targets: Record<string, number>;
   /** "Faturação Report DC": twelve monthly figures per year, null when not yet known. */
   dcReport: Record<string, (number | null)[]>;
+  /** Message templates; a missing one falls back to the built-in text. */
+  templates?: { docRequest?: string };
 }
 
 export interface Db {

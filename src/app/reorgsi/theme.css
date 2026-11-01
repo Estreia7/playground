@@ -2719,7 +2719,7 @@ textarea.rs-input {
 .rs-att-row .need .since,
 .rs-att-row .need .num {
   font-weight: 500;
-  white-space: pre;
+  white-space: nowrap;
 }
 
 .rs-att-row .act {
@@ -2787,4 +2787,156 @@ textarea.rs-input {
     grid-column: 3;
     min-height: 36px;
   }
+}
+
+.rs-att-row .need > svg {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.rs-att-row .who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.rs-att-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rs-wa {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.rs-wa:hover {
+  border-color: #25d366;
+  background: #effbf3;
+}
+
+.rs-wa:active {
+  transform: scale(0.94);
+}
+
+.rs-wa:focus-visible {
+  outline: 2px solid #25d366;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .rs-wa {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* ---------- Configuração: templates ---------- */
+
+.rs-template {
+  min-height: 240px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.rs-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rs-var {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--canvas);
+  color: var(--teal);
+  font-family: var(--font-geist-mono, ui-monospace), monospace;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.rs-var:hover {
+  border-color: var(--teal);
+}
+
+.rs-wa-preview {
+  padding: 14px;
+  border-radius: 12px;
+  background: #efe7dd;
+}
+
+.rs-wa-preview .who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #3b4a54;
+}
+
+.rs-wa-preview .bubble {
+  max-width: 92%;
+  margin-left: auto;
+  padding: 8px 11px;
+  border-radius: 10px 2px 10px 10px;
+  background: #d9fdd3;
+  color: #111b21;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 1px 1px rgba(11, 20, 26, 0.12);
+}
+
+@media (max-width: 640px) {
+  /* Room for the consultant and the WhatsApp button: the action keeps only its icon. */
+  .rs-att-row .act:has(svg) .lbl {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .rs-att-row .act:has(svg) {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .rs-att-row .act {
+    align-self: start;
+  }
+
+  .rs-att-person {
+    max-width: 100%;
+  }
+}
+
+/* Section tabs scroll sideways on a phone instead of wrapping. */
+.rs-seg.rs-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rs-seg.rs-tabs button {
+  flex: none;
+  white-space: nowrap;
 }
