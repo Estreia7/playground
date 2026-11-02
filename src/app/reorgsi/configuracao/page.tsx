@@ -9,6 +9,7 @@ import { Panel, numberText, parseNumber } from "../ui/parts.tsx";
 import { MONTH_SHORT, money, percent } from "../ui/format.ts";
 import { IconChevronLeft, IconChevronRight, IconPlus } from "../ui/Icons.tsx";
 import { Select } from "../ui/Select.tsx";
+import { useUrlState } from "../ui/nav.tsx";
 import { DEFAULT_DOC_REQUEST, TEMPLATE_VARS, WhatsAppLogo, fillTemplate, greeting } from "../ui/whatsapp.tsx";
 
 /* The rules the numbers follow: what each kind of deal pays the manager,
@@ -19,7 +20,7 @@ import { DEFAULT_DOC_REQUEST, TEMPLATE_VARS, WhatsAppLogo, fillTemplate, greetin
 type Tab = "tipos" | "documentos" | "objetivos" | "templates";
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("tipos");
+  const [tab, setTab] = useUrlState<Tab>("secao", "tipos", "push");
   return (
     <>
       <PageHeader title="Configuração" sub="Tipos de comissão, documentos obrigatórios, objetivos e mensagens" />

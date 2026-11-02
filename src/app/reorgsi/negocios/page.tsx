@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Db, Deal, Invoice } from "../core/types.ts";
 import { PHASE_LABEL, STATUS_LABEL } from "../core/types.ts";
 import { dealBilled, dealShare, invoicesOf } from "../core/commission.ts";
@@ -11,6 +11,7 @@ import { DealForm } from "../ui/forms.tsx";
 import { DealStatusPill, DocRing, PartyLabel, dealFiles } from "../ui/parts.tsx";
 import { DropSlot, FileThumb, type LabelledFile } from "../ui/files/Files.tsx";
 import { DocsDialog } from "../ui/files/DocsDialog.tsx";
+import { useUrlDialog, useUrlState } from "../ui/nav.tsx";
 import { money, money0, monthName } from "../ui/format.ts";
 import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { Select } from "../ui/Select.tsx";
@@ -39,23 +40,15 @@ function currentMonth(db: Db): string {
 
 export default function DealsPage() {
   const { db } = useReorg();
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"" | Deal["status"]>("");
-  const [type, setType] = useState("");
-  const [person, setPerson] = useState("");
-  const [month, setMonth] = useState(() => currentMonth(db));
+  // Filters live in the address, so coming back from a deal finds them as they were.
+  const [q, setQ] = useUrlState<string>("q", "");
+  const [status, setStatus] = useUrlState<"" | Deal["status"]>("estado", "");
+  const [type, setType] = useUrlState<string>("tipo", "");
+  const [person, setPerson] = useUrlState<string>("consultor", "");
+  const [month, setMonth] = useUrlState<string>("mes", currentMonth(db));
   const [creating, setCreating] = useState(false);
-  const [docsFor, setDocsFor] = useState<string | null>(null);
+  const [docsFor, openDocs, closeDocs] = useUrlDialog("documentos");
   const docsDeal = docsFor ? db.deals.find((d) => d.id === docsFor) : undefined;
-
-  // Arriving from a consultant's row: show all of that person's deals.
-  useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("consultor");
-    if (id) {
-      setPerson(id);
-      setMonth("");
-    }
-  }, []);
 
   const months = useMemo(
     () => [...new Set([...db.invoices.map((i) => i.settlementMonth), currentMonth(db)])].sort().reverse(),
@@ -198,7 +191,7 @@ export default function DealsPage() {
             </thead>
             <tbody>
               {rows.map(({ deal, invoices }) => (
-                <DealRow key={deal.id} db={db} deal={deal} invoices={invoices} onDocs={() => setDocsFor(deal.id)} />
+                <DealRow key={deal.id} db={db} deal={deal} invoices={invoices} onDocs={() => openDocs(deal.id)} />
               ))}
             </tbody>
           </table>
@@ -214,7 +207,7 @@ export default function DealsPage() {
       </section>
 
       {creating && <DealForm onClose={() => setCreating(false)} />}
-      {docsDeal && <DocsDialog deal={docsDeal} onClose={() => setDocsFor(null)} />}
+      {docsDeal && <DocsDialog deal={docsDeal} onClose={closeDocs} />}
     </>
   );
 }

@@ -10,6 +10,7 @@ import { PageHeader } from "./ui/Shell.tsx";
 import { DealForm } from "./ui/forms.tsx";
 import { DocRing, PartyLabel, Rank } from "./ui/parts.tsx";
 import { DocsDialog } from "./ui/files/DocsDialog.tsx";
+import { useUrlDialog } from "./ui/nav.tsx";
 import { WhatsAppLogo, copyText, docRequestText } from "./ui/whatsapp.tsx";
 import { MONTH_SHORT, money, money0, monthName, percent } from "./ui/format.ts";
 import { IconCoin, IconFile, IconPlus, IconUpload } from "./ui/Icons.tsx";
@@ -167,7 +168,7 @@ function Attention({ db }: { db: Db }) {
   const { notify } = useReorg();
   const [filter, setFilter] = useState<NeedFilter>("all");
   const [showAll, setShowAll] = useState(false);
-  const [docsFor, setDocsFor] = useState<string | null>(null);
+  const [docsFor, openDocs, closeDocs] = useUrlDialog("documentos");
   const docsDeal = docsFor ? db.deals.find((d) => d.id === docsFor) : undefined;
 
   const needs = useMemo<Need[]>(() => {
@@ -290,7 +291,7 @@ function Attention({ db }: { db: Db }) {
               )}
             </div>
             {docs.length > 0 && filter !== "inv" ? (
-              <button type="button" className="rs-btn sm act" onClick={() => setDocsFor(d.id)} aria-label={`Carregar documentos de ${d.ref || d.address}`}>
+              <button type="button" className="rs-btn sm act" onClick={() => openDocs(d.id)} aria-label={`Carregar documentos de ${d.ref || d.address}`}>
                 <IconUpload size={15} />
                 <span className="lbl">Carregar</span>
               </button>
@@ -310,7 +311,7 @@ function Attention({ db }: { db: Db }) {
         </button>
       )}
 
-      {docsDeal && <DocsDialog deal={docsDeal} onClose={() => setDocsFor(null)} />}
+      {docsDeal && <DocsDialog deal={docsDeal} onClose={closeDocs} />}
     </section>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { DocState, Invoice } from "../../core/types.ts";
 import { DOC_STATE_LABEL, PHASE_LABEL, SIDES_LABEL, TRANSACTION_LABEL } from "../../core/types.ts";
 import { dealBilled, dealShare, docProgress, invoicesOf, managerPct, managerShare, requirementsFor } from "../../core/commission.ts";
@@ -12,7 +12,8 @@ import { DealForm, InvoiceForm } from "../../ui/forms.tsx";
 import { DealStatusPill, DocBar, InvoiceStatusPill, PartyLabel, dealFiles } from "../../ui/parts.tsx";
 import { DropSlot, FileThumb } from "../../ui/files/Files.tsx";
 import { date, money, monthName, percent } from "../../ui/format.ts";
-import { IconChevronLeft, IconExternal, IconPlus, IconTrash } from "../../ui/Icons.tsx";
+import { IconExternal, IconPlus, IconTrash } from "../../ui/Icons.tsx";
+import { BackLink } from "../../ui/nav.tsx";
 
 /* One deal: the documents it still needs, the money it produced, and every
    file attached to it. */
@@ -27,6 +28,11 @@ export default function DealPage() {
   const [invoiceForm, setInvoiceForm] = useState<{ invoice?: Invoice } | null>(null);
 
   const deal = db.deals.find((d) => d.id === id);
+  // The tab and the history list name the deal, not just "Negócio".
+  const ref = deal ? deal.ref || deal.address : "";
+  useEffect(() => {
+    if (ref) document.title = `${ref} · ReorgSI`;
+  }, [ref]);
   if (!deal) {
     return (
       <>
@@ -80,16 +86,13 @@ export default function DealPage() {
     if (!window.confirm(`Apagar o negócio ${label} e as suas ${invoices.length} faturas? Isto não se pode desfazer.`)) return;
     if ((await dispatch({ type: "deal.delete", id: deal!.id })).ok) {
       notify("Negócio apagado.");
-      router.push("/reorgsi/negocios");
+      router.replace("/reorgsi/negocios");
     }
   }
 
   return (
     <>
-      <Link href="/reorgsi/negocios" className="rs-link mb-2 inline-flex items-center gap-1 text-sm">
-        <IconChevronLeft size={15} />
-        Negócios
-      </Link>
+      <BackLink href="/reorgsi/negocios" label="Negócios" />
       <PageHeader
         title={deal.ref || (deal.transaction === "credito" ? "Processo bancário" : "Negócio sem referência")}
         sub={

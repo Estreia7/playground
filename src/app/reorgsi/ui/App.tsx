@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { Suspense, createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Db, FileRef } from "../core/types.ts";
 import type { Action } from "../core/actions.ts";
@@ -192,7 +192,10 @@ export function App({ children }: { children: React.ReactNode }) {
         <Intro onDone={onIntroDone} />
       ) : (
         <LightboxProvider>
-          <Shell>{children}</Shell>
+          <Shell>
+            {/* Pages read their view from the query string. */}
+            <Suspense fallback={null}>{children}</Suspense>
+          </Shell>
         </LightboxProvider>
       )}
       {toast && (

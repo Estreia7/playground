@@ -8,9 +8,9 @@ export const dynamic = "force-static";
 export function GET() {
   return Response.json(
     {
-      name: "ReorgSI — Direção Comercial",
+      name: "ReorgSI · Gestão comercial imobiliária",
       short_name: "ReorgSI",
-      description: "Equipa, negócios, comissões e conta-corrente da Direção Comercial.",
+      description: "Negócios, documentos, comissões e faturação da equipa num só painel.",
       start_url: "/reorgsi",
       scope: "/reorgsi",
       id: "/reorgsi",
@@ -19,7 +19,12 @@ export function GET() {
       background_color: "#112031",
       theme_color: "#eef5f3",
       lang: "pt-PT",
-      icons: [{ src: "/reorgsi/apple-icon", sizes: "180x180", type: "image/png", purpose: "any" }],
+      icons: [
+        { src: "/reorgsi/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "/reorgsi/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        // The circle sits inside the 80% safe zone, so Android can crop it to any shape.
+        { src: "/reorgsi/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      ],
     },
     { headers: { "Content-Type": "application/manifest+json" } },
   );

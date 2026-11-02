@@ -62,3 +62,6 @@ next-env.d.ts
 
 # ReorgSI team/commission data, uploaded documents and the source spreadsheets — private runtime data.
 /storage/reorgsi
+
+# ReorgSI logo source (4.7 MB); the app uses the sized copies next to it
+/public/reorgsi/Logo ReorgSI.png

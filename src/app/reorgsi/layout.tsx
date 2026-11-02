@@ -9,10 +9,32 @@ const sans = localFont({
   weight: "400 900",
 });
 
+const TITLE = "ReorgSI · Gestão comercial imobiliária";
+// What a shared link says (WhatsApp, iMessage, Slack…): the app, never a person.
+const DESCRIPTION =
+  "Negócios, documentos, comissões e faturação da equipa num só painel. Saiba o que falta em cada processo e acompanhe os resultados em tempo real.";
+
 export const metadata: Metadata = {
-  title: "ReorgSI",
-  description: "Equipa, negócios, comissões e conta-corrente da Direção Comercial.",
+  metadataBase: new URL("https://reorgsi.bruno-dev.xyz"),
+  title: { default: TITLE, template: "%s · ReorgSI" },
+  description: DESCRIPTION,
+  applicationName: "ReorgSI",
+  // A private tool behind a password: previews yes, search results no.
   robots: { index: false, follow: false },
+  icons: {
+    icon: [{ url: "/reorgsi/favicon.png", type: "image/png", sizes: "96x96" }],
+    apple: [{ url: "/reorgsi/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  openGraph: {
+    type: "website",
+    url: "/reorgsi",
+    siteName: "ReorgSI",
+    locale: "pt_PT",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [{ url: "/reorgsi/og.jpg", width: 600, height: 600, alt: "Logótipo ReorgSI: uma casa em órbita" }],
+  },
+  twitter: { card: "summary", title: TITLE, description: DESCRIPTION, images: ["/reorgsi/og.jpg"] },
   // Added to an iPhone home screen, ReorgSI opens as an app: no Safari bars.
   manifest: "/reorgsi/manifest.webmanifest",
   appleWebApp: { capable: true, title: "ReorgSI", statusBarStyle: "default" },

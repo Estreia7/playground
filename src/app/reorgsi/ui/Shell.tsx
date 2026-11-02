@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useReorg } from "./App.tsx";
 import { initials } from "./format.ts";
+import { useTrackVisits } from "./nav.tsx";
 import { IconChart, IconHome, IconKey, IconLedger, IconMenu, IconPeople, IconSettings, Mark } from "./Icons.tsx";
 
 /* The frame around every screen. Every link stays inside /reorgsi: once in,
@@ -16,6 +17,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { db, logout } = useReorg();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  useTrackVisits();
 
   useEffect(() => setOpen(false), [pathname]);
 

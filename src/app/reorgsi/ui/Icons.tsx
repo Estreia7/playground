@@ -83,12 +83,6 @@ export const IconScan = icon(ScanIcon, "bold");
 /** Brand mark: a roof line held inside an orbit — the house at the centre of
  *  the team's work. */
 export function Mark({ size = 28 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-      <circle cx="20" cy="20" r="18.5" fill="#152d35" stroke="#345b63" />
-      <ellipse cx="20" cy="20" rx="17" ry="7" fill="none" stroke="#d4ecdd" strokeOpacity="0.35" transform="rotate(-24 20 20)" />
-      <path d="M11.5 21.5 20 13.5l8.5 8M14 19.6V27h12v-7.4" fill="none" stroke="#d4ecdd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="33" cy="13" r="2.2" fill="#d4ecdd" />
-    </svg>
-  );
+  // eslint-disable-next-line @next/next/no-img-element -- a 160px PNG, no optimisation needed
+  return <img src="/reorgsi/mark.png" width={size} height={size} alt="" aria-hidden="true" style={{ flex: "none", borderRadius: "50%" }} />;
 }

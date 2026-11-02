@@ -7,6 +7,7 @@ import { PRIZE_NAMES, STATUS_LABEL, prizesOf } from "../core/types.ts";
 import { billingByConsultant, dealCountByConsultant, dealMixByConsultant, growth } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
+import { useUrlState } from "../ui/nav.tsx";
 import { Panel, PrizeChip, numberText, parseNumber } from "../ui/parts.tsx";
 import { date, initials, money, percent } from "../ui/format.ts";
 import { IconClose, IconPlus } from "../ui/Icons.tsx";
@@ -25,7 +26,7 @@ function StatusPill({ status }: { status: ConsultantStatus }) {
 
 export default function ConsultantsPage() {
   const { db } = useReorg();
-  const [filter, setFilter] = useState<"" | ConsultantStatus>("");
+  const [filter, setFilter] = useUrlState<"" | ConsultantStatus>("estado", "");
   const [editing, setEditing] = useState<Consultant | "new" | null>(null);
 
   const billing = useMemo(() => billingByConsultant(db, YEAR), [db]);
@@ -117,7 +118,7 @@ export default function ConsultantsPage() {
                   <td className="num">{date(c.joinedAt)}</td>
                   <td className="right num">
                     {deals.get(c.id) ? (
-                      <Link className="rs-link" href={`/reorgsi/negocios?consultor=${c.id}`}>
+                      <Link className="rs-link" href={`/reorgsi/negocios?mes=&consultor=${c.id}`}>
                         {deals.get(c.id)}
                       </Link>
                     ) : (

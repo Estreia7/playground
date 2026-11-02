@@ -2942,3 +2942,28 @@ textarea.rs-input {
   flex: none;
   white-space: nowrap;
 }
+
+/* ---------- back link ---------- */
+
+.rs-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  margin: -6px 0 6px -6px;
+  padding: 0 10px 0 6px;
+  border-radius: 8px;
+  color: var(--teal);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rs-back:hover {
+  background: var(--canvas);
+}
+
+.rs-back:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}

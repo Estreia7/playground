@@ -18,6 +18,7 @@ import {
 import { invoicesOf, lastFilledMonth, ytd } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
+import { useUrlState } from "../ui/nav.tsx";
 import { DocBar, PartyLabel, PrizeChip, Rank } from "../ui/parts.tsx";
 import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { Bars, Legend, LineCompare, cumulative, type Line } from "../ui/charts.tsx";
@@ -43,27 +44,18 @@ const RANK_BY: [RankBy, string][] = [
 export default function AnalysesPage() {
   const { db } = useReorg();
   const years = useMemo(() => activityYears(db), [db]);
-  const [year, setYear] = useState(years[0]);
-  const [view, setView] = useState<View>("consultores");
-  const [personId, setPersonId] = useState<string>("");
-
-  // Deep links: ?vista=manager, ?consultor=<id>
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    if (q.get("vista") === "manager") setView("manager");
-    const c = q.get("consultor");
-    if (c) {
-      setPersonId(c);
-      setView("consultores");
-    }
-  }, []);
+  // ?vista=manager, ?consultor=<id>, ?ano=<year>: each consultant or view
+  // opened is a step the back button returns through.
+  const [year, setYear] = useUrlState<string>("ano", years[0] ?? "");
+  const [view, setView] = useUrlState<View>("vista", "consultores", "push");
+  const [personId, setPersonId] = useUrlState<string>("consultor", "", "push");
 
   const team = useMemo(() => teamStats(db, year), [db, year]);
   const chosen = personId || team.people[0]?.consultant.id || "";
 
   const open = (id: string) => {
-    setPersonId(id);
     setView("consultores");
+    setPersonId(id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -253,7 +245,7 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
           <section className="rs-card" aria-labelledby="cd-h">
             <div className="rs-card-head">
               <h2 id="cd-h">Negócios de {year}</h2>
-              <Link className="rs-link aside" href={`/reorgsi/negocios?consultor=${consultant.id}`}>
+              <Link className="rs-link aside" href={`/reorgsi/negocios?mes=&consultor=${consultant.id}`}>
                 Abrir em Negócios
               </Link>
             </div>
