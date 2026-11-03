@@ -366,3 +366,118 @@ export function allTimeBilled(db: Db, consultant: Consultant): number {
   }
   return cents(total);
 }
+
+export interface PeriodCompare {
+  label: string;
+  /** Month range as "jan–mar". */
+  months: [number, number];
+  now: number;
+  /** The previous year over the same months this year has figures for. */
+  prev: number;
+  /** The previous year's whole period, for the reference on what is still to come. */
+  prevFull: number;
+  state: "done" | "running" | "ahead";
+  /** The months this year has so far, when the period is running. */
+  upTo: number;
+}
+
+/** Quarters and semesters of a monthly series against the year before. A
+ *  period under way is compared over the same months only. */
+export function periodCompare(now: (number | null)[], prev: (number | null)[], upTo: number): { quarters: PeriodCompare[]; semesters: PeriodCompare[] } {
+  const sum = (s: (number | null)[], a: number, b: number) => {
+    let t = 0;
+    for (let i = a; i <= b; i++) t += s[i] ?? 0;
+    return cents(t);
+  };
+  const make = (label: string, a: number, b: number): PeriodCompare => {
+    const state = upTo >= b ? "done" : upTo >= a ? "running" : "ahead";
+    const end = state === "running" ? upTo : b;
+    return { label, months: [a, b], now: state === "ahead" ? 0 : sum(now, a, end), prev: sum(prev, a, end), prevFull: sum(prev, a, b), state, upTo };
+  };
+  return {
+    quarters: [make("1.º trimestre", 0, 2), make("2.º trimestre", 3, 5), make("3.º trimestre", 6, 8), make("4.º trimestre", 9, 11)],
+    semesters: [make("1.º semestre", 0, 5), make("2.º semestre", 6, 11)],
+  };
+}
+
+export interface BehindItem {
+  stats: ConsultantStats;
+  /** What they did this year so far: € in billing mode, deals in deals mode. */
+  actual: number;
+  /** What they were expected to have by now. */
+  expected: number;
+  /** Where the expectation comes from. */
+  basis: "own" | "team";
+  /** Settlement month of their last invoice, if any. */
+  lastInvoice: string | null;
+}
+
+/** The active consultants furthest behind this year, by billing or by deals.
+ *  Billing is measured against their own previous year over the same months
+ *  (from the deals, or the team sheet's annual figure at a steady pace); people
+ *  without a previous year, and deal counts, against the team's median,
+ *  adjusted for the months each person has been in the team. */
+export function behindTeam(db: Db, year: string, by: "billed" | "deals", limit = 5): { items: BehindItem[]; upTo: number } {
+  const prevYear = String(Number(year) - 1);
+  const team = teamStats(db, year);
+  let upTo = 11;
+  if (year === String(new Date().getFullYear())) {
+    upTo = -1;
+    team.billedByMonth.forEach((v, i) => v > 0 && (upTo = i));
+  }
+  if (upTo < 0) return { items: [], upTo };
+  const span = upTo + 1;
+  // Share of the elapsed months each person was in the team.
+  const presence = (c: Consultant) => {
+    if (!c.joinedAt || c.joinedAt.slice(0, 4) < year) return 1;
+    if (c.joinedAt.slice(0, 4) > year) return 0;
+    const from = Number(c.joinedAt.slice(5, 7)) - 1;
+    return Math.max(0, span - from) / span;
+  };
+  const people = team.people.filter((p) => p.consultant.status !== "inativo" && presence(p.consultant) > 0);
+  const valueOf = (p: ConsultantStats) => (by === "billed" ? ytdOf(p.billedByMonth, upTo) : p.deals.length);
+  // The median, per full period in the team: one big earner would make everyone else look behind.
+  const rates = people.map((p) => valueOf(p) / presence(p.consultant)).sort((a, b) => a - b);
+  const mid = rates.length >> 1;
+  const typical = rates.length ? (rates.length % 2 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2) : 0;
+
+  const lastInvoice = new Map<string, string>();
+  const dealsById = new Map(db.deals.map((d) => [d.id, d]));
+  for (const inv of db.invoices) {
+    const deal = dealsById.get(inv.dealId);
+    if (!deal || inv.status === "anulada") continue;
+    for (const p of people) {
+      const id = p.consultant.id;
+      if (weightFor(deal, id) && (lastInvoice.get(id) ?? "") < inv.settlementMonth) lastInvoice.set(id, inv.settlementMonth);
+    }
+  }
+
+  const items: BehindItem[] = people.map((p) => {
+    const actual = valueOf(p);
+    let expected = typical * presence(p.consultant);
+    let basis: BehindItem["basis"] = "team";
+    if (by === "billed") {
+      const prev = consultantStats(db, p.consultant, prevYear);
+      const own = prev.billed > 0 ? ytdOf(prev.billedByMonth, upTo) : ((p.consultant.billingByYear[prevYear] ?? 0) * span) / 12;
+      if (own > 0) {
+        expected = own;
+        basis = "own";
+      }
+    }
+    return { stats: p, actual: by === "billed" ? cents(actual) : actual, expected: by === "billed" ? cents(expected) : expected, basis, lastInvoice: lastInvoice.get(p.consultant.id) ?? null };
+  });
+
+  return {
+    upTo,
+    items: items
+      .filter((i) => i.expected > 0 && i.actual < i.expected)
+      .sort((a, b) => a.actual / a.expected - b.actual / b.expected || a.actual - a.expected - (b.actual - b.expected))
+      .slice(0, limit),
+  };
+}
+
+function ytdOf(series: number[], upTo: number): number {
+  let t = 0;
+  for (let i = 0; i <= upTo; i++) t += series[i] ?? 0;
+  return t;
+}

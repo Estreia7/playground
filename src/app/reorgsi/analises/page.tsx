@@ -8,12 +8,15 @@ import { PHASE_LABEL, STATUS_LABEL } from "../core/types.ts";
 import {
   activityYears,
   allTimeBilled,
+  behindTeam,
   billingYears,
   consultantStats,
   currentBacklog,
+  periodCompare,
   teamStats,
   type BacklogItem,
   type ConsultantStats,
+  type PeriodCompare,
 } from "../core/analytics.ts";
 import { invoicesOf, lastFilledMonth, ytd } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
@@ -414,6 +417,10 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
 
       <EvolutionCard title="Backlog · evolução da faturação da equipa" {...teamEvolution(db, year)} />
 
+      <PeriodsCard year={year} />
+
+      <BehindCard year={year} onOpen={onOpen} />
+
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <PendingCard items={backlog} />
         <section className="rs-card" aria-labelledby="bp-h">
@@ -626,6 +633,162 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
         </section>
       </div>
     </div>
+  );
+}
+
+/* Report DC by quarter and semester against the year before. Semesters sit
+   under the quarters they are made of. */
+function PeriodsCard({ year }: { year: string }) {
+  const { db } = useReorg();
+  const prevYear = String(Number(year) - 1);
+  const dc = db.settings.dcReport[year] ?? [];
+  const dcPrev = db.settings.dcReport[prevYear] ?? [];
+  const target = db.settings.targets[year] ?? 0;
+  if (!dc.length) return null;
+  const { quarters, semesters } = periodCompare(dc, dcPrev, lastFilledMonth(dc));
+  return (
+    <section className="rs-card" aria-labelledby="pr-h">
+      <div className="rs-card-head flex-wrap">
+        <h2 id="pr-h">Trimestres e semestres</h2>
+        <span className="aside">
+          Report DC {year} face a {prevYear}
+        </span>
+      </div>
+      <div className="rs-card-body rs-periods">
+        {quarters.map((p) => (
+          <PeriodTile key={p.label} p={p} prevYear={prevYear} target={target / 4} />
+        ))}
+        {semesters.map((p) => (
+          <PeriodTile key={p.label} p={p} prevYear={prevYear} target={target / 2} wide />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PeriodTile({ p, prevYear, target, wide = false }: { p: PeriodCompare; prevYear: string; target: number; wide?: boolean }) {
+  const range = `${MONTH_SHORT[p.months[0]]}–${MONTH_SHORT[p.months[1]]}`;
+  const diff = p.prev ? p.now / p.prev - 1 : null;
+  const top = Math.max(p.now, p.prev, 1);
+  return (
+    <div className={`rs-period ${wide ? "wide" : ""} ${p.state}`}>
+      <div className="head">
+        <h3>{p.label}</h3>
+        <span>
+          {range}
+          {p.state === "running" && ` · até ${MONTH_SHORT[p.upTo]}`}
+        </span>
+      </div>
+      {p.state === "ahead" ? (
+        <>
+          <span className="value" style={{ color: "var(--faint)" }}>
+            Por começar
+          </span>
+          <span className="sub">
+            {prevYear}: <span className="num">{p.prevFull ? money0(p.prevFull) : "sem dados"}</span>
+          </span>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-2.5">
+            <span className="value num">{money0(p.now)}</span>
+            {diff != null && (
+              <span className="delta num" style={{ color: diff >= 0 ? "#2f7a57" : "var(--amber)" }}>
+                {signed(diff)}
+              </span>
+            )}
+          </div>
+          <div className="bars" aria-hidden="true">
+            <span style={{ width: `${(p.now / top) * 100}%` }} />
+            <span className="prev" style={{ width: `${(p.prev / top) * 100}%` }} />
+          </div>
+          <span className="sub">
+            {prevYear}
+            {p.state === "running" ? " nos mesmos meses" : ""}: <span className="num">{p.prev ? money0(p.prev) : "sem dados"}</span>
+            {target > 0 && p.state === "done" && <> · {percent((p.now / target) * 100, 0)} do objetivo</>}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* The five active consultants furthest behind, so the manager knows who to
+   sit down with. */
+function BehindCard({ year, onOpen }: { year: string; onOpen: (id: string) => void }) {
+  const { db } = useReorg();
+  const [by, setBy] = useState<"billed" | "deals">("billed");
+  const { items, upTo } = useMemo(() => behindTeam(db, year, by), [db, year, by]);
+  const prevYear = String(Number(year) - 1);
+  return (
+    <section className="rs-card rs-behind" aria-labelledby="bh-h">
+      <div className="rs-card-head flex-wrap">
+        <div className="min-w-0">
+          <h2 id="bh-h">Quem precisa de atenção</h2>
+          <p className="m-0 mt-0.5 text-[12.5px]" style={{ color: "var(--muted)" }}>
+            {by === "billed"
+              ? `Faturação até ${upTo >= 0 ? MONTH_SHORT[upTo] : "agora"} face ao próprio ${prevYear} nos mesmos meses, ou ao valor típico da equipa (mediana) para quem não tem ${prevYear}.`
+              : "Negócios no ano face ao valor típico da equipa (mediana), ajustado ao tempo de cada um na equipa."}
+          </p>
+        </div>
+        <div className="rs-seg" role="group" aria-label="Medir por">
+          <button type="button" aria-pressed={by === "billed"} onClick={() => setBy("billed")}>
+            Faturação
+          </button>
+          <button type="button" aria-pressed={by === "deals"} onClick={() => setBy("deals")}>
+            Negócios
+          </button>
+        </div>
+      </div>
+      <ol className="rs-card-body m-0 flex list-none flex-col">
+        {items.map((it) => {
+          const c = it.stats.consultant;
+          const ratio = it.actual / it.expected;
+          return (
+            <li key={c.id}>
+              <button type="button" onClick={() => onOpen(c.id)} aria-label={`Ver a análise de ${c.name}`}>
+                <span className="who">
+                  <span className="rs-behind-avatar" aria-hidden="true">
+                    {initials(c.name)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="name">{c.name}</span>
+                    <span className="meta">
+                      {STATUS_LABEL[c.status]} · {it.lastInvoice ? `última fatura em ${monthName(it.lastInvoice).toLowerCase()}` : "sem faturas na app"}
+                    </span>
+                  </span>
+                </span>
+                <span className="gauge">
+                  <span className="track" aria-hidden="true">
+                    <span style={{ width: `${Math.max(2, ratio * 100)}%` }} />
+                  </span>
+                  <span className="fig">
+                    {by === "billed" ? (
+                      <>
+                        <span className="num font-semibold">{money0(it.actual)}</span>
+                        <span className="num"> de {money0(it.expected)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="num font-semibold">
+                          {it.actual} {it.actual === 1 ? "negócio" : "negócios"}
+                        </span>
+                        <span className="num"> · típico {it.expected.toLocaleString("pt-PT", { maximumFractionDigits: 1 })}</span>
+                      </>
+                    )}
+                  </span>
+                </span>
+                <span className="gap">
+                  <span className="num">{by === "billed" ? `−${money0(it.expected - it.actual)}` : `−${percent((1 - ratio) * 100, 0)}`}</span>
+                  <span className="why">{by === "billed" ? (it.basis === "own" ? `face a ${prevYear}` : "face à equipa") : "abaixo da equipa"}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+        {items.length === 0 && <li className="rs-empty">Ninguém está atrás neste momento.</li>}
+      </ol>
+    </section>
   );
 }
 
