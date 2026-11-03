@@ -1,11 +1,35 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ConsultantStats } from "../core/analytics.ts";
+import type { Consultant, Db } from "../core/types.ts";
+import { consultantStats, type ConsultantStats } from "../core/analytics.ts";
+import type { Series } from "./charts.tsx";
 import { percent } from "./format.ts";
 
 /* Small pieces shared by Análises and the consultant page: the KPI tile
    that counts up, the split bar, and a few ways of writing figures. */
+
+/** Monthly billing for a year with the year before beside it. Last year
+ *  comes from its deals; when it has none, the team sheet's annual figure is
+ *  spread evenly and drawn striped, as an estimate. */
+export function monthlyVsLastYear(db: Db, consultant: Consultant, year: string): { series: Series[]; legend: { color: string; label: string; hatched?: boolean }[] } {
+  const prevYear = String(Number(year) - 1);
+  const now = consultantStats(db, consultant, year);
+  const prev = consultantStats(db, consultant, prevYear);
+  const annual = consultant.billingByYear[prevYear] ?? 0;
+  const series: Series[] = [];
+  const legend: { color: string; label: string; hatched?: boolean }[] = [];
+  if (prev.billed > 0) {
+    series.push({ name: prevYear, color: "#a9d4bb", values: prev.billedByMonth });
+    legend.push({ color: "#a9d4bb", label: prevYear });
+  } else if (annual > 0) {
+    series.push({ name: `${prevYear} (média)`, color: "#a9d4bb", values: now.billedByMonth.map(() => annual / 12), hatched: true });
+    legend.push({ color: "#a9d4bb", label: `${prevYear} (média mensal)`, hatched: true });
+  }
+  series.push({ name: year, color: "#345b63", values: now.billedByMonth });
+  legend.push({ color: "#345b63", label: year });
+  return { series, legend };
+}
 
 export function dealSplit(s: ConsultantStats): string {
   const parts = [`${s.fullDeals} plenos`, `${s.sharedExternal + s.sharedTeam} partilhas`];

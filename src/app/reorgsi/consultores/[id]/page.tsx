@@ -12,8 +12,8 @@ import { PageHeader } from "../../ui/Shell.tsx";
 import { BackLink } from "../../ui/nav.tsx";
 import { Avatar, DealStatusPill, DocRing, PartyLabel, PrizeChip } from "../../ui/parts.tsx";
 import { ConsultantForm } from "../../ui/ConsultantForm.tsx";
-import { Bars } from "../../ui/charts.tsx";
-import { Kpi, Mix, dealSplit, signed, tenure } from "../../ui/stats.tsx";
+import { Bars, Legend } from "../../ui/charts.tsx";
+import { Kpi, Mix, dealSplit, monthlyVsLastYear, signed, tenure } from "../../ui/stats.tsx";
 import { preparePhoto } from "../../ui/files/prepare.ts";
 import { MONTH_SHORT, date, money, money0, monthName } from "../../ui/format.ts";
 import { IconCamera, IconChart, IconTrash } from "../../ui/Icons.tsx";
@@ -64,6 +64,7 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
   const prev = String(Number(year) - 1);
 
   const stats = useMemo(() => consultantStats(db, c, year), [db, c, year]);
+  const monthly = useMemo(() => monthlyVsLastYear(db, c, year), [db, c, year]);
   const backlog = useMemo(() => currentBacklog(db, c.id), [db, c.id]);
   const links = useMemo(() => connections(db.deals, c.id), [db.deals, c.id]);
 
@@ -173,10 +174,12 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
         <section className="rs-card" aria-labelledby="cp-month">
           <div className="rs-card-head">
             <h2 id="cp-month">Faturação mensal</h2>
-            <span className="aside">{year}</span>
+            <span className="aside">
+              <Legend items={monthly.legend} />
+            </span>
           </div>
           <div className="rs-card-body">
-            <Bars labels={MONTH_SHORT} series={[{ name: "Faturado", color: "#345b63", values: stats.billedByMonth }]} ariaLabel={`Faturação mensal de ${c.name} em ${year}`} />
+            <Bars labels={MONTH_SHORT} series={monthly.series} ariaLabel={`Faturação mensal de ${c.name} em ${year}, com ${Number(year) - 1} ao lado`} />
           </div>
         </section>
         <section className="rs-card" aria-labelledby="cp-year">

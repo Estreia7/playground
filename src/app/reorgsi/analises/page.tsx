@@ -27,7 +27,7 @@ import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { Bars, Legend, LineCompare, cumulative, type Line } from "../ui/charts.tsx";
 import { MONTH_SHORT, date, initials, money, money0, monthName, percent } from "../ui/format.ts";
 import { Select } from "../ui/Select.tsx";
-import { Kpi, Mix, dealSplit, signed, tenure } from "../ui/stats.tsx";
+import { Kpi, Mix, dealSplit, monthlyVsLastYear, signed, tenure } from "../ui/stats.tsx";
 
 /* Results and indicators: one consultant at a time, or the whole team as the
    manager sees it. Both views share the year and the backlog chart. */
@@ -98,6 +98,7 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
   const consultant = db.consultants.find((c) => c.id === consultantId);
   const stats = useMemo(() => (consultant ? consultantStats(db, consultant, year) : null), [db, consultant, year]);
   const evolution = useMemo(() => (consultant ? consultantEvolution(db, consultant, year) : null), [db, consultant, year]);
+  const monthly = useMemo(() => (consultant ? monthlyVsLastYear(db, consultant, year) : null), [db, consultant, year]);
   const backlog = useMemo(() => (consultant ? currentBacklog(db, consultant.id) : []), [db, consultant]);
 
   const groups: [string, Consultant[]][] = [
@@ -182,13 +183,13 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
             <section className="rs-card" aria-labelledby="cm-h">
               <div className="rs-card-head">
                 <h2 id="cm-h">Faturação mensal</h2>
-                <span className="aside">{year}</span>
+                <span className="aside">{monthly && <Legend items={monthly.legend} />}</span>
               </div>
               <div className="rs-card-body">
                 <Bars
                   labels={MONTH_SHORT}
-                  series={[{ name: "Faturado", color: "#345b63", values: stats.billedByMonth }]}
-                  ariaLabel={`Faturação mensal de ${consultant.name} em ${year}`}
+                  series={monthly?.series ?? []}
+                  ariaLabel={`Faturação mensal de ${consultant.name} em ${year}, com ${Number(year) - 1} ao lado`}
                 />
               </div>
             </section>
