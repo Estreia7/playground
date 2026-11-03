@@ -5,6 +5,12 @@ import { CaretRightIcon } from "@phosphor-icons/react/dist/ssr/CaretRight";
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/ssr/CheckCircle";
 import { CloudArrowUpIcon } from "@phosphor-icons/react/dist/ssr/CloudArrowUp";
 import { EyeIcon } from "@phosphor-icons/react/dist/ssr/Eye";
+import { EyeSlashIcon } from "@phosphor-icons/react/dist/ssr/EyeSlash";
+import { MoonIcon } from "@phosphor-icons/react/dist/ssr/Moon";
+import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/ssr/SidebarSimple";
+import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
+import { SquareHalfBottomIcon } from "@phosphor-icons/react/dist/ssr/SquareHalfBottom";
+import { SunIcon } from "@phosphor-icons/react/dist/ssr/Sun";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/ssr/ArrowClockwise";
 import { CameraIcon } from "@phosphor-icons/react/dist/ssr/Camera";
 import { ImagesIcon } from "@phosphor-icons/react/dist/ssr/Images";
@@ -40,7 +46,7 @@ export const GLYPHS = {
   coin: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM14.8 9.3a3.4 3.4 0 1 0 0 5.4M8.4 11h4.8M8.4 13h4.8",
 } as const;
 
-type P = { size?: number; className?: string; weight?: IconWeight };
+type P = { size?: number | string; className?: string; weight?: IconWeight };
 
 function icon(Glyph: PhosphorIcon, weight: IconWeight = "regular") {
   const Wrapped = ({ size = 20, className, weight: w }: P) => (
@@ -75,6 +81,12 @@ export const IconCheck = icon(CheckIcon, "bold");
 export const IconCheckCircle = icon(CheckCircleIcon, "fill");
 export const IconCloudUpload = icon(CloudArrowUpIcon, "duotone");
 export const IconEye = icon(EyeIcon);
+export const IconEyeSlash = icon(EyeSlashIcon);
+export const IconSun = icon(SunIcon, "duotone");
+export const IconMoon = icon(MoonIcon, "duotone");
+export const IconSidebar = icon(SidebarSimpleIcon, "duotone");
+export const IconDock = icon(SquareHalfBottomIcon, "duotone");
+export const IconSignOut = icon(SignOutIcon, "duotone");
 export const IconCamera = icon(CameraIcon, "fill");
 export const IconRotate = icon(ArrowClockwiseIcon, "bold");
 export const IconImages = icon(ImagesIcon);

@@ -141,6 +141,10 @@ export interface Settings {
   targets: Record<string, number>;
   /** "Faturação Report DC": twelve monthly figures per year, null when not yet known. */
   dcReport: Record<string, (number | null)[]>;
+  /** Desktop navigation: the sidebar (default) or the floating dock. */
+  navMode?: "sidebar" | "dock";
+  /** The dock's own look, light (default) or dark. */
+  dockTheme?: "light" | "dark";
   /** Message templates; a missing one falls back to the built-in text. */
   templates?: { docRequest?: string };
 }
