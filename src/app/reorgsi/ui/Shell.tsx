@@ -6,17 +6,58 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useReorg } from "./App.tsx";
 import { initials } from "./format.ts";
 import { useTrackVisits } from "./nav.tsx";
-import { IconChart, IconHome, IconKey, IconLedger, IconMenu, IconPeople, IconSettings, Mark } from "./Icons.tsx";
+import { Dock, DockDivider, DockItem } from "./Dock.tsx";
+import {
+  IconChart,
+  IconDock,
+  IconHome,
+  IconKey,
+  IconLedger,
+  IconMenu,
+  IconMoon,
+  IconPeople,
+  IconSettings,
+  IconSidebar,
+  IconSignOut,
+  IconSun,
+  Mark,
+} from "./Icons.tsx";
+import type { Settings } from "../core/types.ts";
 
 /* The frame around every screen. Every link stays inside /reorgsi: once in,
-   the only way out is to sign out or close the tab. */
+   the only way out is to sign out or close the tab.
+
+   On desktop the navigation is either the sidebar or the dock, and the dock
+   has a light and a dark look. Both choices are saved in the settings, so
+   they follow the account to any browser. Phones always get the tab bar. */
+
+type NavMode = NonNullable<Settings["navMode"]>;
+type DockTheme = NonNullable<Settings["dockTheme"]>;
 
 const NavContext = createContext<() => void>(() => undefined);
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { db, logout } = useReorg();
+  const { db, logout, dispatch } = useReorg();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Shown at once, then saved; a failed save puts the old value back.
+  const [mode, setMode] = useState<NavMode>(db.settings.navMode ?? "sidebar");
+  const [dockTheme, setDockTheme] = useState<DockTheme>(db.settings.dockTheme ?? "light");
+  // The sidebar only slides back in after a switch, not on every page load.
+  const [switched, setSwitched] = useState(false);
+
+  async function save<K extends "navMode" | "dockTheme">(key: K, next: Settings[K], prev: Settings[K], apply: (v: Settings[K]) => void) {
+    apply(next);
+    const res = await dispatch({ type: "settings.save", settings: { [key]: next } });
+    if (!res.ok) apply(prev);
+  }
+
+  const switchMode = (next: NavMode) => {
+    setSwitched(true);
+    save("navMode", next, mode, (v) => setMode(v ?? "sidebar"));
+  };
+  const toggleDockTheme = () =>
+    save("dockTheme", dockTheme === "dark" ? "light" : "dark", dockTheme, (v) => setDockTheme(v ?? "light"));
   useTrackVisits();
 
   useEffect(() => setOpen(false), [pathname]);
@@ -43,7 +84,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <NavContext.Provider value={() => setOpen(true)}>
-      <div className="rs-shell">
+      <div className="rs-shell" data-nav={mode} data-switched={switched || undefined}>
         <aside className="rs-side" data-open={open} aria-label="Navegação">
           <div className="rs-brand">
             <Mark size={34} />
@@ -66,6 +107,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
               Configuração
             </Link>
           </nav>
+          <button type="button" className="rs-side-mode" onClick={() => switchMode("dock")}>
+            <IconDock />
+            Modo dock
+            <span className="hint">Mais espaço</span>
+          </button>
           <div className="rs-me">
             <span
               className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full text-xs font-bold"
@@ -83,6 +129,28 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {open && <div className="fixed inset-0 z-30 md:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
         <main className="rs-main">{children}</main>
         <TabBar isCurrent={isCurrent} onMore={() => setOpen(true)} moreOpen={open} />
+        {mode === "dock" && (
+          <Dock theme={dockTheme} label="Navegação">
+            {items.map((it) => (
+              <DockItem
+                key={it.href}
+                href={it.href}
+                label={it.count != null ? `${it.label} · ${it.count}` : it.label}
+                icon={it.icon}
+                current={isCurrent(it.href, it.exact)}
+              />
+            ))}
+            <DockItem href="/reorgsi/configuracao" label="Configuração" icon={<IconSettings />} current={isCurrent("/reorgsi/configuracao")} />
+            <DockDivider />
+            <DockItem
+              label={dockTheme === "dark" ? "Dock claro" : "Dock escuro"}
+              icon={dockTheme === "dark" ? <IconSun /> : <IconMoon />}
+              onClick={toggleDockTheme}
+            />
+            <DockItem label="Barra lateral" icon={<IconSidebar />} onClick={() => switchMode("sidebar")} />
+            <DockItem label="Sair" icon={<IconSignOut />} onClick={logout} />
+          </Dock>
+        )}
       </div>
     </NavContext.Provider>
   );

@@ -3172,3 +3172,534 @@ textarea.rs-input {
     grid-row: 2;
   }
 }
+
+/* ---------- login ---------- */
+
+.rs-login {
+  display: flex;
+  min-height: 100dvh;
+  background: var(--paper);
+  transition: background 500ms ease;
+}
+
+.rs-login-form {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(40px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
+  transition:
+    flex-grow 620ms cubic-bezier(0.65, 0, 0.35, 1),
+    opacity 320ms ease,
+    filter 320ms ease;
+}
+
+.rs-login-title {
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
+  font-weight: 300;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+/* Staggered arrival: fade, rise and un-blur. --d sets each element's turn. */
+.rs-in {
+  opacity: 0;
+  filter: blur(6px);
+  transform: translateY(14px);
+  animation: rs-login-in 700ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms) forwards;
+}
+
+@keyframes rs-login-in {
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.rs-login-field {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: rgba(212, 236, 221, 0.18);
+  transition: border-color 160ms, background 160ms, box-shadow 160ms;
+}
+
+.rs-login-field:focus-within {
+  border-color: var(--teal);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(52, 91, 99, 0.12);
+}
+
+.rs-login-field[data-error="true"] {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 4px rgba(185, 119, 31, 0.12);
+}
+
+.rs-login-field[data-shake="true"] {
+  animation: rs-login-shake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes rs-login-shake {
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.rs-login-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 0 0 18px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px; /* 16px keeps iOS from zooming in on focus */
+  color: var(--ink);
+  outline: none;
+}
+
+.rs-login-field input::placeholder {
+  color: var(--faint);
+}
+
+.rs .rs-login-field input:focus-visible {
+  outline: none;
+}
+
+.rs-login-field button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-right: 3px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 140ms, background 140ms;
+}
+
+.rs-login-field button:hover {
+  color: var(--ink);
+  background: rgba(52, 91, 99, 0.08);
+}
+
+.rs-login-submit {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--ink);
+  color: var(--jade);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 160ms, transform 160ms, opacity 160ms;
+}
+
+.rs-login-submit:hover:not(:disabled) {
+  background: var(--ink-2);
+}
+
+.rs-login-submit:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.rs-login-submit:disabled {
+  cursor: default;
+}
+
+/* Disabled only dims once the entrance is over, or it fights the fade-in. */
+.rs-login-submit.rs-in:disabled {
+  animation-name: rs-login-in-dim;
+}
+
+@keyframes rs-login-in-dim {
+  to {
+    opacity: 0.55;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.rs-login-hero {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .rs-login-hero {
+    display: block;
+    flex: 1.15 1 0;
+    min-width: 0;
+    padding: 14px;
+    transition: padding 620ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+}
+
+.rs-login-panel {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 28px;
+  background: radial-gradient(120% 90% at 50% 18%, #1d3a44 0%, #152d35 36%, #112031 78%);
+  opacity: 0;
+  transform: translateX(48px);
+  filter: blur(8px);
+  animation: rs-login-slide 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 160ms forwards;
+  transition: border-radius 620ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@keyframes rs-login-slide {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+.rs-login-orb {
+  position: absolute;
+  inset: 0 0 150px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  animation: rs-fade-in 1400ms ease 500ms forwards;
+}
+
+@keyframes rs-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+.rs-login-points {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  transition: opacity 280ms ease;
+}
+
+.rs-login-point {
+  flex: 1 1 0;
+  max-width: 260px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(212, 236, 221, 0.12);
+  border-radius: 20px;
+  background: rgba(21, 45, 53, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  filter: blur(6px);
+  transform: translateY(18px) scale(0.96);
+  animation: rs-login-card 800ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms) forwards;
+}
+
+/* Three cards need width: below 1200px only the first two show. */
+@media (max-width: 1199px) {
+  .rs-login-point:nth-child(3) {
+    display: none;
+  }
+}
+
+@keyframes rs-login-card {
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+.rs-login-point-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(212, 236, 221, 0.12);
+  color: var(--jade);
+}
+
+/* The hand-off: the form steps aside, the azure fills the screen, and the
+   intro (same gradient) takes over without a seam. */
+.rs-login[data-entering="true"] {
+  background: var(--ink);
+}
+
+.rs-login[data-entering="true"] .rs-login-form {
+  flex-grow: 0;
+  padding-inline: 0;
+  overflow: hidden;
+  opacity: 0;
+  filter: blur(6px);
+}
+
+.rs-login[data-entering="true"] .rs-login-hero {
+  padding: 0;
+}
+
+.rs-login[data-entering="true"] .rs-login-panel {
+  border-radius: 0;
+}
+
+.rs-login[data-entering="true"] .rs-login-points {
+  opacity: 0;
+}
+
+/* ---------- desktop dock ---------- */
+
+/* Sidebar button that switches to the dock. */
+.rs-side-mode {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px dashed rgba(212, 236, 221, 0.18);
+  border-radius: 10px;
+  background: none;
+  color: #c9dad6;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.rs-side-mode .hint {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: #7c9a96;
+}
+
+.rs-side-mode:hover {
+  background: var(--ink-2);
+  border-color: rgba(212, 236, 221, 0.32);
+  color: #fff;
+}
+
+.rs-side-mode + .rs-me {
+  margin-top: 8px;
+}
+
+/* The dock is desktop-only, so phones never see the switch. */
+@media (max-width: 900px) {
+  .rs-side-mode {
+    display: none;
+  }
+  .rs-side-mode + .rs-me {
+    margin-top: auto;
+  }
+}
+
+.rs-dock-wrap {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .rs-shell[data-nav="dock"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rs-shell[data-nav="dock"] > .rs-side {
+    display: none;
+  }
+  .rs-shell[data-nav="dock"] .rs-main {
+    padding-bottom: 128px; /* the dock floats over the last rows otherwise */
+  }
+  .rs:has(.rs-shell[data-nav="dock"]) .rs-toast {
+    bottom: 104px;
+  }
+  .rs-shell[data-switched][data-nav="sidebar"] > .rs-side {
+    animation: rs-side-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .rs-shell[data-switched][data-nav="sidebar"] .rs-main,
+  .rs-shell[data-switched][data-nav="dock"] .rs-main {
+    animation: rs-main-in 360ms ease;
+  }
+
+  .rs-dock-wrap {
+    /* Light dock: frosted paper, white buttons, jade for where you are. */
+    --dock-panel: rgba(248, 255, 254, 0.74);
+    --dock-border: rgba(52, 91, 99, 0.16);
+    --dock-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 18px 40px -18px rgba(17, 32, 49, 0.35);
+    --dock-item: #ffffff;
+    --dock-item-border: var(--line);
+    --dock-item-hover: #e7f4ec;
+    --dock-icon: var(--teal);
+    --dock-icon-hover: var(--ink);
+    --dock-current: var(--jade);
+    --dock-current-icon: var(--ink);
+    --dock-dot: var(--ink);
+    --dock-label-bg: var(--ink);
+    --dock-label-fg: var(--paper);
+    --dock-divider: var(--line-strong);
+
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    z-index: 35;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .rs-dock-wrap[data-theme="dark"] {
+    /* Dark dock: deep azure glass, teal buttons, the same jade marker. */
+    --dock-panel: rgba(17, 32, 49, 0.82);
+    --dock-border: rgba(212, 236, 221, 0.12);
+    --dock-shadow: 0 1px 0 rgba(212, 236, 221, 0.06) inset, 0 18px 40px -16px rgba(17, 32, 49, 0.6);
+    --dock-item: #1a3540;
+    --dock-item-border: rgba(212, 236, 221, 0.08);
+    --dock-item-hover: #234652;
+    --dock-icon: #a9c4bf;
+    --dock-icon-hover: #ffffff;
+    --dock-current: var(--jade);
+    --dock-current-icon: var(--ink);
+    --dock-dot: var(--jade);
+    --dock-label-bg: var(--jade);
+    --dock-label-fg: var(--ink);
+    --dock-divider: rgba(212, 236, 221, 0.16);
+  }
+}
+
+.rs-dock {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  padding: 0 14px 10px;
+  border: 1px solid var(--dock-border);
+  border-radius: 22px;
+  background: var(--dock-panel);
+  box-shadow: var(--dock-shadow);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  transition: background 240ms ease, border-color 240ms ease;
+}
+
+.rs-dock-item {
+  position: relative;
+  flex: none;
+  aspect-ratio: 1;
+}
+
+.rs-dock-item > a,
+.rs-dock-item > button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 1px solid var(--dock-item-border);
+  border-radius: 50%;
+  background: var(--dock-item);
+  color: var(--dock-icon);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 160ms, color 160ms, border-color 160ms;
+}
+
+.rs-dock-item > a:hover,
+.rs-dock-item > button:hover {
+  background: var(--dock-item-hover);
+  color: var(--dock-icon-hover);
+}
+
+.rs-dock-item[data-current] > a,
+.rs-dock-item[data-current] > button {
+  background: var(--dock-current);
+  border-color: transparent;
+  color: var(--dock-current-icon);
+}
+
+.rs .rs-dock-item > a:focus-visible,
+.rs .rs-dock-item > button:focus-visible {
+  outline: 2px solid var(--dock-dot);
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+
+.rs-dock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rs-dock-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.rs-dock-dot {
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--dock-dot);
+}
+
+.rs-dock-label {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: var(--dock-label-bg);
+  color: var(--dock-label-fg);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px -8px rgba(17, 32, 49, 0.5);
+}
+
+.rs-dock-divider {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 30px;
+  margin: 0 2px 0;
+  transform: translateY(5px);
+  background: var(--dock-divider);
+}
+
+@keyframes rs-main-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rs-side-in {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
