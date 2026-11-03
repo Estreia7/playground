@@ -40,3 +40,25 @@ export function namePasted(file: File, label: string): File {
   const ext = file.type.split("/")[1] ?? "png";
   return new File([file], `${label}-${stamp}.${ext}`, { type: file.type });
 }
+
+/** A profile photo: the centre square of the image, 512 px, JPEG. */
+export async function preparePhoto(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const out = Math.min(512, side);
+  const canvas = document.createElement("canvas");
+  canvas.width = out;
+  canvas.height = out;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return file;
+  }
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, out, out);
+  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, out, out);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.88));
+  if (!blob) return file;
+  return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+}

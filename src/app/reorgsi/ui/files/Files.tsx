@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { FileRef } from "../../core/types.ts";
-import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconFile, IconUpload } from "../Icons.tsx";
+import { IconChevronLeft, IconChevronRight, IconClose, IconDownload, IconFile, IconTrash, IconUpload } from "../Icons.tsx";
 import { namePasted } from "./prepare.ts";
 
 /* One family of pieces for every file in ReorgSI — listing screenshots,
@@ -14,7 +14,9 @@ import { namePasted } from "./prepare.ts";
    Lightbox    full-screen viewer, ←/→ through the set, images inline and
                PDFs in the browser's own viewer
    DropSlot    an empty place for a file: click to choose, drop a file on it,
-               or paste a screenshot with Ctrl+V while hovering or focused */
+               or paste a screenshot with Ctrl+V while hovering or focused
+   RemoveFile  takes a wrong file off again: the bin asks "Remover?" first,
+               and a second click within a few seconds removes it */
 
 export const fileUrl = (f: FileRef, download = false) => `/api/reorgsi/files/${f.id}${download ? "?download" : ""}`;
 /** Portals render inside the .rs root so they keep its font and tokens. */
@@ -299,5 +301,42 @@ export function DropSlot({
         }}
       />
     </>
+  );
+}
+
+/** The bin next to a file. One click arms it, a second removes; it disarms
+ *  on its own after a few seconds or when focus leaves. */
+export function RemoveFile({ label, onRemove }: { label: string; onRemove: () => void | Promise<unknown> }) {
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(false), 3500);
+    return () => window.clearTimeout(t);
+  }, [armed]);
+
+  return (
+    <button
+      type="button"
+      className={`rs-remove ${armed ? "armed" : ""}`}
+      disabled={busy}
+      onClick={async () => {
+        if (!armed) return setArmed(true);
+        setBusy(true);
+        try {
+          await onRemove();
+        } finally {
+          setBusy(false);
+          setArmed(false);
+        }
+      }}
+      onBlur={() => setArmed(false)}
+      aria-label={armed ? `Confirmar: remover ${label}` : `Remover ${label}`}
+      title={armed ? "Clique outra vez para remover" : `Remover ${label}`}
+    >
+      <IconTrash size={15} />
+      {armed && <span>Remover?</span>}
+    </button>
   );
 }
