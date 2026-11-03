@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
-import type { Db, Deal, DealStatus, InvoiceStatus, Party, Prize } from "../core/types.ts";
+import type { Consultant, Db, Deal, DealStatus, InvoiceStatus, Party, Prize } from "../core/types.ts";
 import { docProgress, requirementsFor } from "../core/commission.ts";
 import { IconClose } from "./Icons.tsx";
 import type { LabelledFile } from "./files/Files.tsx";
@@ -97,6 +98,27 @@ export function InvoiceStatusPill({ status }: { status: InvoiceStatus }) {
   return <span className="rs-pill amber">Por pagar</span>;
 }
 
+/** A consultant's face: the profile photo, or their initials on jade. */
+export function Avatar({ consultant, name, size = 32, className = "" }: { consultant?: Consultant; name?: string; size?: number; className?: string }) {
+  const label = consultant?.name ?? name ?? "";
+  const photo = consultant?.photo;
+  return (
+    <span
+      className={`rs-avatar ${className}`}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.max(8, Math.round(size * 0.36)),
+        backgroundImage: photo ? `url(/api/reorgsi/files/${photo.id})` : undefined,
+        backgroundColor: !photo && consultant?.status === "inativo" ? "var(--canvas)" : undefined,
+      }}
+      aria-hidden="true"
+    >
+      {!photo && initials(label)}
+    </span>
+  );
+}
+
 export function PartyLabel({ db, party }: { db: Db; party?: Party }) {
   if (!party) return <span style={{ color: "var(--faint)" }}>—</span>;
   if (party.kind === "external") {
@@ -107,16 +129,30 @@ export function PartyLabel({ db, party }: { db: Db; party?: Party }) {
       </span>
     );
   }
-  // The manager's own consultants stand out as a jade chip; outsiders stay plain grey.
-  const name = db.consultants.find((c) => c.id === party.consultantId)?.name ?? "—";
+  // The manager's own consultants stand out as a jade chip that opens their
+  // page; outsiders stay plain grey.
+  const consultant = db.consultants.find((c) => c.id === party.consultantId);
+  const name = consultant?.name ?? "—";
+  const face = consultant?.photo ? (
+    <span className="av" aria-hidden="true" style={{ backgroundImage: `url(/api/reorgsi/files/${consultant.photo.id})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+  ) : (
+    <span className="av" aria-hidden="true">
+      {initials(name)}
+    </span>
+  );
   return (
     <span className="whitespace-nowrap">
-      <span className="rs-person" title="Consultor da equipa">
-        <span className="av" aria-hidden="true">
-          {initials(name)}
+      {consultant ? (
+        <Link className="rs-person" href={`/reorgsi/consultores/${consultant.id}`} title={`Abrir ficha de ${name}`}>
+          {face}
+          {name}
+        </Link>
+      ) : (
+        <span className="rs-person">
+          {face}
+          {name}
         </span>
-        {name}
-      </span>
+      )}
       {party.note && <span className="rs-sub">{party.note}</span>}
     </span>
   );

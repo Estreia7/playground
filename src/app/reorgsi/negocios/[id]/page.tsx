@@ -10,7 +10,7 @@ import { useReorg } from "../../ui/App.tsx";
 import { PageHeader } from "../../ui/Shell.tsx";
 import { DealForm, InvoiceForm } from "../../ui/forms.tsx";
 import { DealStatusPill, DocBar, InvoiceStatusPill, PartyLabel, dealFiles } from "../../ui/parts.tsx";
-import { DropSlot, FileThumb } from "../../ui/files/Files.tsx";
+import { DropSlot, FileThumb, RemoveFile } from "../../ui/files/Files.tsx";
 import { date, money, monthName, percent } from "../../ui/format.ts";
 import { IconExternal, IconPlus, IconTrash } from "../../ui/Icons.tsx";
 import { BackLink } from "../../ui/nav.tsx";
@@ -75,6 +75,10 @@ export default function DealPage() {
   async function attachShot(file: File) {
     const ref = await upload(file);
     if (ref && (await dispatch({ type: "deal.shot", dealId: deal!.id, file: ref })).ok) notify("Captura do anúncio guardada.");
+  }
+
+  async function removeInvoiceFile(inv: Invoice) {
+    if ((await dispatch({ type: "invoice.save", invoice: { ...inv, file: undefined } })).ok) notify(`PDF da fatura ${inv.number} removido.`);
   }
 
   async function attachInvoice(inv: Invoice, file: File) {
@@ -218,7 +222,10 @@ export default function DealPage() {
                       </td>
                       <td>
                         {inv.file ? (
-                          <FileThumb file={inv.file} label={`Fatura ${inv.number} · ${PHASE_LABEL[inv.phase]}`} set={files} />
+                          <span className="rs-file-pair">
+                            <FileThumb file={inv.file} label={`Fatura ${inv.number} · ${PHASE_LABEL[inv.phase]}`} set={files} />
+                            <RemoveFile label={`PDF da fatura ${inv.number}`} onRemove={() => removeInvoiceFile(inv)} />
+                          </span>
                         ) : (
                           <DropSlot label={`Fatura ${inv.number}`} onFile={(f) => attachInvoice(inv, f)} text="Anexar" />
                         )}

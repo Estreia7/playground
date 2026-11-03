@@ -9,7 +9,7 @@ import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { DealForm } from "../ui/forms.tsx";
 import { DealStatusPill, DocRing, PartyLabel, dealFiles } from "../ui/parts.tsx";
-import { DropSlot, FileThumb, type LabelledFile } from "../ui/files/Files.tsx";
+import { DropSlot, FileThumb, RemoveFile, type LabelledFile } from "../ui/files/Files.tsx";
 import { DocsDialog } from "../ui/files/DocsDialog.tsx";
 import { useUrlDialog, useUrlState } from "../ui/nav.tsx";
 import { money, money0, monthName } from "../ui/format.ts";
@@ -234,6 +234,14 @@ function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices:
     if (ref && (await dispatch({ type: "invoice.save", invoice: { ...inv, file: ref } })).ok) notify(`PDF da fatura ${inv.number} guardado.`);
   }
 
+  async function removeInvoiceFile(inv: Invoice) {
+    if ((await dispatch({ type: "invoice.save", invoice: { ...inv, file: undefined } })).ok) notify(`PDF da fatura ${inv.number} removido.`);
+  }
+
+  async function removeShot() {
+    if ((await dispatch({ type: "deal.shot", dealId: deal.id, file: null })).ok) notify("Captura do anúncio removida.");
+  }
+
   return (
     <tr>
       <td className="c-ref" data-label="Ref. do imóvel">
@@ -245,7 +253,10 @@ function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices:
         </span>
         <div className="mt-1.5 flex items-center gap-1">
           {deal.listingShot ? (
-            <FileThumb file={deal.listingShot} label={`Anúncio · ${deal.ref || deal.address}`} set={files} />
+            <span className="rs-file-pair">
+              <FileThumb file={deal.listingShot} label={`Anúncio · ${deal.ref || deal.address}`} set={files} />
+              <RemoveFile label="captura do anúncio" onRemove={removeShot} />
+            </span>
           ) : deal.transaction !== "credito" ? (
             <DropSlot label="Captura do anúncio" onFile={attachShot} text="Anúncio" />
           ) : null}
@@ -293,7 +304,10 @@ function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices:
           {invoices
             .filter((i) => i.file)
             .map((i) => (
-              <FileThumb key={i.id} file={i.file!} label={`Fatura ${i.number} · ${PHASE_LABEL[i.phase]}`} set={files as LabelledFile[]} />
+              <span key={i.id} className="rs-file-pair">
+                <FileThumb file={i.file!} label={`Fatura ${i.number} · ${PHASE_LABEL[i.phase]}`} set={files as LabelledFile[]} />
+                <RemoveFile label={`PDF da fatura ${i.number}`} onRemove={() => removeInvoiceFile(i)} />
+              </span>
             ))}
           {invoiceNeedingFile && (
             <DropSlot label={`Fatura ${invoiceNeedingFile.number}`} onFile={(f) => attachInvoice(invoiceNeedingFile, f)} text={`N.º ${invoiceNeedingFile.number || "?"}`} />

@@ -3703,3 +3703,210 @@ textarea.rs-input {
     transform: translateX(-24px);
   }
 }
+
+/* ---------- removing a wrong file ---------- */
+
+.rs-file-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rs-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--faint);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.rs-remove:hover,
+.rs-remove.armed {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.rs-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------- consultant faces and links ---------- */
+
+a.rs-person {
+  text-decoration: none;
+  transition: background 120ms, box-shadow 120ms;
+}
+
+a.rs-person:hover {
+  background: var(--jade-deep);
+  box-shadow: 0 0 0 1px rgba(52, 91, 99, 0.25);
+}
+
+.rs-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--jade);
+  background-size: cover;
+  background-position: center;
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rs-avatar.ext {
+  background-color: var(--canvas);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+/* ---------- consultant page ---------- */
+
+.rs-cprofile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 18px 20px;
+}
+
+.rs-photo-wrap {
+  position: relative;
+  flex: none;
+}
+
+.rs-photo {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.rs-photo .rs-avatar {
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 4px var(--line);
+  transition: box-shadow 160ms, filter 160ms;
+}
+
+.rs-photo:hover .rs-avatar,
+.rs-photo[data-over] .rs-avatar {
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--teal);
+  filter: brightness(0.94);
+}
+
+.rs-photo[data-busy] .rs-avatar {
+  opacity: 0.55;
+}
+
+.rs-photo .cam {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--card);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--jade);
+}
+
+.rs-photo-clear {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--card);
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms;
+}
+
+.rs-photo-wrap:hover .rs-photo-clear,
+.rs-photo-clear:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .rs-photo-clear {
+    opacity: 1;
+  }
+}
+
+/* Eight figures: two even rows of four, two columns on a phone. */
+.rs-cprofile-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .rs-cprofile-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rs-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rs-links a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 120ms;
+}
+
+.rs-links a:hover {
+  background: var(--canvas);
+}
+
+.rs-links .num {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .rs-cprofile {
+    padding: 16px;
+  }
+  .rs-cprofile > :last-child {
+    width: 100%;
+  }
+}

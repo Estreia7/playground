@@ -18,6 +18,8 @@ export interface Consultant {
   prizes?: Prize[];
   /** Older records: one prize with no year. It came from the 2025 team sheet. */
   prize?: string;
+  /** Profile photo, square JPEG cut in the browser before upload. */
+  photo?: FileRef;
 }
 
 export interface Prize {
