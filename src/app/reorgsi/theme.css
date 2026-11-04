@@ -4028,7 +4028,6 @@ a.rs-person:hover {
   gap: 10px 14px;
   padding: 12px 14px;
   border: 1px solid #ecc98f;
-  border-left: 4px solid var(--amber);
   border-radius: var(--radius-sm);
   background: var(--amber-bg);
   color: #5e3a0b;
@@ -4036,7 +4035,6 @@ a.rs-person:hover {
 
 .rs-attn.soft {
   border-color: var(--line);
-  border-left-color: var(--line-strong);
   background: var(--canvas);
   color: var(--ink-2);
 }
