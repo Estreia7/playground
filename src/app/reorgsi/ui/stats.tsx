@@ -10,8 +10,8 @@ import { percent } from "./format.ts";
    that counts up, the split bar, and a few ways of writing figures. */
 
 /** Monthly billing for a year with the year before beside it. Last year
- *  comes from its deals; when it has none, the team sheet's annual figure is
- *  spread evenly and drawn striped, as an estimate. */
+ *  comes from its deals or the CRM's monthly figures; with neither, the team
+ *  sheet's annual figure is spread evenly and drawn striped, as an estimate. */
 export function monthlyVsLastYear(db: Db, consultant: Consultant, year: string): { series: Series[]; legend: { color: string; label: string; hatched?: boolean }[] } {
   const prevYear = String(Number(year) - 1);
   const now = consultantStats(db, consultant, year);

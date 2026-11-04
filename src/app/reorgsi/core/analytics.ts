@@ -106,6 +106,13 @@ export function consultantStats(db: Db, consultant: Consultant, year: string): C
       unpaidValue += inv.valueNoVat * w;
     }
   }
+  // A year from before the app has no invoices: the CRM's monthly figures stand in.
+  const recorded = invoices === 0 ? consultant.billingByMonth?.[year] : undefined;
+  if (recorded) {
+    recorded.forEach((v, i) => (billedByMonth[i] = v));
+    billed = recorded.reduce((s, v) => s + v, 0);
+  }
+
   // Open deals without an invoice yet still belong to the year they were opened in.
   for (const d of db.deals) {
     if (d.status === "aberto" && d.createdAt.startsWith(year) && weightFor(d, consultant.id)) active.add(d.id);

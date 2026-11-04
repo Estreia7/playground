@@ -14,6 +14,9 @@ export interface Consultant {
   joinedAt?: string;
   /** Billing figures carried over from the team sheet, by year ("2024": 78132). */
   billingByYear: Record<string, number>;
+  /** Twelve monthly figures from the CRM export, by year, for years the app
+   *  has no invoices for. */
+  billingByMonth?: Record<string, number[]>;
   /** Prizes won, each with the year it was won for (RUBY 2025…). */
   prizes?: Prize[];
   /** Older records: one prize with no year. It came from the 2025 team sheet. */
