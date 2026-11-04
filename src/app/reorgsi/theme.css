@@ -3910,3 +3910,269 @@ a.rs-person:hover {
     width: 100%;
   }
 }
+
+/* ---------- commission phases: CPCV, then escritura ---------- */
+
+.rs-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-phases .ph {
+  display: grid;
+  grid-template-columns: 16px auto 1fr;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.rs-phases .dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  background: var(--card);
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.rs-phases .name {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.rs-phases .st {
+  color: var(--muted);
+}
+
+.rs-phases .paga .dot {
+  border-color: #2f8a63;
+  background: #2f8a63;
+  color: #fff;
+}
+
+.rs-phases .paga .st {
+  color: #1f6a4a;
+}
+
+.rs-phases .por_pagar .dot {
+  border-color: #e08a1e;
+  background: var(--amber-bg);
+  color: #7a4b0e;
+}
+
+.rs-phases .por_pagar .st {
+  color: #7a4b0e;
+}
+
+.rs-phases .nao_aplica {
+  opacity: 0.55;
+}
+
+.rs-phases .nao_aplica .name {
+  text-decoration: line-through;
+  text-decoration-color: var(--faint);
+}
+
+.rs-phases .por_indicar .dot {
+  border-style: dashed;
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.rs-phases .por_indicar .st {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+/* "Indicar CPCV": the deal still needs its answer. */
+.rs-ask {
+  display: inline-flex;
+  align-items: center;
+  height: 23px;
+  padding: 0 8px;
+  border: 1px dashed var(--amber);
+  border-radius: 999px;
+  background: var(--amber-bg);
+  color: #7a4b0e;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.rs-ask:hover {
+  border-style: solid;
+}
+
+.rs-ask:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* A question that needs an answer before the figures are right. */
+.rs-attn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 14px;
+  border: 1px solid #ecc98f;
+  border-left: 4px solid var(--amber);
+  border-radius: var(--radius-sm);
+  background: var(--amber-bg);
+  color: #5e3a0b;
+}
+
+.rs-attn.soft {
+  border-color: var(--line);
+  border-left-color: var(--line-strong);
+  background: var(--canvas);
+  color: var(--ink-2);
+}
+
+.rs-phase-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .rs-phase-grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rs-phase {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.rs-phase .step {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--canvas);
+  color: var(--teal-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rs-phase.paga {
+  border-color: var(--jade-deep);
+  background: linear-gradient(180deg, #f3faf6, var(--card) 60%);
+}
+
+.rs-phase.paga .step {
+  background: #2f8a63;
+  color: #fff;
+}
+
+.rs-phase.por_pagar .step {
+  background: var(--amber-bg);
+  color: #7a4b0e;
+}
+
+.rs-phase.por_indicar {
+  border-style: dashed;
+  border-color: var(--amber);
+}
+
+.rs-phase.nao_aplica {
+  background: var(--canvas);
+  border-style: dashed;
+}
+
+.rs-phase > .rs-btn {
+  align-self: flex-start;
+}
+
+.rs-phase-inv {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rs-phase-inv:hover {
+  background: #e4eeeb;
+}
+
+.rs-phase-inv:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Checkbox with its explanation underneath, in forms. */
+.rs-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rs-check:has(input:checked) {
+  border-color: var(--teal);
+  background: #f1f8f6;
+}
+
+.rs-check input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex: none;
+  accent-color: var(--teal);
+}
+
+.rs-check .hint {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.rs-form-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.rs-form-note.warn {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--amber-bg);
+  color: #7a4b0e;
+}

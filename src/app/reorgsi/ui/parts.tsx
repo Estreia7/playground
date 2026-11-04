@@ -8,6 +8,7 @@ import { IconClose } from "./Icons.tsx";
 import type { LabelledFile } from "./files/Files.tsx";
 import { PHASE_LABEL } from "../core/types.ts";
 import { initials } from "./format.ts";
+import { PHASE_STATE_LABEL, type Phase } from "../core/phases.ts";
 
 /* Small pieces shared by several screens. */
 
@@ -273,4 +274,22 @@ export function parseNumber(s: string): number | undefined {
 
 export function numberText(n: number | undefined): string {
   return n == null ? "" : String(n).replace(".", ",");
+}
+
+/** The deal's payment steps in one glance: CPCV then escritura, each with its
+ *  state. A deal still missing the CPCV answer shows it in amber. */
+export function PhaseSteps({ phases }: { phases: Phase[] }) {
+  return (
+    <ol className="rs-phases" aria-label="Fases da comissão">
+      {phases.map((p, i) => (
+        <li key={p.key} className={`ph ${p.state}`}>
+          <span className="dot" aria-hidden="true">
+            {p.state === "paga" ? "✓" : p.state === "por_indicar" ? "?" : phases.length > 1 ? i + 1 : ""}
+          </span>
+          <span className="name">{p.label}</span>
+          <span className="st">{PHASE_STATE_LABEL[p.state]}</span>
+        </li>
+      ))}
+    </ol>
+  );
 }

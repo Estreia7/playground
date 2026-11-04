@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { Deal, DealStatus, Invoice, InvoicePhase, InvoiceStatus, Party, Transaction } from "../core/types.ts";
-import { PHASE_LABEL, STATUS_LABEL, TRANSACTION_LABEL } from "../core/types.ts";
+import { CPCV_SHARE, DEFAULT_COMMISSION_PCT, PHASE_LABEL, STATUS_LABEL, TRANSACTION_LABEL } from "../core/types.ts";
+import { teamFraction } from "../core/analytics.ts";
 import { useReorg } from "./App.tsx";
 import { Panel, numberText, parseNumber } from "./parts.tsx";
 import { PersonPicker } from "./PersonPicker.tsx";
@@ -74,7 +75,9 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
   const [dealTypeId, setDealTypeId] = useState(deal?.dealTypeId ?? db.dealTypes.find((t) => t.active)?.id ?? "");
   const [angariacao, setAngariacao] = useState<Party | undefined>(deal?.angariacao);
   const [compradores, setCompradores] = useState<Party | undefined>(deal?.compradores);
-  const [commissionPct, setCommissionPct] = useState(numberText(deal?.commissionPct));
+  // A new deal starts at the standard 5%; an imported one keeps what it had.
+  const [commissionPct, setCommissionPct] = useState(numberText(deal ? deal.commissionPct : DEFAULT_COMMISSION_PCT));
+  const [cpcvSplit, setCpcvSplit] = useState<boolean | undefined>(deal ? deal.cpcvSplit : false);
   const [split, setSplit] = useState(String(deal?.listingSplitPct ?? 50));
   const [status, setStatus] = useState<DealStatus>(deal?.status ?? "aberto");
   const [notes, setNotes] = useState(deal?.notes ?? "");
@@ -84,6 +87,12 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
   const p = parseNumber(price);
   const c = parseNumber(commissionPct);
   const total = p != null && c != null ? (p * c) / 100 : undefined;
+  const isSale = transaction === "venda" && type?.sides !== "bank";
+  const splitPct = Math.min(100, Math.max(0, parseNumber(split) ?? 50));
+  // Until the sides are chosen, show the whole commission.
+  const fraction = angariacao || compradores ? teamFraction({ angariacao: angariacao ?? { kind: "external", name: "" }, compradores, listingSplitPct: splitPct } as Deal) : 1;
+  const team = total != null ? total * fraction : undefined;
+  const eur = (n: number) => n.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
   async function save() {
     if (!angariacao || (angariacao.kind === "external" && !angariacao.name.trim())) {
@@ -108,7 +117,8 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
         angariacao,
         compradores: type?.sides === "bank" ? undefined : compradores,
         commissionPct: c,
-        listingSplitPct: Math.min(100, Math.max(0, parseNumber(split) ?? 50)),
+        listingSplitPct: splitPct,
+        cpcvSplit: isSale ? cpcvSplit : undefined,
         status,
         notes: notes.trim() || undefined,
       },
@@ -180,10 +190,41 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
         </label>
         <label className="rs-field">
           % de comissão
-          <input className="rs-input num" inputMode="decimal" value={commissionPct} onChange={(e) => setCommissionPct(e.target.value)} placeholder="5" />
-          {total != null && <span className="hint num">Comissão total: {total.toLocaleString("pt-PT", { minimumFractionDigits: 2 })} €</span>}
+          <input className="rs-input num" inputMode="decimal" value={commissionPct} onChange={(e) => setCommissionPct(e.target.value)} placeholder={String(DEFAULT_COMMISSION_PCT)} />
+          <span className="hint num">
+            {total != null ? `Comissão total: ${eur(total)}` : `Normalmente ${DEFAULT_COMMISSION_PCT}% do preço de venda.`}
+          </span>
         </label>
       </div>
+      {team != null && fraction > 0 && fraction < 1 && (
+        <p className="rs-form-note num">
+          Partilha: conta {Math.round(fraction * 100)}% para a equipa, <strong>{eur(team)}</strong>.
+        </p>
+      )}
+      {isSale && (
+        <div className="rs-field">
+          <label className="rs-check">
+            <input type="checkbox" checked={cpcvSplit === true} onChange={(e) => setCpcvSplit(e.target.checked)} />
+            <span>
+              Recebe 50% da comissão no CPCV
+              <span className="hint">
+                {cpcvSplit && team != null
+                  ? `CPCV ${eur(team * CPCV_SHARE)} · Escritura ${eur(team - team * CPCV_SHARE)}`
+                  : "Sem esta opção, a comissão é toda faturada na escritura."}
+              </span>
+            </span>
+          </label>
+          {cpcvSplit == null && (
+            <span className="rs-form-note warn">
+              Ainda não indicado neste negócio. Marque a opção se recebe 50% no CPCV, ou{" "}
+              <button type="button" className="rs-link" style={{ background: "none", border: 0, padding: 0, font: "inherit", cursor: "pointer" }} onClick={() => setCpcvSplit(false)}>
+                confirme que é tudo na escritura
+              </button>
+              .
+            </span>
+          )}
+        </div>
+      )}
       {type?.sides !== "bank" && (
         <label className="rs-field">
           Divisão angariação / compradores
@@ -229,21 +270,26 @@ export function DealForm({ deal, onClose, onSaved }: { deal?: Deal; onClose: () 
 export function InvoiceForm({
   dealId,
   invoice,
+  phase: presetPhase,
+  value: presetValue,
   defaultPct,
   onClose,
 }: {
   dealId: string;
   invoice?: Invoice;
+  /** For a new invoice opened from a phase: its phase and expected value. */
+  phase?: InvoicePhase;
+  value?: number;
   defaultPct: number;
   onClose: () => void;
 }) {
   const { dispatch, notify } = useReorg();
-  const [phase, setPhase] = useState<InvoicePhase>(invoice?.phase ?? "total");
+  const [phase, setPhase] = useState<InvoicePhase>(invoice?.phase ?? presetPhase ?? "total");
   const [number, setNumber] = useState(invoice?.number ?? "");
   const [issuedAt, setIssuedAt] = useState(invoice?.issuedAt ?? today());
   const [paidAt, setPaidAt] = useState(invoice?.paidAt ?? "");
   const [month, setMonth] = useState(invoice?.settlementMonth ?? today().slice(0, 7));
-  const [value, setValue] = useState(numberText(invoice?.valueNoVat));
+  const [value, setValue] = useState(numberText(invoice?.valueNoVat ?? (presetValue != null ? Math.round(presetValue * 100) / 100 : undefined)));
   const [pct, setPct] = useState(numberText(invoice?.managerPctOverride));
   const [status, setStatus] = useState<InvoiceStatus>(invoice?.status ?? "emitida");
   const [flag, setFlag] = useState(invoice?.flag);

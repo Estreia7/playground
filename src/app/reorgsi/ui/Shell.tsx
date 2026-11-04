@@ -9,6 +9,7 @@ import { useTrackVisits } from "./nav.tsx";
 import { Dock, DockDivider, DockItem } from "./Dock.tsx";
 import {
   IconChart,
+  IconHouse,
   IconDock,
   IconHome,
   IconKey,
@@ -76,6 +77,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     { href: "/reorgsi", label: "Início", icon: <IconHome />, exact: true },
     { href: "/reorgsi/negocios", label: "Negócios", icon: <IconKey />, count: openDeals },
     { href: "/reorgsi/consultores", label: "Consultores", icon: <IconPeople />, count: active },
+    { href: "/reorgsi/angariacoes", label: "Angariações", icon: <IconHouse /> },
     { href: "/reorgsi/analises", label: "Análises", icon: <IconChart /> },
     { href: "/reorgsi/conta-corrente", label: "Conta corrente", icon: <IconLedger /> },
   ];

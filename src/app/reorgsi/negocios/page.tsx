@@ -8,7 +8,8 @@ import { dealBilled, dealShare, invoicesOf } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { DealForm } from "../ui/forms.tsx";
-import { DealStatusPill, DocRing, PartyLabel, dealFiles } from "../ui/parts.tsx";
+import { DealStatusPill, DocRing, PartyLabel, PhaseSteps, dealFiles } from "../ui/parts.tsx";
+import { dealPhases, needsCpcvAnswer } from "../core/phases.ts";
 import { DropSlot, FileThumb, RemoveFile, type LabelledFile } from "../ui/files/Files.tsx";
 import { DocsDialog } from "../ui/files/DocsDialog.tsx";
 import { useUrlDialog, useUrlState } from "../ui/nav.tsx";
@@ -179,7 +180,7 @@ export default function DealsPage() {
             <thead>
               <tr>
                 <th>Ref. do imóvel</th>
-                <th>Fase</th>
+                <th>Fases</th>
                 <th>Tipo</th>
                 <th>Angariação · Compradores</th>
                 <th className="right">Preço</th>
@@ -220,7 +221,9 @@ function lastDate(invoices: Invoice[], deal: Deal): string {
 function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices: Invoice[]; onDocs: () => void }) {
   const { dispatch, upload, notify } = useReorg();
   const files = dealFiles(db, deal);
-  const last = invoices[invoices.length - 1];
+  const phases = dealPhases(db, deal);
+  // The amber step already flags every deal; the link only nags on live ones.
+  const askCpcv = deal.status === "aberto" && needsCpcvAnswer(deal, db.dealTypes) && phases[0]?.state === "por_indicar";
   const flagged = invoices.some((i) => i.flag);
   const invoiceNeedingFile = invoices.find((i) => !i.file && i.status !== "anulada");
 
@@ -267,10 +270,17 @@ function DealRow({ db, deal, invoices, onDocs }: { db: Db; deal: Deal; invoices:
           )}
         </div>
       </td>
-      <td className="c-phase" data-label="Fase">
-        <div className="flex flex-col items-start gap-1">
-          {last ? <span className="text-[12.5px]">{PHASE_LABEL[last.phase]}</span> : <span style={{ color: "var(--faint)" }}>Sem fatura</span>}
-          <DealStatusPill status={deal.status} />
+      <td className="c-phase" data-label="Fases">
+        <div className="flex flex-col items-start gap-1.5">
+          <PhaseSteps phases={phases} />
+          <span className="flex flex-wrap items-center gap-1">
+            <DealStatusPill status={deal.status} />
+            {askCpcv && (
+              <Link className="rs-ask" href={`/reorgsi/negocios/${deal.id}#fases`} title="Falta indicar se recebe 50% da comissão no CPCV">
+                Indicar CPCV
+              </Link>
+            )}
+          </span>
         </div>
       </td>
       <td className="c-type" data-label="Tipo">

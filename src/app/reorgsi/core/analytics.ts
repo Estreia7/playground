@@ -254,7 +254,7 @@ export interface BacklogItem {
 }
 
 /** Fraction of a deal's whole commission that the team's invoices cover. */
-function teamFraction(deal: Deal): number {
+export function teamFraction(deal: Deal): number {
   const a = teamId(deal.angariacao);
   const c = teamId(deal.compradores);
   if (a && c) return 1;

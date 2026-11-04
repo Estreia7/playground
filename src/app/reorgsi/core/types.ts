@@ -98,6 +98,10 @@ export interface Deal {
   commissionPct?: number;
   /** Share of the commission that goes to the listing side, as a percentage. */
   listingSplitPct: number;
+  /** A sale is paid in two phases, CPCV and escritura. True when half the
+   *  commission is received at the CPCV; false when it all comes at the
+   *  escritura. Missing on deals imported before this was asked. */
+  cpcvSplit?: boolean;
   documents: Record<string, DocEntry>;
   status: DealStatus;
   createdAt: string;
@@ -151,6 +155,19 @@ export interface Settings {
   templates?: { docRequest?: string };
 }
 
+/** A property the team has taken on to sell. Not yet a deal: it becomes one
+ *  when a buyer is found, as a pleno or a partilha. */
+export interface Listing {
+  id: string;
+  consultantId: string;
+  ref: string;
+  address?: string;
+  price?: number;
+  commissionPct?: number;
+  status: "ativa" | "vendida" | "retirada";
+  createdAt: string;
+}
+
 export interface Db {
   version: 1;
   consultants: Consultant[];
@@ -159,6 +176,8 @@ export interface Db {
   deals: Deal[];
   invoices: Invoice[];
   payouts: Payout[];
+  /** Angariações; missing in documents saved before the tab existed. */
+  listings?: Listing[];
   settings: Settings;
 }
 
@@ -168,6 +187,12 @@ export const PHASE_LABEL: Record<InvoicePhase, string> = {
   restante: "Restante Comissão",
   cb: "CB",
 };
+
+/** Standard commission on the sale price, when nothing else was agreed. */
+export const DEFAULT_COMMISSION_PCT = 5;
+
+/** Part of the commission received at the CPCV when the deal is split. */
+export const CPCV_SHARE = 0.5;
 
 export const TRANSACTION_LABEL: Record<Transaction, string> = {
   venda: "Venda",

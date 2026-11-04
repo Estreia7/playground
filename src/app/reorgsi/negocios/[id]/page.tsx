@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { DocState, Invoice } from "../../core/types.ts";
+import type { Db, Deal, DocState, Invoice, InvoicePhase } from "../../core/types.ts";
 import { DOC_STATE_LABEL, PHASE_LABEL, SIDES_LABEL, TRANSACTION_LABEL } from "../../core/types.ts";
 import { dealBilled, dealShare, docProgress, invoicesOf, managerPct, managerShare, requirementsFor } from "../../core/commission.ts";
 import { useReorg } from "../../ui/App.tsx";
@@ -14,6 +14,8 @@ import { DropSlot, FileThumb, RemoveFile } from "../../ui/files/Files.tsx";
 import { date, money, monthName, percent } from "../../ui/format.ts";
 import { IconExternal, IconPlus, IconTrash } from "../../ui/Icons.tsx";
 import { BackLink } from "../../ui/nav.tsx";
+import { PHASE_STATE_LABEL, dealPhases, hasPhases, teamCommission, type Phase } from "../../core/phases.ts";
+import { teamFraction } from "../../core/analytics.ts";
 
 /* One deal: the documents it still needs, the money it produced, and every
    file attached to it. */
@@ -25,7 +27,7 @@ export default function DealPage() {
   const router = useRouter();
   const { db, dispatch, upload, notify } = useReorg();
   const [editing, setEditing] = useState(false);
-  const [invoiceForm, setInvoiceForm] = useState<{ invoice?: Invoice } | null>(null);
+  const [invoiceForm, setInvoiceForm] = useState<{ invoice?: Invoice; phase?: InvoicePhase; value?: number } | null>(null);
 
   const deal = db.deals.find((d) => d.id === id);
   // The tab and the history list name the deal, not just "Negócio".
@@ -124,6 +126,8 @@ export default function DealPage() {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-4">
+          <PhasesCard db={db} deal={deal} onEdit={() => setEditing(true)} onInvoice={(phase, value) => setInvoiceForm({ phase, value })} onOpenInvoice={(inv) => setInvoiceForm({ invoice: inv })} />
+
           {/* Documents */}
           <section className="rs-card" aria-labelledby="docs-h">
             <div className="rs-card-head">
@@ -307,6 +311,12 @@ export default function DealPage() {
                   <dd className="num m-0 text-right">{money((totalCommission * (100 - deal.listingSplitPct)) / 100)}</dd>
                 </>
               )}
+              {totalCommission != null && type?.sides !== "bank" && teamFraction(deal) < 1 && (
+                <>
+                  <dt className="font-semibold">Para a equipa ({Math.round(teamFraction(deal) * 100)}%)</dt>
+                  <dd className="num m-0 text-right font-semibold">{money(teamCommission(deal))}</dd>
+                </>
+              )}
               <dt className="border-t pt-2.5" style={{ color: "var(--muted)", borderColor: "var(--line)" }}>
                 Faturado s/IVA
               </dt>
@@ -338,10 +348,168 @@ export default function DealPage() {
         <InvoiceForm
           dealId={deal.id}
           invoice={invoiceForm.invoice}
+          phase={invoiceForm.phase}
+          value={invoiceForm.value}
           defaultPct={type?.defaultManagerPct ?? 0}
           onClose={() => setInvoiceForm(null)}
         />
       )}
     </>
+  );
+}
+
+/** The two payment steps of a sale, CPCV and escritura, with what each should
+ *  bring, what was invoiced and whether it was paid. A deal imported before
+ *  this was asked shows the question first. */
+function PhasesCard({
+  db,
+  deal,
+  onEdit,
+  onInvoice,
+  onOpenInvoice,
+}: {
+  db: Db;
+  deal: Deal;
+  onEdit: () => void;
+  onInvoice: (phase: InvoicePhase, value?: number) => void;
+  onOpenInvoice: (inv: Invoice) => void;
+}) {
+  const { dispatch, notify } = useReorg();
+  const phases = dealPhases(db, deal);
+  const split = hasPhases(deal, db.dealTypes);
+  const team = teamCommission(deal);
+  const fraction = teamFraction(deal);
+  const hadFirst = db.invoices.some((i) => i.dealId === deal.id && i.phase === "primeira");
+  const hadTotal = db.invoices.some((i) => i.dealId === deal.id && i.phase === "total");
+
+  async function answer(value: boolean) {
+    const { documents, createdAt, ...rest } = deal;
+    if ((await dispatch({ type: "deal.save", deal: { ...rest, cpcvSplit: value } })).ok)
+      notify(value ? "Recebe 50% da comissão no CPCV." : "A comissão é toda recebida na escritura.");
+  }
+
+  return (
+    <section className="rs-card scroll-mt-24" id="fases" aria-labelledby="ph-h">
+      <div className="rs-card-head">
+        <h2 id="ph-h">{split ? "Fases da comissão" : "Comissão"}</h2>
+        <span className="aside num">
+          {team != null ? `${money(team)} para a equipa${fraction < 1 ? ` · partilha ${Math.round(fraction * 100)}%` : ""}` : ""}
+        </span>
+      </div>
+      <div className="rs-card-body flex flex-col gap-3">
+        {split && deal.cpcvSplit == null && (
+          <div className="rs-attn" role="group" aria-labelledby="cpcv-q">
+            <div className="min-w-0 flex-1">
+              <div id="cpcv-q" className="font-semibold">
+                Recebe 50% da comissão no CPCV?
+              </div>
+              <div className="text-[12.5px]">
+                Este negócio foi registado antes desta pergunta, por isso ainda não sabemos.
+                {hadFirst
+                  ? " Já tem uma fatura da 1.ª parte, o que indica que sim."
+                  : hadTotal
+                    ? " Tem uma fatura da comissão total, o que indica que foi tudo na escritura."
+                    : ""}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" className="rs-btn sm primary" onClick={() => answer(true)}>
+                Sim, 50% no CPCV
+              </button>
+              <button type="button" className="rs-btn sm" onClick={() => answer(false)}>
+                Não, tudo na escritura
+              </button>
+            </div>
+          </div>
+        )}
+        {deal.commissionPct == null && deal.transaction !== "credito" && (
+          <div className="rs-attn soft">
+            <div className="min-w-0 flex-1 text-[12.5px]">Falta a % de comissão, por isso não dá para prever o valor de cada fase.</div>
+            <button type="button" className="rs-btn sm" onClick={onEdit}>
+              Indicar %
+            </button>
+          </div>
+        )}
+        <div className={`rs-phase-grid ${phases.length > 1 ? "two" : ""}`}>
+          {phases.map((p, i) => (
+            <PhaseTile key={p.key} phase={p} n={phases.length > 1 ? i + 1 : undefined} onInvoice={onInvoice} onOpenInvoice={onOpenInvoice} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const PHASE_SUB: Record<Phase["key"], string> = {
+  cpcv: "Contrato-promessa de compra e venda",
+  escritura: "Escritura de compra e venda",
+  unica: "Pagamento único",
+};
+
+function PhaseTile({
+  phase,
+  n,
+  onInvoice,
+  onOpenInvoice,
+}: {
+  phase: Phase;
+  n?: number;
+  onInvoice: (phase: InvoicePhase, value?: number) => void;
+  onOpenInvoice: (inv: Invoice) => void;
+}) {
+  const open = phase.state !== "nao_aplica";
+  const left = phase.expected != null ? Math.max(0, phase.expected - phase.billed) : undefined;
+  return (
+    <div className={`rs-phase ${phase.state}`}>
+      <div className="flex items-start gap-2.5">
+        {n && (
+          <span className="step num" aria-hidden="true">
+            {n}
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold">{phase.label}</div>
+          <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+            {PHASE_SUB[phase.key]}
+          </div>
+        </div>
+        <span className={`rs-pill ${phase.state === "paga" ? "jade" : phase.state === "por_pagar" || phase.state === "por_indicar" ? "amber" : ""}`}>
+          {PHASE_STATE_LABEL[phase.state]}
+        </span>
+      </div>
+      {phase.state === "nao_aplica" ? (
+        <p className="m-0 mt-3 text-[12.5px]" style={{ color: "var(--muted)" }}>
+          Este negócio não recebe nada no CPCV: a comissão é toda faturada na escritura.
+        </p>
+      ) : (
+        <dl className="m-0 mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
+          <dt style={{ color: "var(--muted)" }}>Previsto</dt>
+          <dd className="num m-0 text-right">{phase.expected != null ? money(phase.expected) : phase.state === "por_indicar" ? "50% se sim" : "—"}</dd>
+          <dt style={{ color: "var(--muted)" }}>Faturado</dt>
+          <dd className="num m-0 text-right font-semibold">{money(phase.billed)}</dd>
+        </dl>
+      )}
+      {phase.invoices.length > 0 && (
+        <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0">
+          {phase.invoices.map((inv) => (
+            <li key={inv.id}>
+              <button type="button" className="rs-phase-inv" onClick={() => onOpenInvoice(inv)} aria-label={`Editar fatura ${inv.number || "sem número"}`}>
+                <span className="num">N.º {inv.number || "—"}</span>
+                <span className="num" style={{ color: "var(--muted)" }}>
+                  {inv.paidAt ? `paga ${date(inv.paidAt)}` : monthName(inv.settlementMonth)}
+                </span>
+                <InvoiceStatusPill status={inv.status} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && phase.state !== "paga" && (left == null || left > 0.005) && (
+        <button type="button" className="rs-btn sm mt-3" onClick={() => onInvoice(phase.invoicePhase, left)}>
+          <IconPlus size={14} />
+          Faturar {phase.key === "unica" ? "comissão" : phase.label}
+        </button>
+      )}
+    </div>
   );
 }
