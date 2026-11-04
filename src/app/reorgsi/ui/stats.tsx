@@ -1,35 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Consultant, Db } from "../core/types.ts";
-import { consultantStats, type ConsultantStats } from "../core/analytics.ts";
-import type { Series } from "./charts.tsx";
+import type { ConsultantStats } from "../core/analytics.ts";
 import { percent } from "./format.ts";
 
 /* Small pieces shared by Análises and the consultant page: the KPI tile
    that counts up, the split bar, and a few ways of writing figures. */
-
-/** Monthly billing for a year with the year before beside it. Last year
- *  comes from its deals or the CRM's monthly figures; with neither, the team
- *  sheet's annual figure is spread evenly and drawn striped, as an estimate. */
-export function monthlyVsLastYear(db: Db, consultant: Consultant, year: string): { series: Series[]; legend: { color: string; label: string; hatched?: boolean }[] } {
-  const prevYear = String(Number(year) - 1);
-  const now = consultantStats(db, consultant, year);
-  const prev = consultantStats(db, consultant, prevYear);
-  const annual = consultant.billingByYear[prevYear] ?? 0;
-  const series: Series[] = [];
-  const legend: { color: string; label: string; hatched?: boolean }[] = [];
-  if (prev.billed > 0) {
-    series.push({ name: prevYear, color: "#a9d4bb", values: prev.billedByMonth });
-    legend.push({ color: "#a9d4bb", label: prevYear });
-  } else if (annual > 0) {
-    series.push({ name: `${prevYear} (média)`, color: "#a9d4bb", values: now.billedByMonth.map(() => annual / 12), hatched: true });
-    legend.push({ color: "#a9d4bb", label: `${prevYear} (média mensal)`, hatched: true });
-  }
-  series.push({ name: year, color: "#345b63", values: now.billedByMonth });
-  legend.push({ color: "#345b63", label: year });
-  return { series, legend };
-}
 
 export function dealSplit(s: ConsultantStats): string {
   const parts = [`${s.fullDeals} plenos`, `${s.sharedExternal + s.sharedTeam} partilhas`];
@@ -94,10 +70,17 @@ export function Kpi({
   );
 }
 
-/** One horizontal bar split by parts, with a legend of counts underneath. */
-export function Mix({ parts }: { parts: { label: string; value: number; color: string }[] }) {
+/** One horizontal bar split by parts, with a legend of counts underneath.
+ *  `apart` is counted on its own line, outside the bar and the percentages. */
+export function Mix({ parts, apart }: { parts: { label: string; value: number; color: string }[]; apart?: { label: string; value: number } }) {
   const total = parts.reduce((s, p) => s + p.value, 0);
-  if (!total) return <p className="rs-empty m-0">Sem negócios.</p>;
+  const extra = apart && apart.value > 0 && (
+    <p className="rs-mix-apart">
+      <span>{apart.label}</span>
+      <span className="num font-semibold">{apart.value}</span>
+    </p>
+  );
+  if (!total) return extra || <p className="rs-empty m-0">Sem negócios.</p>;
   return (
     <div>
       <div className="flex h-3.5 overflow-hidden rounded-full" role="img" aria-label={parts.map((p) => `${p.label}: ${p.value}`).join(", ")}>
@@ -119,6 +102,7 @@ export function Mix({ parts }: { parts: { label: string; value: number; color: s
           </li>
         ))}
       </ul>
+      {extra}
     </div>
   );
 }

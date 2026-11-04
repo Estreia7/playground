@@ -1,4 +1,5 @@
 import type { Db, Deal, DealType, DocRequirement, Invoice, Party } from "./types.ts";
+import { billedIn } from "./billing.ts";
 
 /* Everything the screens compute from the stored data. Pure functions: the
    same numbers come out on the server, in the browser and in the import
@@ -128,28 +129,13 @@ export function teamId(party: Party | undefined): string | null {
   return party?.kind === "team" ? party.consultantId : null;
 }
 
-/** What each team consultant billed through the deals, by year of the
- *  invoice's settlement month. An invoice covers only the team's side, so
- *  a one-sided deal credits the whole value to that side; when two different
- *  team members share a deal it is split by the listing share. */
+/** What each consultant billed in a year, from the billing record. */
 export function billingByConsultant(db: Db, year: string): Map<string, number> {
-  const deals = new Map(db.deals.map((d) => [d.id, d]));
   const out = new Map<string, number>();
-  const add = (id: string, v: number) => out.set(id, (out.get(id) ?? 0) + v);
-  for (const inv of db.invoices) {
-    if (inv.status === "anulada" || !inv.settlementMonth.startsWith(year)) continue;
-    const deal = deals.get(inv.dealId);
-    if (!deal) continue;
-    const a = teamId(deal.angariacao);
-    const c = teamId(deal.compradores);
-    if (a && c && a !== c) {
-      add(a, (inv.valueNoVat * deal.listingSplitPct) / 100);
-      add(c, (inv.valueNoVat * (100 - deal.listingSplitPct)) / 100);
-    } else if (a ?? c) {
-      add((a ?? c)!, inv.valueNoVat);
-    }
+  for (const c of db.consultants) {
+    const v = billedIn(c, year);
+    if (v) out.set(c.id, v);
   }
-  for (const [k, v] of out) out.set(k, cents(v));
   return out;
 }
 

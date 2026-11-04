@@ -161,7 +161,10 @@ export function PartyLabel({ db, party }: { db: Db; party?: Party }) {
 
 /* Prize tiers keep the colours of their names, toned to sit with the palette. */
 const PRIZE_TONES: Record<string, { bg: string; fg: string; dot: string }> = {
+  "GRAND CENTURION": { bg: "#f3ead6", fg: "#6b4d12", dot: "#c9a35c" },
+  "DOUBLE CENTURION": { bg: "#f3ead6", fg: "#6b4d12", dot: "#c9a35c" },
   CENTURION: { bg: "#f3ead6", fg: "#6b4d12", dot: "#c9a35c" },
+  DIAMOND: { bg: "#e0f0f8", fg: "#23607f", dot: "#6fb8dc" },
   EMERALD: { bg: "#dcefe4", fg: "#1d5e45", dot: "#2f8a63" },
   RUBY: { bg: "#f6e0e4", fg: "#8a2a3d", dot: "#b8435a" },
 };

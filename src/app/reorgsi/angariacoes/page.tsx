@@ -1,28 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { DEFAULT_COMMISSION_PCT } from "../core/types.ts";
-import { PARTILHA_SHARE, expected, listingRows, listingSaleMix } from "../core/listings.ts";
+import { useMemo, useState } from "react";
+import type { Listing } from "../core/types.ts";
+import { DEFAULT_COMMISSION_PCT, LISTING_KIND_LABEL } from "../core/types.ts";
+import { PARTILHA_SHARE, expected, listingRows, listingSaleMix, mixYears, potential } from "../core/listings.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { useUrlState } from "../ui/nav.tsx";
 import { Avatar } from "../ui/parts.tsx";
+import { ListingForm } from "../ui/ListingForm.tsx";
 import { Kpi, Mix } from "../ui/stats.tsx";
+import { IconPlus } from "../ui/Icons.tsx";
 import { money0, percent } from "../ui/format.ts";
 
 /* Angariações: how many properties each consultant has taken on, at what
-   commission, and what they could bring once sold. Still being built: the
-   list of listings comes next; for now every consultant starts at zero. */
+   commission, and what they could bring once sold. */
 
-const NOW = new Date().getFullYear();
-const YEARS = [String(NOW - 1), String(NOW)];
+const YEARS = mixYears();
 
 type Scenario = "media" | "metade";
 
 export default function ListingsPage() {
   const { db } = useReorg();
   const [scenario, setScenario] = useUrlState<Scenario>("cenario", "media");
+  const [editing, setEditing] = useState<Listing | "new" | null>(null);
   const mix = useMemo(() => listingSaleMix(db, YEARS), [db]);
   const ratio = scenario === "metade" ? 0.5 : mix.plenoRatio;
 
@@ -30,6 +32,8 @@ export default function ListingsPage() {
     const name = (id: string) => db.consultants.find((c) => c.id === id)?.name ?? "";
     return listingRows(db).sort((a, b) => b.count - a.count || name(a.consultantId).localeCompare(name(b.consultantId), "pt"));
   }, [db]);
+
+  const listings = useMemo(() => [...(db.listings ?? [])].filter((l) => l.status === "ativa").sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [db.listings]);
 
   const totals = rows.reduce(
     (s, r) => ({ count: s.count + r.count, portfolio: s.portfolio + r.portfolio, ifPleno: s.ifPleno + r.ifPleno, ifPartilha: s.ifPartilha + r.ifPartilha }),
@@ -41,10 +45,12 @@ export default function ListingsPage() {
     <>
       <PageHeader
         title="Angariações"
-        sub={
-          <>
-            <span className="rs-pill amber">Em construção</span> {totals.count} angariações ativas · {rows.length} consultores
-          </>
+        sub={`${totals.count} ${totals.count === 1 ? "angariação ativa" : "angariações ativas"} · ${rows.length} consultores`}
+        actions={
+          <button type="button" className="rs-btn primary" onClick={() => setEditing("new")}>
+            <IconPlus size={17} />
+            Nova angariação
+          </button>
         }
       />
 
@@ -111,10 +117,10 @@ export default function ListingsPage() {
         </div>
       </section>
 
-      <section className="rs-card" aria-labelledby="ls-h">
+      <section className="rs-card mb-4" aria-labelledby="ls-h">
         <div className="rs-card-head">
           <h2 id="ls-h">Por consultor</h2>
-          <span className="aside">Comissão de {DEFAULT_COMMISSION_PCT}% quando a angariação não indica outra</span>
+          <span className="aside">Comissão de {DEFAULT_COMMISSION_PCT}% por omissão</span>
         </div>
         <div className="rs-table-wrap">
           <table className="rs-table">
@@ -123,8 +129,7 @@ export default function ListingsPage() {
                 <th>Consultor</th>
                 <th className="right">Angariações</th>
                 <th className="right">Carteira</th>
-                <th className="right">% comissão</th>
-                <th className="right">Se plenos</th>
+                <th className="right">% comissão · potencial</th>
                 <th className="right">Se partilhas</th>
                 <th className="right">Esperado</th>
               </tr>
@@ -148,11 +153,8 @@ export default function ListingsPage() {
                     <td className="right num" data-label="Carteira">
                       {money0(r.portfolio)}
                     </td>
-                    <td className="right num" data-label="% comissão">
-                      {percent(r.avgPct)}
-                    </td>
-                    <td className="right num" data-label="Se plenos">
-                      {money0(r.ifPleno)}
+                    <td className="right num" data-label="% comissão · potencial">
+                      {r.count ? `${percent(r.avgPct)} · ${money0(r.ifPleno)}` : "—"}
                     </td>
                     <td className="right num" data-label="Se partilhas">
                       {money0(r.ifPartilha)}
@@ -167,11 +169,58 @@ export default function ListingsPage() {
           </table>
         </div>
         <p className="m-0 border-t px-[18px] py-3 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
-          Pleno: a equipa traz também o comprador e fica com a comissão inteira. Partilha: o comprador vem de outra agência e fica{" "}
-          {Math.round(PARTILHA_SHARE * 100)}% para quem angariou. O esperado pesa os dois pelo cenário escolhido. O registo das angariações
-          chega no próximo passo.
+          Potencial: a comissão inteira, se for um pleno. Partilha: o comprador vem de outra agência e fica {Math.round(PARTILHA_SHARE * 100)}% para quem angariou. O esperado pesa
+          os dois {scenario === "metade" ? "em partes iguais" : `pela média de ${YEARS.join(" e ")}`}.
         </p>
       </section>
+
+      <section className="rs-card" aria-labelledby="lr-h">
+        <div className="rs-card-head">
+          <h2 id="lr-h">Angariações registadas</h2>
+          <span className="aside num">{listings.length}</span>
+        </div>
+        {listings.length ? (
+          <div className="rs-table-wrap">
+            <table className="rs-table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Consultor</th>
+                  <th className="right">Valor</th>
+                  <th className="right">% comissão · potencial</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listings.map((l) => (
+                  <tr key={l.id}>
+                    <td data-label="Tipo">
+                      <button
+                        type="button"
+                        className="row-link"
+                        onClick={() => setEditing(l)}
+                        style={{ background: "none", border: 0, padding: 0, font: "inherit", color: "inherit", fontWeight: 600, cursor: "pointer" }}
+                      >
+                        {LISTING_KIND_LABEL[l.kind]}
+                      </button>
+                    </td>
+                    <td data-label="Consultor">{db.consultants.find((c) => c.id === l.consultantId)?.name ?? "—"}</td>
+                    <td className="right num" data-label="Valor">
+                      {money0(l.price)}
+                    </td>
+                    <td className="right num" data-label="% comissão · potencial">
+                      {percent(l.commissionPct)} · {money0(potential(l))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="rs-empty m-0">Ainda sem angariações. Use Nova angariação para registar a primeira.</p>
+        )}
+      </section>
+
+      {editing && <ListingForm listing={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
     </>
   );
 }

@@ -1,5 +1,4 @@
 import type { Db, Deal, Listing } from "./types.ts";
-import { DEFAULT_COMMISSION_PCT } from "./types.ts";
 import { cents, teamId } from "./commission.ts";
 
 /* Angariações: what each consultant has taken on to sell, and what it could
@@ -57,6 +56,14 @@ export interface ListingRow {
 /** Share of the commission the listing side keeps in a partilha. */
 export const PARTILHA_SHARE = 0.5;
 
+/** The years the plenos and partilhas average is taken over: last year and this one. */
+export function mixYears(now = new Date()): string[] {
+  return [String(now.getFullYear() - 1), String(now.getFullYear())];
+}
+
+/** What a listing brings as a pleno: its whole commission. */
+export const potential = (l: Pick<Listing, "price" | "commissionPct">) => cents((l.price * l.commissionPct) / 100);
+
 export function listingRows(db: Db): ListingRow[] {
   const active = (db.listings ?? []).filter((l) => l.status === "ativa");
   const byConsultant = new Map<string, Listing[]>();
@@ -65,17 +72,21 @@ export function listingRows(db: Db): ListingRow[] {
     .filter((c) => c.status !== "inativo" || byConsultant.has(c.id))
     .map((c) => {
       const list = byConsultant.get(c.id) ?? [];
-      const commission = list.reduce((s, l) => s + ((l.price ?? 0) * (l.commissionPct ?? DEFAULT_COMMISSION_PCT)) / 100, 0);
-      const withPct = list.filter((l) => l.commissionPct != null);
+      const commission = list.reduce((s, l) => s + (l.price * l.commissionPct) / 100, 0);
       return {
         consultantId: c.id,
         count: list.length,
-        portfolio: cents(list.reduce((s, l) => s + (l.price ?? 0), 0)),
-        avgPct: withPct.length ? withPct.reduce((s, l) => s + l.commissionPct!, 0) / withPct.length : undefined,
+        portfolio: cents(list.reduce((s, l) => s + l.price, 0)),
+        avgPct: list.length ? list.reduce((s, l) => s + l.commissionPct, 0) / list.length : undefined,
         ifPleno: cents(commission),
         ifPartilha: cents(commission * PARTILHA_SHARE),
       };
     });
+}
+
+/** One consultant's row, empty when they have no listings and are inactive. */
+export function listingRowOf(db: Db, consultantId: string): ListingRow {
+  return listingRows(db).find((r) => r.consultantId === consultantId) ?? { consultantId, count: 0, portfolio: 0, ifPleno: 0, ifPartilha: 0 };
 }
 
 /** Expected earnings from a row, sold as plenos with probability `plenoRatio`. */

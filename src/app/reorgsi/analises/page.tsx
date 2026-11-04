@@ -18,7 +18,9 @@ import {
   type ConsultantStats,
   type PeriodCompare,
 } from "../core/analytics.ts";
-import { invoicesOf, lastFilledMonth, ytd } from "../core/commission.ts";
+import { MANAGER_RATE, billedUpTo, monthsOf } from "../core/billing.ts";
+import { cents, invoicesOf, lastFilledMonth, ytd } from "../core/commission.ts";
+import { expected, listingRowOf, listingSaleMix, mixYears } from "../core/listings.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { useUrlState } from "../ui/nav.tsx";
@@ -27,7 +29,10 @@ import { PersonPicker } from "../ui/PersonPicker.tsx";
 import { Bars, Legend, LineCompare, cumulative, type Line } from "../ui/charts.tsx";
 import { MONTH_SHORT, date, initials, money, money0, monthName, percent } from "../ui/format.ts";
 import { Select } from "../ui/Select.tsx";
-import { Kpi, Mix, dealSplit, monthlyVsLastYear, signed, tenure } from "../ui/stats.tsx";
+import { Kpi, Mix, dealSplit, signed, tenure } from "../ui/stats.tsx";
+import { BillingCard } from "../ui/BillingCard.tsx";
+import { PrizeBar } from "../ui/PrizeBar.tsx";
+import { ReportButton } from "../ui/ReportButton.tsx";
 
 /* Results and indicators: one consultant at a time, or the whole team as the
    manager sees it. Both views share the year and the backlog chart. */
@@ -98,8 +103,9 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
   const consultant = db.consultants.find((c) => c.id === consultantId);
   const stats = useMemo(() => (consultant ? consultantStats(db, consultant, year) : null), [db, consultant, year]);
   const evolution = useMemo(() => (consultant ? consultantEvolution(db, consultant, year) : null), [db, consultant, year]);
-  const monthly = useMemo(() => (consultant ? monthlyVsLastYear(db, consultant, year) : null), [db, consultant, year]);
   const backlog = useMemo(() => (consultant ? currentBacklog(db, consultant.id) : []), [db, consultant]);
+  const listings = useMemo(() => (consultant ? listingRowOf(db, consultant.id) : null), [db, consultant]);
+  const plenoRatio = useMemo(() => listingSaleMix(db, mixYears()).plenoRatio, [db]);
 
   const groups: [string, Consultant[]][] = [
     ["Experientes", db.consultants.filter((c) => c.status === "experiente")],
@@ -144,6 +150,11 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
             </div>
           </div>
         )}
+        {consultant && (
+          <div className="sm:ml-auto">
+            <ReportButton key={consultant.id + year} consultant={consultant} year={year} />
+          </div>
+        )}
       </section>
 
       {stats && consultant && (
@@ -156,17 +167,12 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
             </Kpi>
             <Kpi label="Crescimento" value={stats.growth == null ? "—" : signed(stats.growth)} tone={stats.growth == null ? undefined : stats.growth >= 0 ? "up" : "down"}>
               <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-                face a {Number(year) - 1}
+                face aos mesmos meses de {Number(year) - 1}
               </span>
             </Kpi>
             <Kpi label="Negócios" value={String(stats.deals.length)} count={stats.deals.length} format={(n) => String(Math.round(n))}>
               <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
                 {dealSplit(stats)}
-              </span>
-            </Kpi>
-            <Kpi label="Gerado para o manager" value={money(stats.managerShare)} count={stats.managerShare} format={money}>
-              <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-                Faturas pagas em {year}
               </span>
             </Kpi>
             <Kpi label="Por faturar" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))} count={backlog.reduce((s, b) => s + b.remaining, 0)} format={money0}>
@@ -176,23 +182,13 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
             </Kpi>
           </div>
 
+          <PrizeBar billed={stats.billed} year={year} />
+
           {evolution && <EvolutionCard title="Backlog · evolução da faturação" {...evolution} />}
 
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-2">
             <PendingCard items={backlog} />
-            <section className="rs-card" aria-labelledby="cm-h">
-              <div className="rs-card-head">
-                <h2 id="cm-h">Faturação mensal</h2>
-                <span className="aside">{monthly && <Legend items={monthly.legend} />}</span>
-              </div>
-              <div className="rs-card-body">
-                <Bars
-                  labels={MONTH_SHORT}
-                  series={monthly?.series ?? []}
-                  ariaLabel={`Faturação mensal de ${consultant.name} em ${year}, com ${Number(year) - 1} ao lado`}
-                />
-              </div>
-            </section>
+            <BillingCard consultant={consultant} year={year} id="cm-h" />
           </div>
 
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
@@ -206,8 +202,8 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
                     { label: "Plenos (as duas partes)", value: stats.fullDeals, color: "#345b63" },
                     { label: "Partilhas com outra agência", value: stats.sharedExternal, color: "#7fb59a" },
                     { label: "Partilhas com colega da equipa", value: stats.sharedTeam, color: "#a9d4bb" },
-                    { label: "Processo bancário", value: stats.bank, color: "#c3d6d0" },
                   ]}
+                  apart={{ label: "Processos bancários (extra)", value: stats.bank }}
                 />
               </div>
             </section>
@@ -228,22 +224,27 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
                 </dd>
               </dl>
             </section>
-            <section className="rs-card" aria-labelledby="doc-h">
+            <section className="rs-card" aria-labelledby="ang-h">
               <div className="rs-card-head">
-                <h2 id="doc-h">Documentação</h2>
+                <h2 id="ang-h">Angariações</h2>
+                <Link className="rs-link aside" href="/reorgsi/angariacoes">
+                  Abrir
+                </Link>
               </div>
-              <dl className="rs-card-body m-0 grid grid-cols-[1fr_auto] gap-y-2.5 text-sm">
-                <dt style={{ color: "var(--muted)" }}>Negócios com documentos completos</dt>
-                <dd className="num m-0 text-right font-semibold">
-                  {stats.docsComplete} de {stats.deals.length}
-                </dd>
-                <dt style={{ color: "var(--muted)" }}>Documentos em falta</dt>
-                <dd className="num m-0 text-right font-semibold" style={{ color: stats.docsMissing ? "var(--amber)" : undefined }}>
-                  {stats.docsMissing}
-                </dd>
-                <dt style={{ color: "var(--muted)" }}>Ok mas sem ficheiro</dt>
-                <dd className="num m-0 text-right font-semibold">{stats.unfiled}</dd>
-              </dl>
+              {listings && (
+                <dl className="rs-card-body m-0 grid grid-cols-[1fr_auto] gap-y-2.5 text-sm">
+                  <dt style={{ color: "var(--muted)" }}>Angariações ativas</dt>
+                  <dd className="num m-0 text-right font-semibold">{listings.count}</dd>
+                  <dt style={{ color: "var(--muted)" }}>Potencial de comissão</dt>
+                  <dd className="num m-0 text-right font-semibold">{money0(listings.ifPleno)}</dd>
+                  <dt style={{ color: "var(--muted)" }}>Com a média de {mixYears().join(" e ")}</dt>
+                  <dd className="num m-0 text-right font-semibold">{money0(expected(listings, plenoRatio))}</dd>
+                  <dt style={{ color: "var(--muted)" }}>Em caso de partilhas</dt>
+                  <dd className="num m-0 text-right font-semibold">{money0(listings.ifPartilha)}</dd>
+                  <dt style={{ color: "var(--muted)" }}>Valor médio da angariação</dt>
+                  <dd className="num m-0 text-right font-semibold">{listings.count ? money0(listings.portfolio / listings.count) : "—"}</dd>
+                </dl>
+              )}
             </section>
           </div>
 
@@ -314,33 +315,21 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
   const dcYtd = ytd(dc, upTo);
   const target = db.settings.targets[year] ?? 0;
   const active = team.people.filter((p) => p.consultant.status !== "inativo").length;
-  const unassigned = Math.max(0, team.managerShare - team.people.reduce((s, p) => s + p.managerShare, 0));
   // The ranking has its own period: all time by default, or one year.
   const [period, setPeriod] = useState("");
   const periods = useMemo(() => billingYears(db), [db]);
   const firstInvoiceYear = useMemo(() => db.invoices.map((i) => i.settlementMonth.slice(0, 4)).sort()[0], [db.invoices]);
-  const invoiceYears = useMemo(() => new Set(db.invoices.map((i) => i.settlementMonth.slice(0, 4))), [db.invoices]);
-  const sheetOnly = Boolean(period) && !invoiceYears.has(period);
+  const sheetOnly = Boolean(period) && !db.consultants.some((c) => monthsOf(c, period));
   const rankTeam = useMemo(() => {
-    if (period && invoiceYears.has(period)) return teamStats(db, period);
-    if (period) {
-      // A year before the app has invoices: only the spreadsheet billing exists.
-      const prev = String(Number(period) - 1);
-      const people = db.consultants
-        .filter((c) => c.billingByYear[period])
-        .map((c) => {
-          const billed = c.billingByYear[period] ?? 0;
-          const previous = c.billingByYear[prev] ?? 0;
-          return { ...consultantStats(db, c, period), billed, previous, growth: previous ? billed / previous - 1 : null };
-        });
-      return { ...teamStats(db, period), people, billed: people.reduce((s, x) => s + x.billed, 0) };
-    }
-    // All time: deals and counts from every invoice the app has; billing per
-    // year from invoices, or the spreadsheet figure for years before them.
+    if (period) return teamStats(db, period);
+    // All time: deals and counts from every invoice the app has, billing from every year on record.
     const all = teamStats(db, "");
-    const people = all.people.map((p) => ({ ...p, billed: allTimeBilled(db, p.consultant), growth: null }));
+    const people = all.people.map((p) => {
+      const billed = allTimeBilled(db, p.consultant);
+      return { ...p, billed, managerShare: cents(billed * MANAGER_RATE), growth: null };
+    });
     return { ...all, people, billed: people.reduce((s, p) => s + p.billed, 0) };
-  }, [db, period, invoiceYears]);
+  }, [db, period]);
 
   const backlogByPerson = useMemo(() => {
     const out = new Map<string, number>();
@@ -395,14 +384,14 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
             {target ? `${percent((dcYtd / target) * 100, 0)} do objetivo de ${money0(target)}` : "Sem objetivo definido"}
           </span>
         </Kpi>
-        <Kpi label="Faturação pelos negócios" value={money0(team.billed)}>
+        <Kpi label="Faturação dos consultores" value={money0(team.billed)}>
           <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
             {team.deals} negócios · {team.growth == null ? "sem ano anterior" : `${signed(team.growth)} face a ${Number(year) - 1}`}
           </span>
         </Kpi>
         <Kpi label="Saldo do manager" value={money(team.managerShare)}>
           <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-            Faturas pagas em {year}
+            {percent(MANAGER_RATE * 100, 0)} da faturação de {year}
           </span>
         </Kpi>
         <Kpi label="Por faturar" value={money0(backlog.reduce((s, b) => s + b.remaining, 0))}>
@@ -463,13 +452,14 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
       </div>
 
       <section className="rs-card" aria-labelledby="mm-h">
-        <div className="rs-card-head">
-          <h2 id="mm-h">Faturação e saldo do manager por mês</h2>
+        <div className="rs-card-head" style={{ flexWrap: "wrap" }}>
+          <h2 id="mm-h">Faturação, objetivo e comissão do manager por mês</h2>
           <span className="aside">
             <Legend
               items={[
-                { color: "#345b63", label: "Faturação pelos negócios" },
-                { color: "#a9d4bb", label: "Report DC" },
+                { color: "#345b63", label: "Faturação" },
+                ...(target ? [{ color: "#c9a35c", label: `Objetivo ${money0(target / 12)}/mês` }] : []),
+                { color: "#7fb59a", label: "Comissão do manager" },
               ]}
             />
           </span>
@@ -477,17 +467,24 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
         <div className="rs-card-body">
           <Bars
             labels={MONTH_SHORT}
-            series={[
-              { name: "Negócios", color: "#345b63", values: team.billedByMonth },
-              { name: "Report DC", color: "#a9d4bb", values: dc ?? [] },
-            ]}
+            series={[{ name: "Faturação", color: "#345b63", values: team.billedByMonth }]}
+            goal={target ? { name: "Objetivo", value: target / 12, color: "#c9a35c" } : undefined}
+            lane={{ name: "Comissão do manager", color: "#7fb59a", values: team.shareByMonth }}
             detail={(i) => (
-              <div className="mt-1 flex justify-between gap-3 border-t pt-1" style={{ borderColor: "rgba(255,255,255,.15)" }}>
-                <span style={{ color: "#9fc0b9" }}>Saldo manager</span>
-                <span>{money(team.shareByMonth[i])}</span>
-              </div>
+              <>
+                {target > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <span style={{ color: "#9fc0b9" }}>Objetivo</span>
+                    <span>{money0(target / 12)}</span>
+                  </div>
+                )}
+                <div className="mt-1 flex justify-between gap-3 border-t pt-1" style={{ borderColor: "rgba(255,255,255,.15)" }}>
+                  <span style={{ color: "#9fc0b9" }}>Comissão manager</span>
+                  <span>{money(team.shareByMonth[i])}</span>
+                </div>
+              </>
             )}
-            ariaLabel={`Faturação mensal da equipa em ${year}`}
+            ariaLabel={`Faturação da equipa por mês em ${year}, com o objetivo mensal e a comissão do manager`}
           />
         </div>
       </section>
@@ -516,12 +513,12 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
           </div>
           {sheetOnly && (
             <span className="note">
-              {period} é anterior às faturas na app: faturação e crescimento pela folha da equipa, sem negócios.
+              {period} só tem o total anual da folha da equipa, sem meses nem negócios.
             </span>
           )}
           {!period && firstInvoiceYear && (
             <span className="note">
-              Faturação antes de {firstInvoiceYear} pela folha da equipa; negócios, plenos e partilhas desde {firstInvoiceYear}.
+              Negócios, plenos e partilhas desde {firstInvoiceYear}, quando começaram a ser registados na app.
             </span>
           )}
         </div>
@@ -578,15 +575,6 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
                   <td className="right num">{p.deals.length ? `${p.docsComplete}/${p.deals.length}` : "—"}</td>
                 </tr>
               ))}
-              {unassigned > 0.005 && (
-                <tr>
-                  <td colSpan={8} style={{ color: "var(--muted)" }}>
-                    Negócios sem consultor da equipa num dos lados
-                  </td>
-                  <td className="right num">{money(unassigned)}</td>
-                  <td colSpan={2} />
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -599,11 +587,10 @@ function ManagerView({ year, team, onOpen }: { year: string; team: ReturnType<ty
           </div>
           <div className="rs-card-body">
             <Mix
-              parts={team.byType.map((t, i) => ({
-                label: `${t.name} · ${money0(t.billed)}`,
-                value: t.count,
-                color: ["#345b63", "#7fb59a", "#a9d4bb", "#c3d6d0"][i % 4],
-              }))}
+              parts={team.byType
+                .filter((t) => t.sides !== "bank")
+                .map((t, i) => ({ label: t.name, value: t.count, color: ["#345b63", "#7fb59a", "#a9d4bb", "#c3d6d0"][i % 4] }))}
+              apart={{ label: "Processos bancários (extra)", value: team.byType.filter((t) => t.sides === "bank").reduce((s, t) => s + t.count, 0) }}
             />
           </div>
         </section>
@@ -924,23 +911,20 @@ function teamEvolution(db: Db, year: string): Evolution {
   return { lines, upTo, note: "Faturação Report DC acumulada mês a mês. A linha do objetivo é o ritmo constante até ao objetivo anual." };
 }
 
-/** One consultant: billing from the deals, accumulated, against last year. Last
- *  year comes from the deals when there are any, otherwise from the team
- *  sheet's annual figure spread evenly (its pace). */
+/** One consultant: billing accumulated, against last year. A last year with
+ *  only the team sheet's annual figure is spread evenly (its pace). */
 function consultantEvolution(db: Db, consultant: Consultant, year: string): Evolution {
   const prevYear = String(Number(year) - 1);
-  const now = new Date();
-  const upTo = year === String(now.getFullYear()) ? now.getMonth() : 11;
+  const upTo = billedUpTo(consultant, year);
   const stats = consultantStats(db, consultant, year);
   const prev = consultantStats(db, consultant, prevYear);
-  const annual = consultant.billingByYear[prevYear] ?? 0;
   const lines: Line[] = [{ name: year, values: cumulative(stats.billedByMonth, upTo), ...NOW_LINE }];
-  let note = "Faturação pelos negócios, acumulada mês a mês.";
-  if (prev.billed > 0) {
+  let note = "Faturação acumulada mês a mês.";
+  if (prev.monthly) {
     lines.push({ name: prevYear, values: cumulative(prev.billedByMonth), ...PREV_LINE });
-  } else if (annual > 0) {
-    lines.push({ name: `${prevYear} (ritmo)`, values: MONTH_SHORT.map((_, i) => (annual * (i + 1)) / 12), ...PREV_LINE });
-    note += ` ${prevYear} só tem o total anual (${money0(annual)}), por isso aparece como ritmo constante.`;
+  } else if (prev.billed > 0) {
+    lines.push({ name: `${prevYear} (ritmo)`, values: MONTH_SHORT.map((_, i) => (prev.billed * (i + 1)) / 12), ...PREV_LINE });
+    note += ` ${prevYear} só tem o total anual (${money0(prev.billed)}), por isso aparece como ritmo constante.`;
   } else {
     note += ` Sem faturação em ${prevYear} para comparar.`;
   }

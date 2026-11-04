@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Consultant, ConsultantStatus } from "../core/types.ts";
 import { STATUS_LABEL, prizesOf } from "../core/types.ts";
+import { billedIn } from "../core/billing.ts";
 import { billingByConsultant, dealCountByConsultant, dealMixByConsultant, growth } from "../core/commission.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
@@ -37,7 +38,7 @@ export default function ConsultantsPage() {
     .filter((c) => (filter ? c.status === filter : c.status !== "inativo"))
     .map((c) => {
       const now = billing.get(c.id) ?? 0;
-      const prev = c.billingByYear[PREV] ?? 0;
+      const prev = billedIn(c, PREV);
       return { c, now, prev, g: growth(now, prev) };
     })
     .sort((a, b) => b.now - a.now || a.c.name.localeCompare(b.c.name, "pt"));

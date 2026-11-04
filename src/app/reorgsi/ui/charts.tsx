@@ -7,29 +7,49 @@ import { money0 } from "./format.ts";
    size on any screen. Series are grouped side by side, or stacked when
    `stacked` is set. A series marked `hatched` is drawn striped: used for
    figures that are estimates. Hover or keyboard focus on a month shows its
-   values. */
+   values. `goal` draws a dotted line across the columns. `lane` is a figure
+   far smaller than the bars: it gets its own strip under the months, on its
+   own scale, with each value written so the two scales can't be misread.
+   A series marked `ghost` is drawn as an outline: what is still to come, not
+   what happened. With `overlay` it shares the last slot instead of taking its
+   own, for months where the bar it stands in for is empty. `onPick` makes each
+   month a button. */
 
 export interface Series {
   name: string;
   color: string;
   values: (number | null)[];
   hatched?: boolean;
+  ghost?: boolean;
+  overlay?: boolean;
 }
+
+const LANE_HEIGHT = 58;
 
 export function Bars({
   labels,
   series,
   stacked = false,
   height = 220,
+  goal,
+  lane,
   detail,
+  onPick,
+  picked,
   ariaLabel,
 }: {
   labels: string[];
   series: Series[];
   stacked?: boolean;
   height?: number;
+  goal?: { name: string; value: number; color: string };
+  lane?: { name: string; color: string; values: number[] };
   /** Extra lines in the tooltip for column i. */
   detail?: (i: number) => React.ReactNode;
+  /** Called with the month clicked, or chosen with Enter or Space. */
+  onPick?: (i: number) => void;
+  /** The month currently open. */
+  picked?: number | null;
   ariaLabel: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -50,11 +70,13 @@ export function Bars({
   const totals = labels.map((_, i) =>
     stacked ? series.reduce((s, x) => s + (x.values[i] ?? 0), 0) : Math.max(0, ...series.map((x) => x.values[i] ?? 0)),
   );
-  const rawMax = Math.max(1, ...totals);
+  const rawMax = Math.max(1, goal?.value ?? 0, ...totals);
   const step = niceStep(rawMax);
   const max = Math.ceil(rawMax / step) * step;
+  const full = H + (lane ? LANE_HEIGHT : 0);
+  const laneMax = Math.max(1, ...(lane?.values ?? []));
   const gw = (W - pad.l - pad.r) / Math.max(1, n);
-  const groups = stacked ? 1 : series.length;
+  const groups = stacked ? 1 : Math.max(1, series.filter((s) => !s.overlay).length);
   const bw = Math.max(4, Math.min(26, (gw * 0.62) / groups));
   const y = (v: number) => pad.t + (H - pad.t - pad.b) * (1 - v / max);
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
@@ -62,7 +84,7 @@ export function Bars({
 
   return (
     <div className="relative" ref={box}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block" role="img" aria-label={ariaLabel}>
+      <svg width={W} height={full} viewBox={`0 0 ${W} ${full}`} className="block" role={onPick ? "group" : "img"} aria-label={ariaLabel}>
         <defs>
           {series
             .filter((s) => s.hatched)
@@ -90,14 +112,36 @@ export function Bars({
             <g
               key={label + i}
               tabIndex={0}
+              role={onPick ? "button" : undefined}
+              aria-pressed={onPick ? picked === i : undefined}
+              onClick={onPick ? () => onPick(i) : undefined}
+              onKeyDown={
+                onPick
+                  ? (e) => {
+                      if (e.key !== "Enter" && e.key !== " ") return;
+                      e.preventDefault();
+                      onPick(i);
+                    }
+                  : undefined
+              }
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
               onFocus={() => setHover(i)}
               onBlur={() => setHover(null)}
-              aria-label={`${label}: ${series.map((s) => `${s.name} ${money0(s.values[i] ?? 0)}`).join(", ")}`}
-              style={{ outline: "none" }}
+              aria-label={`${label}: ${[
+                ...series.filter((s) => s.values[i] != null).map((s) => `${s.name} ${money0(s.values[i] ?? 0)}`),
+                ...(goal ? [`${goal.name} ${money0(goal.value)}`] : []),
+                ...(lane ? [`${lane.name} ${money0(lane.values[i] ?? 0)}`] : []),
+              ].join(", ")}`}
+              style={{ outline: "none", cursor: onPick ? "pointer" : undefined }}
             >
-              <rect x={gx} y={pad.t} width={gw} height={H - pad.t - pad.b} fill={hover === i ? "#f1f7f5" : "transparent"} />
+              <rect
+                x={gx}
+                y={pad.t}
+                width={gw}
+                height={full - pad.t - (lane ? 0 : pad.b)}
+                fill={picked === i ? "#e3f0ea" : hover === i ? "#f1f7f5" : "transparent"}
+              />
               {series.map((s, k) => {
                 if (s.hatched) hatchIndex++;
                 const v = s.values[i];
@@ -109,15 +153,62 @@ export function Bars({
                   acc += v;
                   return <rect key={k} x={cx - bw / 2} y={top} width={bw} height={Math.max(0, h)} fill={fill} rx={2} />;
                 }
-                const x0 = cx - (bw * groups) / 2 - (groups - 1) + k * (bw + 2);
+                const slot = s.overlay ? groups - 1 : series.slice(0, k).filter((o) => !o.overlay).length;
+                const x0 = cx - (bw * groups) / 2 - (groups - 1) + slot * (bw + 2);
+                if (s.ghost) {
+                  return (
+                    <rect
+                      key={k}
+                      x={x0 + 0.75}
+                      y={y(v) + 0.75}
+                      width={bw - 1.5}
+                      height={Math.max(0, y(0) - y(v) - 0.75)}
+                      fill={s.color}
+                      fillOpacity="0.14"
+                      stroke={s.color}
+                      strokeWidth="1.5"
+                      strokeDasharray="3 3"
+                      rx={3}
+                    />
+                  );
+                }
                 return <rect key={k} x={x0} y={y(v)} width={bw} height={y(0) - y(v)} fill={fill} rx={3} />;
               })}
               <text x={cx} y={H - 7} textAnchor="middle" fontSize="11" fill="#5b7176">
                 {label}
               </text>
+              {lane && (lane.values[i] ?? 0) > 0 && (
+                <>
+                  <rect
+                    x={cx - Math.min(26, gw * 0.62) / 2}
+                    y={full - 6 - (lane.values[i] / laneMax) * 30}
+                    width={Math.min(26, gw * 0.62)}
+                    height={(lane.values[i] / laneMax) * 30}
+                    fill={lane.color}
+                    rx={2}
+                  />
+                  <text x={cx} y={full - 10 - (lane.values[i] / laneMax) * 30} textAnchor="middle" fontSize="10" fill="#5b7176">
+                    {short(lane.values[i])}
+                  </text>
+                </>
+              )}
             </g>
           );
         })}
+        {goal && (
+          <line
+            x1={pad.l}
+            x2={W - pad.r}
+            y1={y(goal.value)}
+            y2={y(goal.value)}
+            stroke={goal.color}
+            strokeWidth="1.8"
+            strokeDasharray="2 5"
+            strokeLinecap="round"
+            pointerEvents="none"
+          />
+        )}
+        {lane && <line x1={pad.l} x2={W - pad.r} y1={full - 6} y2={full - 6} stroke="#e6efec" pointerEvents="none" />}
       </svg>
       {hover != null && (
         <div
@@ -130,12 +221,14 @@ export function Bars({
           }}
         >
           <div className="mb-0.5 font-semibold capitalize">{labels[hover]}</div>
-          {series.map((s) => (
-            <div key={s.name} className="flex justify-between gap-3">
-              <span style={{ color: "#9fc0b9" }}>{s.name}</span>
-              <span>{money0(s.values[hover] ?? 0)}</span>
-            </div>
-          ))}
+          {series
+            .filter((s) => !s.ghost || s.values[hover] != null)
+            .map((s) => (
+              <div key={s.name} className="flex justify-between gap-3">
+                <span style={{ color: "#9fc0b9" }}>{s.name}</span>
+                <span>{money0(s.values[hover] ?? 0)}</span>
+              </div>
+            ))}
           {detail?.(hover)}
         </div>
       )}
@@ -292,6 +385,34 @@ function short(v: number): string {
   if (v === 0) return "0";
   if (v >= 1000) return `${Number((v / 1000).toFixed(1)).toString().replace(".", ",")}k`;
   return String(Math.round(v));
+}
+
+/** A legend whose entries switch their series on and off. */
+export function LegendToggle({
+  items,
+  hidden,
+  onToggle,
+}: {
+  items: { key: string; color: string; label: string; hatched?: boolean; ghost?: boolean }[];
+  hidden: ReadonlySet<string>;
+  onToggle: (key: string) => void;
+}) {
+  return (
+    <span className="rs-legend-toggle" role="group" aria-label="Mostrar ou esconder no gráfico">
+      {items.map((it) => (
+        <button key={it.key} type="button" aria-pressed={!hidden.has(it.key)} onClick={() => onToggle(it.key)}>
+          <span
+            aria-hidden="true"
+            style={{
+              background: it.ghost ? "transparent" : it.hatched ? `repeating-linear-gradient(-45deg, ${it.color} 0 2px, transparent 2px 4px)` : it.color,
+              border: it.ghost ? `1.5px dashed ${it.color}` : it.hatched ? `1px solid ${it.color}` : undefined,
+            }}
+          />
+          {it.label}
+        </button>
+      ))}
+    </span>
+  );
 }
 
 export function Legend({ items }: { items: { color: string; label: string; hatched?: boolean }[] }) {

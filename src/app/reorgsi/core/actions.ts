@@ -7,6 +7,7 @@ import type {
   DocRequirement,
   FileRef,
   Invoice,
+  Listing,
   Payout,
   Settings,
 } from "./types.ts";
@@ -20,6 +21,11 @@ type WithOptionalId<T extends { id: string }> = Omit<T, "id"> & { id?: string };
 export type Action =
   | { type: "consultant.save"; consultant: WithOptionalId<Consultant> }
   | { type: "consultant.delete"; id: string }
+  /** One month of one consultant, for any number of years at once. */
+  | { type: "billing.month"; consultantId: string; month: number; values: Record<string, number> }
+  | { type: "consultant.goal"; consultantId: string; year: string; value: number | null }
+  | { type: "listing.save"; listing: WithOptionalId<Omit<Listing, "createdAt" | "status">> }
+  | { type: "listing.delete"; id: string }
   | { type: "deal.save"; deal: WithOptionalId<Omit<Deal, "createdAt" | "documents">> }
   | { type: "deal.delete"; id: string }
   | { type: "deal.doc"; dealId: string; reqId: string; entry: DocEntry | null }
@@ -74,6 +80,43 @@ export function apply(db: Db, action: Action, env: Env): Result {
       if (used) return fail("inUse");
       return { ok: true, db: { ...db, consultants: db.consultants.filter((c) => c.id !== action.id) } };
     }
+    case "billing.month": {
+      const c = db.consultants.find((x) => x.id === action.consultantId);
+      if (!c) return fail("notFound");
+      const years = Object.keys(action.values);
+      if (!Number.isInteger(action.month) || action.month < 0 || action.month > 11) return fail("invalid");
+      if (years.some((y) => !/^\d{4}$/.test(y) || !finite(action.values[y]))) return fail("invalid");
+      const billingByMonth = { ...c.billingByMonth };
+      for (const y of years) {
+        const months = billingByMonth[y] ? [...billingByMonth[y]] : (Array(12).fill(0) as number[]);
+        months[action.month] = action.values[y];
+        billingByMonth[y] = months;
+      }
+      return { ok: true, db: { ...db, consultants: upsert(db.consultants, { ...c, billingByMonth }) } };
+    }
+    case "consultant.goal": {
+      const c = db.consultants.find((x) => x.id === action.consultantId);
+      if (!c) return fail("notFound");
+      if (!/^\d{4}$/.test(action.year)) return fail("invalid");
+      if (action.value != null && (!finite(action.value) || action.value < 0)) return fail("invalid");
+      // The goal lives on the year's Business Plan, created here if there is none yet.
+      const plan = c.plans?.[action.year] ?? { delivered: false, meetingHeld: false };
+      const plans = { ...c.plans, [action.year]: { ...plan, billingTarget: action.value || undefined } };
+      return { ok: true, db: { ...db, consultants: upsert(db.consultants, { ...c, plans }) } };
+    }
+    case "listing.save": {
+      const l = action.listing;
+      if (!db.consultants.some((c) => c.id === l.consultantId)) return fail("notFound");
+      if (!finite(l.price) || l.price <= 0 || !finite(l.commissionPct) || l.commissionPct < 0) return fail("invalid");
+      const listings = db.listings ?? [];
+      const existing = l.id ? listings.find((x) => x.id === l.id) : undefined;
+      if (l.id && !existing) return fail("notFound");
+      const id = l.id ?? env.newId();
+      const listing: Listing = { ...l, id, status: existing?.status ?? "ativa", createdAt: existing?.createdAt ?? env.now() };
+      return { ok: true, db: { ...db, listings: upsert(listings, listing) }, id };
+    }
+    case "listing.delete":
+      return { ok: true, db: { ...db, listings: (db.listings ?? []).filter((l) => l.id !== action.id) } };
     case "deal.save": {
       const d = action.deal;
       if (!text(d.address) && !text(d.ref)) return fail("invalid");

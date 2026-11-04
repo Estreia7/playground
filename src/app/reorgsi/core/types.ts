@@ -14,9 +14,11 @@ export interface Consultant {
   joinedAt?: string;
   /** Billing figures carried over from the team sheet, by year ("2024": 78132). */
   billingByYear: Record<string, number>;
-  /** Twelve monthly figures from the CRM export, by year, for years the app
-   *  has no invoices for. */
+  /** Twelve monthly figures by year: the billing record, loaded from the CRM
+   *  export and corrected by hand. See core/billing.ts. */
   billingByMonth?: Record<string, number[]>;
+  /** The yearly Business Plan, by year ("2026"). */
+  plans?: Record<string, BusinessPlan>;
   /** Prizes won, each with the year it was won for (RUBY 2025…). */
   prizes?: Prize[];
   /** Older records: one prize with no year. It came from the 2025 team sheet. */
@@ -25,12 +27,26 @@ export interface Consultant {
   photo?: FileRef;
 }
 
+/** What a consultant agreed for the year. Every figure is as written on the
+ *  plan: the monthly targets are not worked out from the yearly ones. */
+export interface BusinessPlan {
+  delivered: boolean;
+  meetingDate?: string;
+  meetingHeld: boolean;
+  billingTarget?: number;
+  billingTargetMonthly?: number;
+  listingTarget?: number;
+  listingTargetMonthly?: number;
+  /** Listings active when the plan was made, not today's count. */
+  activeListings?: number;
+}
+
 export interface Prize {
   name: string;
   year: string;
 }
 
-export const PRIZE_NAMES = ["CENTURION", "EMERALD", "RUBY"];
+export const PRIZE_NAMES = ["RUBY", "EMERALD", "DIAMOND", "CENTURION", "DOUBLE CENTURION", "GRAND CENTURION"];
 
 /** A consultant's prizes, newest first, reading the older single field too. */
 export function prizesOf(c: Consultant): Prize[] {
@@ -158,15 +174,24 @@ export interface Settings {
   templates?: { docRequest?: string };
 }
 
+export type ListingKind = "apartamento" | "moradia" | "terreno_rustico" | "espaco_comercial" | "construcao_nova";
+
+export const LISTING_KIND_LABEL: Record<ListingKind, string> = {
+  apartamento: "Apartamento",
+  moradia: "Moradia",
+  terreno_rustico: "Terreno rústico",
+  espaco_comercial: "Espaço comercial",
+  construcao_nova: "Construção nova",
+};
+
 /** A property the team has taken on to sell. Not yet a deal: it becomes one
  *  when a buyer is found, as a pleno or a partilha. */
 export interface Listing {
   id: string;
   consultantId: string;
-  ref: string;
-  address?: string;
-  price?: number;
-  commissionPct?: number;
+  kind: ListingKind;
+  price: number;
+  commissionPct: number;
   status: "ativa" | "vendida" | "retirada";
   createdAt: string;
 }

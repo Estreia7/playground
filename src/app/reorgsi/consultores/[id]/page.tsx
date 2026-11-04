@@ -3,19 +3,23 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Consultant, Deal, Invoice, Party } from "../../core/types.ts";
+import type { BusinessPlan, Consultant, Deal, Invoice, Party } from "../../core/types.ts";
 import { STATUS_LABEL, prizesOf } from "../../core/types.ts";
-import { dealBilled, docProgress, managerShare, teamId } from "../../core/commission.ts";
+import { billedIn, goalOf } from "../../core/billing.ts";
+import { dealBilled, docProgress, teamId } from "../../core/commission.ts";
 import { activityYears, billingYears, consultantStats, currentBacklog, weightFor } from "../../core/analytics.ts";
 import { useReorg } from "../../ui/App.tsx";
 import { PageHeader } from "../../ui/Shell.tsx";
 import { BackLink } from "../../ui/nav.tsx";
-import { Avatar, DealStatusPill, DocRing, PartyLabel, PrizeChip } from "../../ui/parts.tsx";
+import { Avatar, DealStatusPill, DocRing, PartyLabel, PrizeChip, numberText } from "../../ui/parts.tsx";
 import { ConsultantForm } from "../../ui/ConsultantForm.tsx";
-import { Bars, Legend } from "../../ui/charts.tsx";
-import { Kpi, Mix, dealSplit, monthlyVsLastYear, signed, tenure } from "../../ui/stats.tsx";
+import { Bars } from "../../ui/charts.tsx";
+import { BillingCard } from "../../ui/BillingCard.tsx";
+import { PrizeBar } from "../../ui/PrizeBar.tsx";
+import { ReportButton } from "../../ui/ReportButton.tsx";
+import { Kpi, Mix, dealSplit, signed, tenure } from "../../ui/stats.tsx";
 import { preparePhoto } from "../../ui/files/prepare.ts";
-import { MONTH_SHORT, date, money, money0, monthName } from "../../ui/format.ts";
+import { date, money, money0, monthName, percent } from "../../ui/format.ts";
 import { IconCamera, IconChart, IconTrash } from "../../ui/Icons.tsx";
 
 /* One consultant: who they are, how they are doing this year at a glance,
@@ -64,16 +68,14 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
   const prev = String(Number(year) - 1);
 
   const stats = useMemo(() => consultantStats(db, c, year), [db, c, year]);
-  const monthly = useMemo(() => monthlyVsLastYear(db, c, year), [db, c, year]);
   const backlog = useMemo(() => currentBacklog(db, c.id), [db, c.id]);
   const links = useMemo(() => connections(db.deals, c.id), [db.deals, c.id]);
 
   const yearly = useMemo(() => {
-    const invoiceYears = new Set(db.invoices.map((i) => i.settlementMonth.slice(0, 4)));
     const all = billingYears(db)
       .slice()
       .sort()
-      .map((y) => ({ y, v: invoiceYears.has(y) ? consultantStats(db, c, y).billed : (c.billingByYear[y] ?? 0) }));
+      .map((y) => ({ y, v: billedIn(c, y) }));
     const first = all.findIndex((r) => r.v > 0);
     return first < 0 ? [] : all.slice(first);
   }, [db, c]);
@@ -89,13 +91,14 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
       .sort((a, b) => (a.inv.issuedAt ?? "").localeCompare(b.inv.issuedAt ?? ""));
   }, [db.deals, db.invoices, c.id]);
 
+  const goal = goalOf(c, year);
   const open = links.deals.filter((r) => r.deal.status === "aberto").length;
   const backlogTotal = backlog.reduce((s, b) => s + b.remaining, 0);
   const docsMissing = links.deals.filter((r) => r.deal.status !== "anulado").reduce((s, r) => {
     const p = docProgress(r.deal, db.docRequirements);
     return s + (p.total - p.done);
   }, 0);
-  const unpaidShare = unpaid.reduce((s, r) => s + managerShare(r.inv, r.deal, db.dealTypes), 0);
+  const unpaidTotal = unpaid.reduce((s, r) => s + r.inv.valueNoVat * weightFor(r.deal, c.id), 0);
 
   return (
     <>
@@ -117,6 +120,7 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ReportButton consultant={c} year={year} />
           <Link className="rs-btn" href={`/reorgsi/analises?consultor=${c.id}`}>
             <IconChart size={17} />
             Análise completa
@@ -135,7 +139,7 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
         </Kpi>
         <Kpi label="Crescimento" value={stats.growth == null ? "—" : signed(stats.growth)} tone={stats.growth == null ? undefined : stats.growth >= 0 ? "up" : "down"}>
           <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-            face a {prev}
+            face aos mesmos meses de {prev}
           </span>
         </Kpi>
         <Kpi label={`Negócios ${year}`} value={String(stats.deals.length)} count={stats.deals.length} format={(n) => String(Math.round(n))}>
@@ -153,12 +157,12 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
             {backlog.length} negócio{backlog.length === 1 ? "" : "s"} por fechar
           </span>
         </Kpi>
-        <Kpi label="Gerado para o manager" value={money(stats.managerShare)} count={stats.managerShare} format={money}>
+        <Kpi label={`Objetivo ${year}`} value={goal ? percent((stats.billed / goal) * 100, 0) : "—"}>
           <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-            Faturas pagas em {year}
+            {goal ? `de ${money0(goal)}` : "Sem objetivo definido"}
           </span>
         </Kpi>
-        <Kpi label="Por receber" value={money(unpaidShare)} tone={unpaid.length ? "down" : undefined}>
+        <Kpi label="Por receber" value={money(unpaidTotal)} tone={unpaid.length ? "down" : undefined}>
           <span className="text-[12.5px]" style={{ color: "var(--muted)" }}>
             {unpaid.length ? `${unpaid.length} fatura${unpaid.length === 1 ? "" : "s"} emitida${unpaid.length === 1 ? "" : "s"}` : "Tudo recebido"}
           </span>
@@ -170,18 +174,12 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
         </Kpi>
       </div>
 
+      {(c.plans?.[year] || c.status !== "inativo") && <PlanCard plan={c.plans?.[year]} year={year} billed={stats.billed} />}
+
+      <PrizeBar billed={stats.billed} year={year} />
+
       <div className="mb-4 grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-2">
-        <section className="rs-card" aria-labelledby="cp-month">
-          <div className="rs-card-head">
-            <h2 id="cp-month">Faturação mensal</h2>
-            <span className="aside">
-              <Legend items={monthly.legend} />
-            </span>
-          </div>
-          <div className="rs-card-body">
-            <Bars labels={MONTH_SHORT} series={monthly.series} ariaLabel={`Faturação mensal de ${c.name} em ${year}, com ${Number(year) - 1} ao lado`} />
-          </div>
-        </section>
+        <BillingCard consultant={c} year={year} id="cp-month" />
         <section className="rs-card" aria-labelledby="cp-year">
           <div className="rs-card-head">
             <h2 id="cp-year">Faturação por ano</h2>
@@ -264,8 +262,8 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
                 { label: "Plenos (as duas partes)", value: links.roles.pleno, color: "#345b63" },
                 { label: "Só angariação", value: links.roles.angariacao, color: "#7fb59a" },
                 { label: "Só compradores", value: links.roles.compradores, color: "#a9d4bb" },
-                { label: "Processo bancário", value: links.roles.bancario, color: "#c3d6d0" },
               ]}
+              apart={{ label: "Processos bancários (extra)", value: links.roles.bancario }}
             />
             {links.types.length > 0 && (
               <ul className="m-0 mt-4 flex list-none flex-wrap gap-1.5 p-0">
@@ -284,7 +282,7 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
         <section className="rs-card mb-4" aria-labelledby="cp-unpaid">
           <div className="rs-card-head">
             <h2 id="cp-unpaid">Faturas por receber</h2>
-            <span className="aside">{money(unpaidShare)} para o manager</span>
+            <span className="aside">{money(unpaidTotal)}</span>
           </div>
           <div className="rs-table-wrap">
             <table className="rs-table">
@@ -294,7 +292,6 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
                   <th>Negócio</th>
                   <th>Mês</th>
                   <th className="right">Valor s/IVA</th>
-                  <th className="right">Saldo manager</th>
                 </tr>
               </thead>
               <tbody>
@@ -307,8 +304,7 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
                       </Link>
                     </td>
                     <td>{monthName(inv.settlementMonth)}</td>
-                    <td className="right num">{money(inv.valueNoVat)}</td>
-                    <td className="right num font-semibold">{money(managerShare(inv, deal, db.dealTypes))}</td>
+                    <td className="right num font-semibold">{money(inv.valueNoVat)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -377,6 +373,77 @@ function Profile({ consultant: c }: { consultant: Consultant }) {
 
       {editing && <ConsultantForm consultant={c} onClose={() => setEditing(false)} />}
     </>
+  );
+}
+
+/** Targets can be fractions (0,6 a month), written the Portuguese way. */
+const count = (n: number) => String(n).replace(".", ",");
+
+function meetingLine(plan: BusinessPlan | undefined): string {
+  if (!plan) return "";
+  if (plan.meetingDate) return plan.meetingHeld ? `Reunião a ${date(plan.meetingDate)}` : `Reunião a ${date(plan.meetingDate)}, por confirmar`;
+  return plan.meetingHeld ? "Reunião sem data" : plan.delivered ? "Entregue, sem reunião" : "Por entregar";
+}
+
+/** The year's plan: how far billing is towards the target, and what was agreed. */
+function PlanCard({ plan, year, billed }: { plan?: BusinessPlan; year: string; billed: number }) {
+  const target = plan?.billingTarget;
+  const monthly = plan?.billingTargetMonthly;
+  const facts = [
+    { label: "Objetivo mensal", value: monthly == null ? null : money0(monthly) },
+    { label: "Angariações por ano", value: plan?.listingTarget == null ? null : numberText(plan.listingTarget) },
+    { label: "Angariações por mês", value: plan?.listingTargetMonthly == null ? null : numberText(plan.listingTargetMonthly) },
+    { label: "Ativas no plano", value: plan?.activeListings == null ? null : numberText(plan.activeListings) },
+  ].filter((f) => f.value != null);
+  const reached = target ? billed / target : null;
+  const mismatch = target != null && monthly != null && Math.abs(target - monthly * 12) > 1;
+
+  return (
+    <section className="rs-card mb-4" aria-labelledby="cp-plan">
+      <div className="rs-card-head">
+        <h2 id="cp-plan">Business Plan {year}</h2>
+        <span className="aside">{meetingLine(plan)}</span>
+      </div>
+      <div className="rs-card-body">
+        {!plan && <p className="rs-empty m-0">Sem plano registado para {year}.</p>}
+        {plan && target == null && facts.length === 0 && <p className="rs-empty m-0">Ainda sem objetivos registados.</p>}
+        {target != null && reached != null && (
+          <div className="rs-plan-goal">
+            <p className="m-0 flex flex-wrap items-baseline justify-between gap-x-4">
+              <span className="num">
+                <strong>{money0(billed)}</strong> faturados de {money0(target)}
+              </span>
+              <span className="num font-semibold">{percent(reached * 100, 0)}</span>
+            </p>
+            <div
+              className="rs-plan-bar"
+              role="progressbar"
+              aria-label={`Faturação de ${year} face ao objetivo anual`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.min(100, Math.round(reached * 100))}
+            >
+              <div style={{ width: `${Math.min(100, reached * 100)}%` }} />
+            </div>
+          </div>
+        )}
+        {facts.length > 0 && (
+          <dl className="rs-plan-facts">
+            {facts.map((f) => (
+              <div key={f.label}>
+                <dt>{f.label}</dt>
+                <dd className="num">{f.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {mismatch && (
+          <p className="rs-form-note warn mt-3">
+            O objetivo anual ({money0(target)}) não coincide com 12 meses do mensal ({money0(monthly * 12)}). Confirme o valor certo e corrija em Editar.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

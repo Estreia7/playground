@@ -11,6 +11,7 @@ import { Select } from "./Select.tsx";
 /* Add or edit a consultant: used by the team list and the consultant page. */
 
 const PREV = String(new Date().getFullYear() - 1);
+const PLAN_YEAR = String(new Date().getFullYear());
 
 export function ConsultantForm({ consultant, onClose }: { consultant?: Consultant; onClose: () => void }) {
   const { dispatch, notify } = useReorg();
@@ -18,10 +19,36 @@ export function ConsultantForm({ consultant, onClose }: { consultant?: Consultan
   const [status, setStatus] = useState<ConsultantStatus>(consultant?.status ?? "rookie");
   const [joinedAt, setJoinedAt] = useState(consultant?.joinedAt ?? "");
   const [prev, setPrev] = useState(numberText(consultant?.billingByYear[PREV]));
+  // With monthly figures on record the yearly total is theirs, not typed here.
+  const hasMonths = Boolean(consultant?.billingByMonth?.[PREV]);
   const [prizes, setPrizes] = useState<Prize[]>(() => (consultant ? prizesOf(consultant) : []));
   const [prizeName, setPrizeName] = useState(PRIZE_NAMES[0]);
   const [prizeYear, setPrizeYear] = useState(PREV);
+  const plan = consultant?.plans?.[PLAN_YEAR];
+  const [delivered, setDelivered] = useState(plan?.delivered ?? false);
+  const [meetingHeld, setMeetingHeld] = useState(plan?.meetingHeld ?? false);
+  const [meetingDate, setMeetingDate] = useState(plan?.meetingDate ?? "");
+  const [billingTarget, setBillingTarget] = useState(numberText(plan?.billingTarget));
+  const [billingMonthly, setBillingMonthly] = useState(numberText(plan?.billingTargetMonthly));
+  const [listingTarget, setListingTarget] = useState(numberText(plan?.listingTarget));
+  const [listingMonthly, setListingMonthly] = useState(numberText(plan?.listingTargetMonthly));
+  const [activeListings, setActiveListings] = useState(numberText(plan?.activeListings));
   const [saving, setSaving] = useState(false);
+
+  /** The consultant's plans with this year's as filled in; an empty form means no plan. */
+  function nextPlans() {
+    const figures = {
+      billingTarget: parseNumber(billingTarget),
+      billingTargetMonthly: parseNumber(billingMonthly),
+      listingTarget: parseNumber(listingTarget),
+      listingTargetMonthly: parseNumber(listingMonthly),
+      activeListings: parseNumber(activeListings),
+    };
+    const { [PLAN_YEAR]: _old, ...others } = consultant?.plans ?? {};
+    const blank = !delivered && !meetingHeld && !meetingDate && Object.values(figures).every((v) => v == null);
+    const plans = blank ? others : { ...others, [PLAN_YEAR]: { delivered, meetingHeld, meetingDate: meetingDate || undefined, ...figures } };
+    return Object.keys(plans).length ? plans : undefined;
+  }
 
   async function save() {
     if (!name.trim()) return notify("Indique o nome.", true);
@@ -32,7 +59,7 @@ export function ConsultantForm({ consultant, onClose }: { consultant?: Consultan
     else billingByYear[PREV] = p;
     const res = await dispatch({
       type: "consultant.save",
-      consultant: { ...consultant, id: consultant?.id, name, status, joinedAt: joinedAt || undefined, billingByYear, prizes, prize: undefined },
+      consultant: { ...consultant, id: consultant?.id, name, status, joinedAt: joinedAt || undefined, billingByYear, plans: nextPlans(), prizes, prize: undefined },
     });
     setSaving(false);
     if (res.ok) {
@@ -90,10 +117,12 @@ export function ConsultantForm({ consultant, onClose }: { consultant?: Consultan
           Data de entrada
           <input className="rs-input" type="date" value={joinedAt} onChange={(e) => setJoinedAt(e.target.value)} />
         </label>
-        <label className="rs-field">
-          Faturação {PREV}
-          <input className="rs-input num" inputMode="decimal" value={prev} onChange={(e) => setPrev(e.target.value)} placeholder="0,00" />
-        </label>
+        {!hasMonths && (
+          <label className="rs-field">
+            Faturação {PREV}
+            <input className="rs-input num" inputMode="decimal" value={prev} onChange={(e) => setPrev(e.target.value)} placeholder="0,00" />
+          </label>
+        )}
       </div>
       <div className="rs-field">
         Prémios
@@ -140,6 +169,45 @@ export function ConsultantForm({ consultant, onClose }: { consultant?: Consultan
           </button>
         </div>
         <span className="hint">Aparece como "Ruby 25": o prémio e o ano em que foi ganho.</span>
+      </div>
+      <div className="rs-field">
+        Business Plan {PLAN_YEAR}
+        <div className="rs-grid-2">
+          <label className="rs-check">
+            <input type="checkbox" checked={delivered} onChange={(e) => setDelivered(e.target.checked)} />
+            <span>Plano entregue</span>
+          </label>
+          <label className="rs-check">
+            <input type="checkbox" checked={meetingHeld} onChange={(e) => setMeetingHeld(e.target.checked)} />
+            <span>Reunião realizada</span>
+          </label>
+        </div>
+      </div>
+      <div className="rs-grid-2">
+        <label className="rs-field">
+          Data da reunião
+          <input className="rs-input" type="date" value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} />
+        </label>
+        <label className="rs-field">
+          Angariações ativas no plano
+          <input className="rs-input num" inputMode="numeric" value={activeListings} onChange={(e) => setActiveListings(e.target.value)} placeholder="0" />
+        </label>
+        <label className="rs-field">
+          Objetivo de faturação anual
+          <input className="rs-input num" inputMode="decimal" value={billingTarget} onChange={(e) => setBillingTarget(e.target.value)} placeholder="0,00" />
+        </label>
+        <label className="rs-field">
+          Objetivo de faturação mensal
+          <input className="rs-input num" inputMode="decimal" value={billingMonthly} onChange={(e) => setBillingMonthly(e.target.value)} placeholder="0,00" />
+        </label>
+        <label className="rs-field">
+          Objetivo de angariações anual
+          <input className="rs-input num" inputMode="decimal" value={listingTarget} onChange={(e) => setListingTarget(e.target.value)} placeholder="0" />
+        </label>
+        <label className="rs-field">
+          Objetivo de angariações mensal
+          <input className="rs-input num" inputMode="decimal" value={listingMonthly} onChange={(e) => setListingMonthly(e.target.value)} placeholder="0" />
+        </label>
       </div>
     </Panel>
   );

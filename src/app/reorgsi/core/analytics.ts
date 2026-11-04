@@ -1,25 +1,28 @@
-import type { Consultant, Db, Deal, Invoice } from "./types.ts";
-import { cents, docProgress, managerShare, teamId } from "./commission.ts";
+import type { Consultant, Db, Deal, DealType, Invoice } from "./types.ts";
+import { cents, docProgress, teamId } from "./commission.ts";
+import { MANAGER_RATE, billedIn, billedUpTo, monthsOf, sumTo } from "./billing.ts";
 
 /* Indicators for the Análises tab: one consultant at a time, and the whole
    team as the manager sees it.
 
-   Everything is counted from the invoices settled in the chosen year, with
-   the same rule as billingByConsultant: an invoice covers only the team's
-   side, so a consultant who holds a side alone gets the whole value, and two
-   team members on one deal share it by the listing split. The manager's share
-   is divided the same way, so the per-consultant shares add up to the
-   manager's total. */
+   Billing, and the manager's 2% of it, come from the billing record
+   (core/billing.ts), not from the deals. Deals only supply what is about the
+   work itself: how many, of which kind, their documents and invoices. */
 
 export interface ConsultantStats {
   consultant: Consultant;
-  /** Billing credited to this consultant in the year (€, without VAT). */
+  /** Billing in the year (€, without VAT). */
   billed: number;
   billedByMonth: number[];
-  /** Billing in the previous year: from the deals if there are any, else the team sheet. */
+  /** False when the year only has a yearly total, so billedByMonth is empty. */
+  monthly: boolean;
+  /** The whole previous year. */
   previous: number;
+  /** The previous year over the same months this year has so far. */
+  previousToDate: number;
+  /** Against the same months of the previous year. */
   growth: number | null;
-  /** What this consultant's deals earned the manager in the year (paid invoices only). */
+  /** The manager's share of this billing. */
   managerShare: number;
   /** Deals with activity in the year that this consultant took part in. */
   deals: Deal[];
@@ -52,7 +55,7 @@ export interface TeamStats {
   billedByMonth: number[];
   shareByMonth: number[];
   deals: number;
-  byType: { id: string; name: string; count: number; billed: number }[];
+  byType: { id: string; name: string; sides: DealType["sides"]; count: number }[];
   byStatus: { status: Consultant["status"]; people: number; billed: number }[];
   /** Consultants with no billing in the year among those still active. */
   idle: Consultant[];
@@ -60,8 +63,6 @@ export interface TeamStats {
   docsTotal: number;
   unpaidValue: number;
 }
-
-const month = (inv: Invoice) => Number(inv.settlementMonth.slice(5, 7)) - 1;
 
 /** The share of an invoice that belongs to a consultant on this deal (0..1). */
 export function weightFor(deal: Deal, consultantId: string): number {
@@ -80,10 +81,7 @@ function inYear(inv: Invoice, year: string): boolean {
 export function consultantStats(db: Db, consultant: Consultant, year: string): ConsultantStats {
   const prevYear = String(Number(year) - 1);
   const dealsById = new Map(db.deals.map((d) => [d.id, d]));
-  const billedByMonth = Array(12).fill(0) as number[];
-  let billed = 0;
-  let previousFromDeals = 0;
-  let share = 0;
+  let invoiced = 0;
   let invoices = 0;
   let unpaid = 0;
   let unpaidValue = 0;
@@ -94,25 +92,15 @@ export function consultantStats(db: Db, consultant: Consultant, year: string): C
     if (!deal) continue;
     const w = weightFor(deal, consultant.id);
     if (!w) continue;
-    if (inYear(inv, prevYear)) previousFromDeals += inv.valueNoVat * w;
     if (!inYear(inv, year)) continue;
     active.add(deal.id);
     invoices++;
-    billed += inv.valueNoVat * w;
-    billedByMonth[month(inv)] += inv.valueNoVat * w;
-    if (inv.status === "paga") share += managerShare(inv, deal, db.dealTypes) * w;
+    invoiced += inv.valueNoVat * w;
     if (inv.status === "emitida") {
       unpaid++;
       unpaidValue += inv.valueNoVat * w;
     }
   }
-  // A year from before the app has no invoices: the CRM's monthly figures stand in.
-  const recorded = invoices === 0 ? consultant.billingByMonth?.[year] : undefined;
-  if (recorded) {
-    recorded.forEach((v, i) => (billedByMonth[i] = v));
-    billed = recorded.reduce((s, v) => s + v, 0);
-  }
-
   // Open deals without an invoice yet still belong to the year they were opened in.
   for (const d of db.deals) {
     if (d.status === "aberto" && d.createdAt.startsWith(year) && weightFor(d, consultant.id)) active.add(d.id);
@@ -146,14 +134,21 @@ export function consultantStats(db: Db, consultant: Consultant, year: string): C
     unfiled += p.unfiled;
   }
 
-  const previous = previousFromDeals > 0 ? previousFromDeals : (consultant.billingByYear[prevYear] ?? 0);
+  const months = monthsOf(consultant, year);
+  const billed = billedIn(consultant, year);
+  const previous = billedIn(consultant, prevYear);
+  const upTo = billedUpTo(consultant, year);
+  const prevMonths = monthsOf(consultant, prevYear);
+  const previousToDate = prevMonths ? sumTo(prevMonths, upTo) : (previous * (upTo + 1)) / 12;
   return {
     consultant,
-    billed: cents(billed),
-    billedByMonth: billedByMonth.map(cents),
-    previous: cents(previous),
-    growth: previous ? billed / previous - 1 : null,
-    managerShare: cents(share),
+    billed,
+    billedByMonth: months ? months.map(cents) : (Array(12).fill(0) as number[]),
+    monthly: Boolean(months),
+    previous,
+    previousToDate: cents(previousToDate),
+    growth: previousToDate ? billed / previousToDate - 1 : null,
+    managerShare: cents(billed * MANAGER_RATE),
     deals,
     asListing,
     asBuyer,
@@ -162,7 +157,7 @@ export function consultantStats(db: Db, consultant: Consultant, year: string): C
     sharedTeam,
     bank,
     averagePrice: prices.length ? cents(prices.reduce((s, p) => s + p, 0) / prices.length) : null,
-    averageInvoice: invoices ? cents(billed / invoices) : null,
+    averageInvoice: invoices ? cents(invoiced / invoices) : null,
     invoices,
     docsComplete,
     docsMissing,
@@ -179,37 +174,22 @@ export function teamStats(db: Db, year: string): TeamStats {
     .sort((a, b) => b.billed - a.billed || a.consultant.name.localeCompare(b.consultant.name, "pt"));
 
   const dealsById = new Map(db.deals.map((d) => [d.id, d]));
-  const shareByMonth = Array(12).fill(0) as number[];
   const billedByMonth = Array(12).fill(0) as number[];
-  const typeCount = new Map<string, { count: Set<string>; billed: number }>();
+  for (const p of people) p.billedByMonth.forEach((v, i) => (billedByMonth[i] += v));
+  const typeCount = new Map<string, Set<string>>();
   const teamDeals = new Set<string>();
-  let share = 0;
 
   for (const inv of db.invoices) {
     if (!inYear(inv, year)) continue;
     const deal = dealsById.get(inv.dealId);
     if (!deal) continue;
-    // Team billing = the part of the invoice credited to team members.
-    const teamPart =
-      [...new Set([teamId(deal.angariacao), teamId(deal.compradores)].filter(Boolean) as string[])].reduce(
-        (s, id) => s + weightFor(deal, id),
-        0,
-      ) || 0;
-    billedByMonth[month(inv)] += inv.valueNoVat * Math.min(1, teamPart);
-    if (inv.status === "paga") {
-      const s = managerShare(inv, deal, db.dealTypes);
-      share += s;
-      shareByMonth[month(inv)] += s;
-    }
     teamDeals.add(deal.id);
-    const t = typeCount.get(deal.dealTypeId) ?? { count: new Set<string>(), billed: 0 };
-    t.count.add(deal.id);
-    t.billed += inv.valueNoVat;
-    typeCount.set(deal.dealTypeId, t);
+    typeCount.set(deal.dealTypeId, (typeCount.get(deal.dealTypeId) ?? new Set<string>()).add(deal.id));
   }
 
-  const billed = billedByMonth.reduce((s, v) => s + v, 0);
+  const billed = people.reduce((s, p) => s + p.billed, 0);
   const previous = people.reduce((s, p) => s + p.previous, 0);
+  const previousToDate = people.reduce((s, p) => s + p.previousToDate, 0);
   const statuses: Consultant["status"][] = ["experiente", "rookie", "inativo"];
   const allDeals = [...teamDeals].map((id) => dealsById.get(id)!).filter(Boolean);
 
@@ -218,13 +198,13 @@ export function teamStats(db: Db, year: string): TeamStats {
     people,
     billed: cents(billed),
     previous: cents(previous),
-    growth: previous ? billed / previous - 1 : null,
-    managerShare: cents(share),
+    growth: previousToDate ? billed / previousToDate - 1 : null,
+    managerShare: cents(billed * MANAGER_RATE),
     billedByMonth: billedByMonth.map(cents),
-    shareByMonth: shareByMonth.map(cents),
+    shareByMonth: billedByMonth.map((v) => cents(v * MANAGER_RATE)),
     deals: teamDeals.size,
     byType: db.dealTypes
-      .map((t) => ({ id: t.id, name: t.name, count: typeCount.get(t.id)?.count.size ?? 0, billed: cents(typeCount.get(t.id)?.billed ?? 0) }))
+      .map((t) => ({ id: t.id, name: t.name, sides: t.sides, count: typeCount.get(t.id)?.size ?? 0 }))
       .filter((t) => t.count > 0),
     byStatus: statuses
       .map((status) => {
@@ -291,10 +271,7 @@ export function backlogAt(db: Db, deal: Deal, ym: string): BacklogItem | null {
   }
   if (remaining <= 0.005 || since > ym) return null;
 
-  const last = invs[invs.length - 1];
-  const type = db.dealTypes.find((t) => t.id === deal.dealTypeId);
-  const pct = last?.managerPctOverride ?? type?.defaultManagerPct ?? 0;
-  return { deal, remaining: cents(remaining), managerPart: cents((remaining * pct) / 100), estimated, since };
+  return { deal, remaining: cents(remaining), managerPart: cents(remaining * MANAGER_RATE), estimated, since };
 }
 
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -348,30 +325,24 @@ export function backlogSeries(db: Db, year: string, consultantId?: string): Back
   return out;
 }
 
-/** Years that have invoices, newest first, always including the current one. */
+/** Years with monthly billing or invoices, newest first, always including the current one. */
 export function activityYears(db: Db): string[] {
   const years = new Set(db.invoices.map((i) => i.settlementMonth.slice(0, 4)));
+  for (const c of db.consultants) for (const y of Object.keys(c.billingByMonth ?? {})) years.add(y);
   years.add(String(new Date().getFullYear()));
   return [...years].sort().reverse();
 }
 
-/** Every year a consultant has billing in: from invoices where the app has
- *  them, otherwise the yearly figure from the team spreadsheet. */
+/** Every year anyone has billing in, the ones with only a yearly total included. */
 export function billingYears(db: Db): string[] {
   const years = new Set(activityYears(db));
   for (const c of db.consultants) for (const y of Object.keys(c.billingByYear)) years.add(y);
   return [...years].sort().reverse();
 }
 
-/** All-time billing: each year counted once, from invoices when the app has
- *  that year's invoices, from the spreadsheet figure when it does not. */
+/** All-time billing, each year counted once. */
 export function allTimeBilled(db: Db, consultant: Consultant): number {
-  const invoiceYears = new Set(db.invoices.map((i) => i.settlementMonth.slice(0, 4)));
-  let total = 0;
-  for (const y of billingYears(db)) {
-    total += invoiceYears.has(y) ? consultantStats(db, consultant, y).billed : (consultant.billingByYear[y] ?? 0);
-  }
-  return cents(total);
+  return cents(billingYears(db).reduce((s, y) => s + billedIn(consultant, y), 0));
 }
 
 export interface PeriodCompare {
@@ -421,7 +392,7 @@ export interface BehindItem {
 
 /** The active consultants furthest behind this year, by billing or by deals.
  *  Billing is measured against their own previous year over the same months
- *  (from the deals, or the team sheet's annual figure at a steady pace); people
+ *  (its monthly figures, or the team sheet's annual figure at a steady pace); people
  *  without a previous year, and deal counts, against the team's median,
  *  adjusted for the months each person has been in the team. */
 export function behindTeam(db: Db, year: string, by: "billed" | "deals", limit = 5): { items: BehindItem[]; upTo: number } {
@@ -465,7 +436,7 @@ export function behindTeam(db: Db, year: string, by: "billed" | "deals", limit =
     let basis: BehindItem["basis"] = "team";
     if (by === "billed") {
       const prev = consultantStats(db, p.consultant, prevYear);
-      const own = prev.billed > 0 ? ytdOf(prev.billedByMonth, upTo) : ((p.consultant.billingByYear[prevYear] ?? 0) * span) / 12;
+      const own = prev.monthly ? ytdOf(prev.billedByMonth, upTo) : (prev.billed * span) / 12;
       if (own > 0) {
         expected = own;
         basis = "own";
