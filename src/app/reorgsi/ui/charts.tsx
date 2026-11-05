@@ -36,6 +36,7 @@ export function Bars({
   detail,
   onPick,
   picked,
+  plain = false,
   ariaLabel,
 }: {
   labels: string[];
@@ -50,6 +51,8 @@ export function Bars({
   onPick?: (i: number) => void;
   /** The month currently open. */
   picked?: number | null;
+  /** Values are counts, not euros. */
+  plain?: boolean;
   ariaLabel: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -64,6 +67,7 @@ export function Bars({
     return () => ro.disconnect();
   }, []);
 
+  const value = plain ? (n: number) => String(Math.round(n)) : money0;
   const H = height;
   const pad = { l: 44, r: 6, t: 10, b: 24 };
   const n = labels.length;
@@ -129,9 +133,9 @@ export function Bars({
               onFocus={() => setHover(i)}
               onBlur={() => setHover(null)}
               aria-label={`${label}: ${[
-                ...series.filter((s) => s.values[i] != null).map((s) => `${s.name} ${money0(s.values[i] ?? 0)}`),
-                ...(goal ? [`${goal.name} ${money0(goal.value)}`] : []),
-                ...(lane ? [`${lane.name} ${money0(lane.values[i] ?? 0)}`] : []),
+                ...series.filter((s) => s.values[i] != null).map((s) => `${s.name} ${value(s.values[i] ?? 0)}`),
+                ...(goal ? [`${goal.name} ${value(goal.value)}`] : []),
+                ...(lane ? [`${lane.name} ${value(lane.values[i] ?? 0)}`] : []),
               ].join(", ")}`}
               style={{ outline: "none", cursor: onPick ? "pointer" : undefined }}
             >
@@ -226,7 +230,7 @@ export function Bars({
             .map((s) => (
               <div key={s.name} className="flex justify-between gap-3">
                 <span style={{ color: "#9fc0b9" }}>{s.name}</span>
-                <span>{money0(s.values[hover] ?? 0)}</span>
+                <span>{value(s.values[hover] ?? 0)}</span>
               </div>
             ))}
           {detail?.(hover)}

@@ -20,7 +20,7 @@ import {
 } from "../core/analytics.ts";
 import { MANAGER_RATE, billedUpTo, monthsOf } from "../core/billing.ts";
 import { cents, invoicesOf, lastFilledMonth, ytd } from "../core/commission.ts";
-import { expected, listingRowOf, listingSaleMix, mixYears } from "../core/listings.ts";
+import { expected, listedIn, listingRowOf, listingSaleMix, mixYears } from "../core/listings.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { useUrlState } from "../ui/nav.tsx";
@@ -233,6 +233,8 @@ function ConsultantView({ year, consultantId, onPick }: { year: string; consulta
               </div>
               {listings && (
                 <dl className="rs-card-body m-0 grid grid-cols-[1fr_auto] gap-y-2.5 text-sm">
+                  <dt style={{ color: "var(--muted)" }}>Angariadas em {year}</dt>
+                  <dd className="num m-0 text-right font-semibold">{listedIn(consultant, year)}</dd>
                   <dt style={{ color: "var(--muted)" }}>Angariações ativas</dt>
                   <dd className="num m-0 text-right font-semibold">{listings.count}</dd>
                   <dt style={{ color: "var(--muted)" }}>Potencial de comissão</dt>

@@ -17,6 +17,9 @@ export interface Consultant {
   /** Twelve monthly figures by year: the billing record, loaded from the CRM
    *  export and corrected by hand. See core/billing.ts. */
   billingByMonth?: Record<string, number[]>;
+  /** Listings taken per month by year, as counted by the CRM export. Only a
+   *  count: the properties themselves are in Db.listings. */
+  listingsByMonth?: Record<string, number[]>;
   /** The yearly Business Plan, by year ("2026"). */
   plans?: Record<string, BusinessPlan>;
   /** Prizes won, each with the year it was won for (RUBY 2025…). */

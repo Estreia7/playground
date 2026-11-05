@@ -4675,3 +4675,107 @@ a.rs-person:hover {
     bottom: 104px;
   }
 }
+
+/* Angariações: each person's listings against a steady pace to their target.
+   The tick on the track is where that pace is today. */
+.rs-pace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-pace li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: baseline;
+  font-size: 13.5px;
+}
+
+.rs-pace .fig {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.rs-pace .fig strong {
+  color: var(--ink);
+}
+
+.rs-pace .fig .behind {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.rs-pace .fig .ahead {
+  color: #2f7a57;
+  font-weight: 600;
+}
+
+.rs-pace .track {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.rs-pace .track > span:first-child {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+}
+
+.rs-pace .track > .due {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--amber);
+}
+
+/* People to talk to: a plain list of names and when they last took a listing. */
+.rs-idle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs-idle a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border-radius: 8px;
+  color: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rs-idle a:hover {
+  background: var(--canvas);
+}
+
+.rs-idle .when {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* One figure and what it is made of. */
+.rs-figure {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}

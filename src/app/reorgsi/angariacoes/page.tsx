@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Listing } from "../core/types.ts";
 import { DEFAULT_COMMISSION_PCT, LISTING_KIND_LABEL } from "../core/types.ts";
-import { PARTILHA_SHARE, expected, listingRows, listingSaleMix, mixYears, potential } from "../core/listings.ts";
+import { PARTILHA_SHARE, expected, listedIn, listingRows, listingSaleMix, mixYears, potential } from "../core/listings.ts";
 import { useReorg } from "../ui/App.tsx";
 import { PageHeader } from "../ui/Shell.tsx";
 import { useUrlState } from "../ui/nav.tsx";
 import { Avatar } from "../ui/parts.tsx";
 import { ListingForm } from "../ui/ListingForm.tsx";
+import { ListingMetrics } from "../ui/ListingMetrics.tsx";
 import { Kpi, Mix } from "../ui/stats.tsx";
 import { IconPlus } from "../ui/Icons.tsx";
 import { money0, percent } from "../ui/format.ts";
@@ -29,8 +30,10 @@ export default function ListingsPage() {
   const ratio = scenario === "metade" ? 0.5 : mix.plenoRatio;
 
   const rows = useMemo(() => {
-    const name = (id: string) => db.consultants.find((c) => c.id === id)?.name ?? "";
-    return listingRows(db).sort((a, b) => b.count - a.count || name(a.consultantId).localeCompare(name(b.consultantId), "pt"));
+    const person = (id: string) => db.consultants.find((c) => c.id === id);
+    const name = (id: string) => person(id)?.name ?? "";
+    const taken = (id: string) => listedIn(person(id), YEARS[1]);
+    return listingRows(db).sort((a, b) => b.count - a.count || taken(b.consultantId) - taken(a.consultantId) || name(a.consultantId).localeCompare(name(b.consultantId), "pt"));
   }, [db]);
 
   const listings = useMemo(() => [...(db.listings ?? [])].filter((l) => l.status === "ativa").sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [db.listings]);
@@ -117,6 +120,8 @@ export default function ListingsPage() {
         </div>
       </section>
 
+      <ListingMetrics year={YEARS[1]} plenoRatio={ratio} />
+
       <section className="rs-card mb-4" aria-labelledby="ls-h">
         <div className="rs-card-head">
           <h2 id="ls-h">Por consultor</h2>
@@ -127,7 +132,12 @@ export default function ListingsPage() {
             <thead>
               <tr>
                 <th>Consultor</th>
-                <th className="right">Angariações</th>
+                {YEARS.map((y) => (
+                  <th key={y} className="right">
+                    Angariadas {y}
+                  </th>
+                ))}
+                <th className="right">Ativas</th>
                 <th className="right">Carteira</th>
                 <th className="right">% comissão · potencial</th>
                 <th className="right">Se partilhas</th>
@@ -138,7 +148,7 @@ export default function ListingsPage() {
               {rows.map((r) => {
                 const c = db.consultants.find((x) => x.id === r.consultantId);
                 return (
-                  <tr key={r.consultantId} style={r.count === 0 ? { color: "var(--muted)" } : undefined}>
+                  <tr key={r.consultantId}>
                     <td data-label="Consultor">
                       <div className="flex items-center gap-2.5">
                         <Avatar consultant={c} size={28} />
@@ -147,7 +157,12 @@ export default function ListingsPage() {
                         </Link>
                       </div>
                     </td>
-                    <td className="right num" data-label="Angariações">
+                    {YEARS.map((y) => (
+                      <td key={y} className="right num" data-label={`Angariadas ${y}`}>
+                        {listedIn(c, y)}
+                      </td>
+                    ))}
+                    <td className="right num" data-label="Ativas">
                       {r.count}
                     </td>
                     <td className="right num" data-label="Carteira">
@@ -169,7 +184,7 @@ export default function ListingsPage() {
           </table>
         </div>
         <p className="m-0 border-t px-[18px] py-3 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
-          Potencial: a comissão inteira, se for um pleno. Partilha: o comprador vem de outra agência e fica {Math.round(PARTILHA_SHARE * 100)}% para quem angariou. O esperado pesa
+          Angariadas: contagem do CRM, mês a mês. Ativas, carteira e valores: só as angariações registadas aqui, com tipo e valor. Potencial: a comissão inteira, se for um pleno. Partilha: o comprador vem de outra agência e fica {Math.round(PARTILHA_SHARE * 100)}% para quem angariou. O esperado pesa
           os dois {scenario === "metade" ? "em partes iguais" : `pela média de ${YEARS.join(" e ")}`}.
         </p>
       </section>

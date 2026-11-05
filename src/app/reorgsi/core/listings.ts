@@ -1,4 +1,5 @@
-import type { Db, Deal, Listing } from "./types.ts";
+import type { Consultant, Db, Deal, Listing } from "./types.ts";
+import { closedUpTo, goalPace, sumTo } from "./billing.ts";
 import { cents, teamId } from "./commission.ts";
 
 /* Angariações: what each consultant has taken on to sell, and what it could
@@ -61,6 +62,11 @@ export function mixYears(now = new Date()): string[] {
   return [String(now.getFullYear() - 1), String(now.getFullYear())];
 }
 
+/** Listings a consultant took in a year, by the CRM's monthly count. */
+export function listedIn(c: Consultant | undefined, year: string): number {
+  return (c?.listingsByMonth?.[year] ?? []).reduce((s, v) => s + v, 0);
+}
+
 /** What a listing brings as a pleno: its whole commission. */
 export const potential = (l: Pick<Listing, "price" | "commissionPct">) => cents((l.price * l.commissionPct) / 100);
 
@@ -92,4 +98,107 @@ export function listingRowOf(db: Db, consultantId: string): ListingRow {
 /** Expected earnings from a row, sold as plenos with probability `plenoRatio`. */
 export function expected(row: Pick<ListingRow, "ifPleno" | "ifPartilha">, plenoRatio: number): number {
   return cents(row.ifPleno * plenoRatio + row.ifPartilha * (1 - plenoRatio));
+}
+
+/* ---------- how the team is taking listings ----------
+
+   From the CRM's monthly count. Comparisons stop at the last month that is
+   over, so a month still running never reads as a fall. */
+
+const monthsListed = (c: Consultant, year: string) => c.listingsByMonth?.[year] ?? (Array(12).fill(0) as number[]);
+
+export interface ListingTrend {
+  /** Last month that is over, 0..11. */
+  upTo: number;
+  months: number[];
+  prevMonths: number[];
+  toDate: number;
+  prevToDate: number;
+  /** Against the same months of the year before. */
+  change: number | null;
+}
+
+export function listingTrend(db: Db, year: string, now = new Date()): ListingTrend {
+  const prevYear = String(Number(year) - 1);
+  const total = (y: string) => db.consultants.reduce((t, c) => t.map((v, i) => v + monthsListed(c, y)[i]), Array(12).fill(0) as number[]);
+  const upTo = closedUpTo(year, now);
+  const months = total(year);
+  const prevMonths = total(prevYear);
+  const toDate = sumTo(months, upTo);
+  const prevToDate = sumTo(prevMonths, upTo);
+  return { upTo, months, prevMonths, toDate, prevToDate, change: prevToDate ? toDate / prevToDate - 1 : null };
+}
+
+export interface PlanPaceRow {
+  consultant: Consultant;
+  target: number;
+  done: number;
+  /** Where a steady pace to the target would be by now. */
+  due: number;
+}
+
+/** Listings taken against each Business Plan's yearly target, furthest behind first. */
+export function planPace(db: Db, year: string, now = new Date()): { rows: PlanPaceRow[]; target: number; done: number; due: number } {
+  const span = closedUpTo(year, now) + 1;
+  const rows = db.consultants
+    .filter((c) => c.status !== "inativo" && c.plans?.[year]?.listingTarget)
+    .map((c) => {
+      const target = c.plans![year].listingTarget!;
+      return { consultant: c, target, done: sumTo(monthsListed(c, year), 11), due: (target * span) / 12 };
+    })
+    .sort((a, b) => a.done / a.due - b.done / b.due || a.consultant.name.localeCompare(b.consultant.name, "pt"));
+  const add = (k: "target" | "done" | "due") => rows.reduce((s, r) => s + r[k], 0);
+  return { rows, target: add("target"), done: add("done"), due: add("due") };
+}
+
+export interface IdleLister {
+  consultant: Consultant;
+  /** Month of the last listing (YYYY-MM), or null with none in the two years. */
+  last: string | null;
+}
+
+/** Active consultants with no listing in the last `span` months that are over.
+ *  People with no count for the year, or who joined within the window, are left out. */
+export function idleListers(db: Db, year: string, now = new Date(), span = 3): IdleLister[] {
+  const prevYear = String(Number(year) - 1);
+  const end = 12 + closedUpTo(year, now);
+  const start = end - span + 1;
+  const ym = (i: number) => `${i < 12 ? prevYear : year}-${String((i % 12) + 1).padStart(2, "0")}`;
+  const out: IdleLister[] = [];
+  for (const c of db.consultants) {
+    if (c.status === "inativo" || !c.listingsByMonth?.[year]) continue;
+    if (c.joinedAt && c.joinedAt.slice(0, 7) > ym(start)) continue;
+    const seq = [...monthsListed(c, prevYear), ...monthsListed(c, year)];
+    if (seq.slice(start).some((v) => v > 0)) continue;
+    const at = seq.findLastIndex((v) => v > 0);
+    out.push({ consultant: c, last: at < 0 ? null : ym(at) });
+  }
+  return out.sort((a, b) => (a.last ?? "").localeCompare(b.last ?? "") || a.consultant.name.localeCompare(b.consultant.name, "pt"));
+}
+
+/** Sales with the listing on the team in a year, against listings taken in it.
+ *  Only an indication: a sale can come from a listing of an earlier year. */
+export function listingConversion(db: Db, year: string): { sold: number; listed: number; rate: number | null } {
+  const mix = listingSaleMix(db, [year]);
+  const sold = mix.plenos + mix.partilhas;
+  const listed = db.consultants.reduce((s, c) => s + listedIn(c, year), 0);
+  return { sold, listed, rate: listed ? sold / listed : null };
+}
+
+/** What the active listings are expected to bring, against what is left to bill
+ *  to reach the goals of the year. */
+export function goalCoverage(db: Db, year: string, plenoRatio: number, now = new Date()): { expected: number; missing: number; ratio: number | null; people: number } {
+  const rows = new Map(listingRows(db).map((r) => [r.consultantId, r]));
+  let total = 0;
+  let missing = 0;
+  let people = 0;
+  for (const c of db.consultants) {
+    const pace = c.status === "inativo" ? null : goalPace(c, year, now);
+    if (!pace || pace.reached) continue;
+    people++;
+    missing += pace.missing;
+    const row = rows.get(c.id);
+    if (row) total += expected(row, plenoRatio);
+  }
+  return { expected: cents(total), missing: cents(missing), ratio: missing ? total / missing : null, people };
 }
